@@ -1,76 +1,16 @@
-# Dev deployment with Traefik + Cloudflare Tunnel (no static IP needed).
-# Usage:
-#   1. Copy apps/api/.env.example to .env and fill in all values
-#   2. Set CF_TUNNEL_TOKEN in .env (from Cloudflare Zero Trust dashboard)
-#   3. docker compose -f docker-compose.dev.yml up -d
-
 name: notipo-dev
 
 services:
-  cloudflared:
-    container_name: notipo-cloudflared
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    command: tunnel --no-autoupdate --protocol http2 run --token ${CF_TUNNEL_TOKEN}
-
-  traefik:
-    container_name: notipo-traefik
-    image: traefik:v3.6.2
-    restart: unless-stopped
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --accesslog=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
-  app:
-    container_name: notipo-app
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://notipo:${DB_PASSWORD}@postgres:5432/notipo
-    env_file: .env
-    command: ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node dist/index.js"]
-    volumes:
-      - uploads:/app/apps/api/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.app.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || Path(`/health`))
-      - traefik.http.routers.app.entrypoints=web
-      - traefik.http.routers.app.priority=20
-      - traefik.http.services.app.loadbalancer.server.port=3000
-
-  web:
-    container_name: notipo-web
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_PLAUSIBLE_SRC: ${NEXT_PUBLIC_PLAUSIBLE_SRC:-}
-    restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.web.rule=Host(`${DOMAIN}`)
-      - traefik.http.routers.web.entrypoints=web
-      - traefik.http.routers.web.priority=10
-      - traefik.http.services.web.loadbalancer.server.port=80
-
   postgres:
-    container_name: notipo-postgres
     image: postgres:16-alpine
+    container_name: notipo-dev-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: notipo
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: localdev
       POSTGRES_DB: notipo
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -79,6 +19,36 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: notipo-dev-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://notipo:localdev@postgres:5432/notipo
+    env_file: .env
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: notipo-dev-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      API_INTERNAL_URL: http://app:3000
+    depends_on:
+      - app
+
 volumes:
   pgdata:
-  uploads:

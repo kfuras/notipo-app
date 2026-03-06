@@ -71,7 +71,7 @@ git clone https://github.com/kfuras/notipo.git
 cd notipo
 cp apps/api/.env.example apps/api/.env
 # Edit apps/api/.env — set ENCRYPTION_KEY and API_KEY at minimum
-docker compose --profile full up --build
+docker compose -f docker-compose.dev.yml --profile full up --build
 ```
 
 Open `http://localhost/admin` and register with your email and password. The first user becomes the owner — see [First-run setup](#first-run-setup) to connect Notion and WordPress.
@@ -173,7 +173,7 @@ The fastest dev loop. Postgres runs in Docker; the app and web frontend run loca
 **1. Start Postgres:**
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 **2. Install dependencies (from monorepo root):**
@@ -228,7 +228,7 @@ cp apps/api/.env.example apps/api/.env
 **2. Build and start:**
 
 ```bash
-docker compose --profile full up --build
+docker compose -f docker-compose.dev.yml --profile full up --build
 ```
 
 The admin UI is at `http://localhost/admin` (nginx proxies API requests to the backend).
@@ -239,7 +239,7 @@ On first start the API container runs database migrations automatically. Registe
 
 ## Production — VPS self-hosted
 
-Uses `docker-compose.prod.yml` with Traefik as a reverse proxy. TLS certificates are issued automatically via Let's Encrypt.
+Uses pre-built Docker images from GitHub Container Registry, Traefik as a reverse proxy, and automatic TLS via Let's Encrypt.
 
 **Requirements:**
 - A Linux VPS with Docker and Docker Compose installed
@@ -272,7 +272,7 @@ ACME_EMAIL=you@example.com
 **3. Start the stack:**
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 On first start, the app container runs `prisma migrate deploy` before the server starts. Check the logs if the health check fails:
@@ -288,9 +288,11 @@ Open `https://yourdomain.com/admin` and register with your email and password. T
 **Updating to a new version:**
 
 ```bash
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose pull
+docker compose up -d
 ```
+
+To pin a specific version, replace `latest` with a version tag (e.g. `1.0.0`) in `docker-compose.yml`.
 
 ---
 
