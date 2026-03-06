@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useApi, useApiCall } from "@/hooks/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api-client";
+import { capture } from "@/lib/posthog";
 import { useEventSource } from "@/hooks/use-event-source";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -420,6 +421,7 @@ function OAuthResultHandler({ onSettingsUpdate }: { onSettingsUpdate: () => void
     if (result) {
       if (result === "success") {
         toast.success("Notion connected successfully");
+        capture("notion_connected", { method: "oauth" });
         onSettingsUpdate();
       } else {
         const reason = searchParams.get("reason")?.replace(/_/g, " ") ?? "unknown error";
@@ -591,6 +593,7 @@ function NotionStepContent({
         method: "PUT",
         body: { accessToken: token, databaseId: dbId || undefined },
       });
+      capture("notion_connected", { method: "manual" });
       onDone();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save");
@@ -673,6 +676,7 @@ function WordPressStepContent({
         method: "PUT",
         body: { siteUrl, username, appPassword },
       });
+      capture("wordpress_connected");
       onDone();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save");

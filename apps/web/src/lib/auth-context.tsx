@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, ApiError } from "./api-client";
+import { capture, identifyUser, resetUser } from "./posthog";
 
 interface Impersonation {
   tenantId: string;
@@ -94,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
         impersonating: null,
       });
+      identifyUser(email);
+      capture("user_logged_in", { method: "email" });
     },
     [detectAdmin],
   );
@@ -110,8 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("notipo_email", email);
         const isAdmin = await detectAdmin(res.data.apiKey);
         setState({ apiKey: res.data.apiKey, email, isAdmin, isLoading: false, impersonating: null });
+        identifyUser(email);
+        capture("user_registered", { auto_verified: true });
         return true; // auto-logged in
       }
+      capture("user_registered", { auto_verified: false });
       return false; // needs email verification
     },
     [detectAdmin],
@@ -122,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("notipo_email");
     sessionStorage.removeItem(IMPERSONATION_KEY);
     setState({ apiKey: null, email: null, isAdmin: false, isLoading: false, impersonating: null });
+    resetUser();
   }, []);
 
   const impersonate = useCallback((tenantId: string, tenantName: string) => {
