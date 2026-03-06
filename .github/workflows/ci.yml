@@ -36,3 +36,4 @@ jobs:
       - run: npm ci
       - run: npm run generate -w @notipo/api
       - run: npx turbo build
+      - run: npx turbo test
