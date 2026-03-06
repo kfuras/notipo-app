@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://app.notipo.com/auth/register"><strong>Try the hosted version free for 7 days</strong></a> · <a href="https://notipo.com/docs"><strong>Docs</strong></a> · <a href="https://notipo.com/docs/self-hosting"><strong>Self-Hosting Guide</strong></a>
+  <a href="https://notipo.com/auth/register"><strong>Try the hosted version free for 7 days</strong></a> · <a href="https://notipo.com/docs"><strong>Docs</strong></a> · <a href="https://notipo.com/docs/self-hosting"><strong>Self-Hosting Guide</strong></a>
 </p>
 
 <br />
@@ -26,7 +26,7 @@
 
 Notipo lets you write blog posts in Notion and publish them to WordPress by changing a status. Images, SEO metadata, featured images, and code blocks are handled automatically. Self-host it on any VPS with Docker, or use the hosted version at [notipo.com](https://notipo.com).
 
-Don't want to self-host? [Sign up for a free account](https://app.notipo.com/auth/register) — every new account gets a **7-day Pro trial** with all features, no credit card required.
+Don't want to self-host? [Sign up for a free account](https://notipo.com/auth/register) — every new account gets a **7-day Pro trial** with all features, no credit card required.
 
 ## Features
 

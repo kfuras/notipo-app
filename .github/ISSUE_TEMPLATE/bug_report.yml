@@ -15,7 +15,7 @@ body:
       label: Deployment
       options:
         - Self-hosted (Docker)
-        - Hosted (app.notipo.com)
+        - Hosted (notipo.com)
     validations:
       required: true
   - type: textarea
