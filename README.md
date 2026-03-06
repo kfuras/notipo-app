@@ -69,8 +69,8 @@ The fastest way to try Notipo locally with Docker (no Node.js required):
 ```bash
 git clone https://github.com/kfuras/notipo.git
 cd notipo
-cp apps/api/.env.example apps/api/.env
-# Edit apps/api/.env — set ENCRYPTION_KEY and API_KEY at minimum
+cp .env.example .env
+# Edit .env — set ENCRYPTION_KEY and API_KEY at minimum
 docker compose -f docker-compose.dev.yml --profile full up --build
 ```
 
@@ -107,7 +107,7 @@ Open `http://localhost/admin` and register with your email and password. The fir
 Copy the example file and fill in the values:
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp .env.example .env
 ```
 
 **Required for all environments:**
@@ -185,7 +185,7 @@ npm install
 **3. Copy and edit env:**
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp .env.example .env
 # DATABASE_URL defaults to localhost:5432 — correct for this mode
 ```
 
@@ -221,7 +221,7 @@ Runs the full production images locally. No Node, npm, or Prisma CLI needed on y
 **1. Copy and edit env:**
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp .env.example .env
 # Fill in ENCRYPTION_KEY and API_KEY at minimum
 ```
 
@@ -256,7 +256,7 @@ cd notipo
 **2. Create and configure `.env`:**
 
 ```bash
-cp apps/api/.env.example apps/api/.env
+cp .env.example .env
 ```
 
 Set at minimum:
