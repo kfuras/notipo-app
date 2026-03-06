@@ -20,45 +20,67 @@
   <a href="https://notipo.com/auth/register"><strong>Try the hosted version free for 7 days</strong></a> · <a href="https://notipo.com/docs"><strong>Docs</strong></a> · <a href="https://notipo.com/docs/self-hosting"><strong>Self-Hosting Guide</strong></a>
 </p>
 
-<br />
+---
 
-## About
-
-Notipo lets you write blog posts in Notion and publish them to WordPress by changing a status. Images, SEO metadata, featured images, and code blocks are handled automatically. Self-host it on any VPS with Docker, or use the hosted version at [notipo.com](https://notipo.com).
+Write blog posts in Notion and publish them to WordPress by changing a status. Images, SEO metadata, featured images, and code blocks are handled automatically. Self-host it on any VPS with Docker, or use the hosted version at [notipo.com](https://notipo.com).
 
 Don't want to self-host? [Sign up for a free account](https://notipo.com/auth/register) — every new account gets a **7-day Pro trial** with all features, no credit card required.
 
 ## Features
 
-<table>
-<tr>
-<td align="center"><img src="https://notipo.com/features/4-dashboard.gif" alt="Dashboard" width="400" /></td>
-<td align="center"><img src="https://notipo.com/features/1-jobs.gif" alt="Jobs" width="400" /></td>
-</tr>
-<tr>
-<td align="center"><img src="https://notipo.com/features/2-categories.gif" alt="Categories & Tags" width="400" /></td>
-<td align="center"><img src="https://notipo.com/features/3-settings.gif" alt="Settings" width="400" /></td>
-</tr>
-</table>
+### Live Dashboard & Job Tracking
 
-- **Notion to WordPress sync** — change a status in Notion, post appears as a WordPress draft
+See all your posts at a glance with real-time status updates. The dashboard shows post counts, recent jobs with live progress via Server-Sent Events, and connection health for Notion and WordPress.
+
+<p align="center">
+  <img src="https://notipo.com/features/4-dashboard.gif" alt="Dashboard with live job tracking" width="700" />
+</p>
+
+### Job Monitoring & History
+
+Every sync and publish action runs as a background job. Track progress in real time, filter by status, and inspect error details when something goes wrong.
+
+<p align="center">
+  <img src="https://notipo.com/features/1-jobs.gif" alt="Job monitoring and history" width="700" />
+</p>
+
+### Auto-Import Categories & Tags
+
+WordPress categories and tags are automatically imported and pushed to your Notion database as select options. Upload custom background images per category for featured image generation.
+
+<p align="center">
+  <img src="https://notipo.com/features/2-categories.gif" alt="Categories and tags sync" width="700" />
+</p>
+
+### Settings & Code Highlighting
+
+Connect Notion (OAuth or manual token), set WordPress credentials, choose your code highlighter (Prism.js, Highlight.js, or WordPress default), and configure Slack/Discord webhook notifications.
+
+<p align="center">
+  <img src="https://notipo.com/features/3-settings.gif" alt="Settings and code highlighting" width="700" />
+</p>
+
+### Everything else
+
 - **Two-step publish** — review the draft in WordPress, then set "Publish" in Notion to go live
-- **Content updates** — re-sync content from Notion without creating duplicates
-- **Featured images** — auto-generated with your post title overlaid on a background (upload your own, Unsplash, or gradient fallback)
-- **Inline images** — Notion images uploaded to your WordPress media library, URLs replaced automatically
+- **Content updates** — re-sync from Notion without creating duplicates
+- **Featured images** — auto-generated with your post title on a background (upload your own, Unsplash, or gradient)
+- **Inline images** — Notion images uploaded to your WordPress media library automatically
 - **SEO metadata** — Rank Math focus keyword, title, and description applied during sync
-- **Code highlighting** — Prism.js or Highlight.js syntax blocks in your posts
-- **Category and tag sync** — WordPress categories and tags imported into Notion as dropdown options
 - **Webhook notifications** — Slack or Discord alerts when jobs fail
 - **Multi-tenant** — run multiple blogs from a single instance
 
 ## How It Works
 
-You write posts in Notion. When you change the status to "Post to Wordpress", Notipo converts the content to Gutenberg blocks, uploads images, generates a featured image, applies SEO metadata, and creates a WordPress draft. When you set the status to "Publish", the draft goes live. Use "Update Wordpress" to re-sync content — it only auto-publishes if the post is currently live.
+1. **Write** your post in Notion
+2. **Set the status** to "Post to Wordpress" — Notipo converts content to Gutenberg blocks, uploads images, generates a featured image, applies SEO metadata, and creates a WordPress draft
+3. **Review** the draft in WordPress
+4. **Set the status** to "Publish" — the draft goes live
+5. **Update anytime** — set "Update Wordpress" to re-sync content from Notion
 
 Notion webhooks are the primary trigger. A safety-net poll runs every 5 minutes to catch missed events. If a job fails, the Notion status resets automatically so you can retry.
 
-All credentials are encrypted in the database with AES-256-GCM. WordPress credentials are validated on save.
+All credentials are encrypted in the database with AES-256-GCM.
 
 ---
 
@@ -377,6 +399,6 @@ Mobile-optimized: bottom navigation on phones, sidebar on desktop.
 
 ## License
 
-Copyright (C) 2026 Kjetil Furås
+Copyright (C) 2026 Kjetil Furas
 
 Licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
