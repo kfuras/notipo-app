@@ -91,9 +91,21 @@ All credentials are encrypted in the database with AES-256-GCM.
 
 ---
 
+## Cloud vs Self-Hosted
+
+|  | **Notipo Cloud** | **Self-Hosted** |
+|--|-------------------|-----------------|
+| **Setup** | Sign up and start publishing in minutes | You deploy and manage your own server |
+| **Infrastructure** | Managed for you — backups, updates, uptime | You handle hosting, updates, and backups |
+| **Features** | Free tier (5 posts/month) or Pro ($19/month, unlimited) | All features unlocked, no restrictions |
+| **Updates** | Continuous — new features available immediately | Pull the latest Docker image when you want |
+| **Email & auth** | Built in — email verification and password reset | Optional — works without email, first user auto-verified |
+| **Support** | Direct support from the developer | Community support via [GitHub Discussions](https://github.com/kfuras/notipo/discussions) |
+| **Data location** | EU servers | Anywhere you choose |
+
 ## Self-Hosting
 
-When self-hosting, **all features are unlocked** — unlimited posts, featured images, webhooks, and instant sync. No billing or Stripe configuration needed.
+All features are unlocked when self-hosting — unlimited posts, featured images, webhooks, and instant sync. No billing or Stripe configuration needed.
 
 ```bash
 git clone https://github.com/kfuras/notipo.git
@@ -117,6 +129,13 @@ For local development setup, see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 - **Frontend:** [Next.js](https://nextjs.org), [Tailwind CSS](https://tailwindcss.com), [shadcn/ui](https://ui.shadcn.com)
 - **Infrastructure:** Docker, [Traefik](https://traefik.io), nginx
 - **Monorepo:** [Turborepo](https://turbo.build) + npm workspaces
+
+---
+
+## Feedback & Community
+
+- [GitHub Discussions](https://github.com/kfuras/notipo/discussions) — ask questions, suggest features, share your setup
+- [GitHub Issues](https://github.com/kfuras/notipo/issues) — report bugs
 
 ---
 
