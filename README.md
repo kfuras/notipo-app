@@ -17,12 +17,19 @@
 </p>
 
 <p align="center">
-  <a href="https://notipo.com/auth/register"><strong>Try the hosted version free for 7 days</strong></a> · <a href="https://notipo.com/docs"><strong>Docs</strong></a> · <a href="https://notipo.com/docs/self-hosting"><strong>Self-Hosting Guide</strong></a>
+  <a href="https://notipo.com/auth/register"><strong>Try it free</strong></a> · <a href="https://notipo.com/docs"><strong>Docs</strong></a> · <a href="https://notipo.com/docs/self-hosting"><strong>Self-Hosting</strong></a>
 </p>
 
 ---
 
-Write blog posts in Notion and publish them to WordPress by changing a status. Images, SEO metadata, featured images, and code blocks are handled automatically. Self-host it on any VPS with Docker, or use the hosted version at [notipo.com](https://notipo.com).
+An open-source alternative to manual copy-paste, Zapier/n8n workflows, and WordPress plugins for publishing from Notion. Self-host it on any VPS with Docker, or use the hosted version at [notipo.com](https://notipo.com).
+
+## Why Notipo?
+
+- **Zero manual work** — change a status in Notion and your post appears in WordPress as a draft, with images uploaded, SEO metadata applied, and a featured image generated. No copy-pasting, no reformatting.
+- **Your content stays yours** — self-host on your own server with all features unlocked. No vendor lock-in, no usage limits, no tracking.
+- **Built for writers, not developers** — no Zapier workflows to maintain, no n8n nodes to configure, no WordPress plugins to keep updated. One setup, then it just works.
+- **Handles the hard parts** — Notion image URLs expire after an hour. Notipo re-uploads every image to your WordPress media library so nothing breaks. Code blocks get proper syntax highlighting. SEO fields are filled automatically.
 
 Don't want to self-host? [Sign up for a free account](https://notipo.com/auth/register) — every new account gets a **7-day Pro trial** with all features, no credit card required.
 
@@ -84,307 +91,23 @@ All credentials are encrypted in the database with AES-256-GCM.
 
 ---
 
-## Quick Start
+## Self-Hosting
 
-The fastest way to try Notipo locally with Docker (no Node.js required):
+When self-hosting, **all features are unlocked** — unlimited posts, featured images, webhooks, and instant sync. No billing or Stripe configuration needed.
 
 ```bash
 git clone https://github.com/kfuras/notipo.git
 cd notipo
 cp .env.example .env
 # Edit .env — set ENCRYPTION_KEY and API_KEY at minimum
-docker compose -f docker-compose.dev.yml --profile full up --build
-```
-
-Open `http://localhost/admin` and register with your email and password. The first user becomes the owner — see [First-run setup](#first-run-setup) to connect Notion and WordPress.
-
----
-
-## Documentation
-
-- [Prerequisites](#prerequisites)
-- [Environment variables](#environment-variables)
-- [Development — native Node](#development--native-node)
-- [Development — local Docker](#development--local-docker-no-node-required)
-- [Production — VPS self-hosted](#production--vps-self-hosted)
-- [First-run setup](#first-run-setup)
-- [Notion database setup](#notion-database-setup)
-- [Admin UI](#admin-ui)
-- [Tech stack](#tech-stack)
-
----
-
-## Prerequisites
-
-| Tool | Minimum version | Notes |
-|------|----------------|-------|
-| Node.js | 20 | Native dev only |
-| Docker | 24 | All deployment modes |
-| Docker Compose | v2 (`docker compose`) | Not v1 (`docker-compose`) |
-
----
-
-## Environment variables
-
-Copy the example file and fill in the values:
-
-```bash
-cp .env.example .env
-```
-
-**Required for all environments:**
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `ENCRYPTION_KEY` | 64-char hex string — `openssl rand -hex 32` |
-| `API_KEY` | Admin API key for `/api/admin/*` routes — `openssl rand -hex 16` |
-| `ALLOW_SIGNUP` | Set to `true` for open registration (default: `false` — only the first user can register) |
-
-**Notion OAuth** (optional — enables "Connect to Notion" button):
-
-| Variable | Description |
-|----------|-------------|
-| `NOTION_OAUTH_CLIENT_ID` | From your Notion public integration |
-| `NOTION_OAUTH_CLIENT_SECRET` | From your Notion public integration |
-| `NOTION_OAUTH_REDIRECT_URI` | `https://yourdomain.com/api/notion/oauth/callback` |
-| `NOTION_WEBHOOK_SECRET` | HMAC secret for webhook verification (from Notion integration settings) |
-| `POLL_INTERVAL_SECONDS` | Safety-net poll interval in seconds (default: `300`) |
-
-**Email (Resend)** (required for email verification and password reset):
-
-| Variable | Description |
-|----------|-------------|
-| `RESEND_API_KEY` | API key from [resend.com](https://resend.com) |
-| `RESEND_FROM_EMAIL` | Sender address (e.g. `noreply@yourdomain.com`) — verify your domain in Resend |
-| `ADMIN_NOTIFY_EMAIL` | (Optional) Email address to notify when new users sign up |
-
-**Unsplash** (optional — enhances featured image backgrounds):
-
-| Variable | Description |
-|----------|-------------|
-| `UNSPLASH_ACCESS_KEY` | API key from [unsplash.com/developers](https://unsplash.com/developers) — when set, featured images use a relevant Unsplash photo instead of a plain gradient |
-
-**Required for VPS deployment only:**
-
-| Variable | Description |
-|----------|-------------|
-| `DOMAIN` | Your public domain, e.g. `yourdomain.com` |
-| `ACME_EMAIL` | Email for Let's Encrypt certificate notifications |
-| `DB_PASSWORD` | Postgres password — `openssl rand -hex 16` |
-
-**Seed variables** (development only — `npm run seed -w @notipo/api`):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SEED_TENANT_NAME` | `Dev Tenant` | Display name for your blog |
-| `SEED_TENANT_SLUG` | `dev` | URL-safe identifier |
-| `SEED_OWNER_EMAIL` | `dev@notipo.local` | Your login email |
-| `SEED_OWNER_PASSWORD` | _(none)_ | Set to log in with email/password instead of API key |
-| `SEED_API_KEY` | falls back to `API_KEY` | Tenant API key for calling the API |
-| `SEED_NOTION_TRIGGER_STATUS` | `Ready to Publish` | Notion status that triggers sync |
-
-The seed is for local development only. In production, register your account through the admin UI instead — the first user becomes the owner automatically.
-
----
-
-## Development — native Node
-
-The fastest dev loop. Postgres runs in Docker; the app and web frontend run locally with hot reload.
-
-**1. Start Postgres:**
-
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-**2. Install dependencies (from monorepo root):**
-
-```bash
-npm install
-```
-
-**3. Copy and edit env:**
-
-```bash
-cp .env.example .env
-# DATABASE_URL defaults to localhost:5432 — correct for this mode
-```
-
-**4. Run migrations and seed:**
-
-```bash
-npm run migrate -w @notipo/api
-npm run seed -w @notipo/api
-```
-
-**5. Start all apps:**
-
-```bash
-turbo dev
-```
-
-Or start individually:
-
-```bash
-npm run dev -w @notipo/api    # API at http://localhost:3000
-npm run dev -w @notipo/web    # Web at http://localhost:3001
-```
-
-The API is available at `http://localhost:3000`.
-The admin UI is at `http://localhost:3001/admin`.
-
----
-
-## Development — local Docker (no Node required)
-
-Runs the full production images locally. No Node, npm, or Prisma CLI needed on your machine.
-
-**1. Copy and edit env:**
-
-```bash
-cp .env.example .env
-# Fill in ENCRYPTION_KEY and API_KEY at minimum
-```
-
-**2. Build and start:**
-
-```bash
-docker compose -f docker-compose.dev.yml --profile full up --build
-```
-
-The admin UI is at `http://localhost/admin` (nginx proxies API requests to the backend).
-
-On first start the API container runs database migrations automatically. Register with your email and password — the first user becomes the owner.
-
----
-
-## Production — VPS self-hosted
-
-Uses pre-built Docker images from GitHub Container Registry, Traefik as a reverse proxy, and automatic TLS via Let's Encrypt.
-
-**Requirements:**
-- A Linux VPS with Docker and Docker Compose installed
-- A domain name with an A record pointing to the VPS IP
-- Port 80 and 443 open in the firewall
-
-**1. Clone the repo on the VPS:**
-
-```bash
-git clone https://github.com/kfuras/notipo.git
-cd notipo
-```
-
-**2. Create and configure `.env`:**
-
-```bash
-cp .env.example .env
-```
-
-Set at minimum:
-
-```
-ENCRYPTION_KEY=<openssl rand -hex 32>
-API_KEY=<openssl rand -hex 16>
-DB_PASSWORD=<openssl rand -hex 16>
-DOMAIN=yourdomain.com
-ACME_EMAIL=you@example.com
-```
-
-**3. Start the stack:**
-
-```bash
 docker compose up -d
 ```
 
-On first start, the app container runs `prisma migrate deploy` before the server starts. Check the logs if the health check fails:
+Open `https://yourdomain.com/admin` and register. The first user becomes the owner with full access.
 
-```bash
-docker logs notipo-app
-```
+For the full self-hosting guide (requirements, environment variables, TLS setup, updating), see the **[Self-Hosting docs](https://notipo.com/docs/self-hosting)**.
 
-**4. Register your account:**
-
-Open `https://yourdomain.com/admin` and register with your email and password. The first user becomes the owner with full access — no email verification required.
-
-**Updating to a new version:**
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-To pin a specific version, replace `latest` with a version tag (e.g. `1.0.0`) in `docker-compose.yml`.
-
----
-
-## First-run setup
-
-After registering, you need to connect Notion and WordPress. An inline onboarding stepper on the dashboard guides you through three steps:
-
-**Step 1 — Duplicate the Notion template:**
-Open the [Notipo Blog Template](https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f8091a104eb8773fbf390) and duplicate it to your workspace. This gives you a database with all required properties pre-configured. Confirm in the stepper once done.
-
-**Step 2 — Connect Notion** (choose one):
-- **OAuth** (recommended for hosted): Click "Connect to Notion" → authorize in Notion's consent screen → select the database you just duplicated. Credentials and database ID are configured automatically. Requires `NOTION_OAUTH_*` env vars.
-- **Internal integration** (recommended for self-hosted): Click "Use manual token" in Settings, paste your integration token and database ID. See the [full step-by-step guide](https://notipo.com/docs/notion-setup#internal-integration) for creating the integration, configuring capabilities, sharing the database, and finding the database ID.
-
-**Step 3 — Connect WordPress:**
-- Site URL (e.g. `https://yourblog.com`)
-- Username (your WordPress admin username, found under Users in WP admin)
-- Application password (WP admin → Users → Profile → scroll to Application Passwords → enter a name like "Notipo" → click "Add New Application Password")
-
-When you save WordPress credentials, all your WP categories and tags are automatically imported into Notipo and pushed to your Notion database as `Category` select and `Tags` multi-select options. They stay in sync — new categories or tags you create in WordPress are picked up every 60 seconds and appear in Notion automatically. You can also trigger a manual sync from the **Categories & Tags** page.
-
----
-
-## Notion database setup
-
-Start by duplicating the [Notipo Blog Template](https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f8091a104eb8773fbf390) — it has all required properties pre-configured.
-
-Your Notion database needs these properties:
-
-| Property | Type | Notes |
-|----------|------|-------|
-| Name | Title | Post title (default Notion title column) |
-| Status | Select | Options: `Post to Wordpress`, `Publish`, `Update Wordpress`, `Ready to Review`, `Published` |
-| Category | Select | Auto-populated from WordPress categories |
-| Tags | Multi-select | Auto-populated from WordPress tags |
-| Slug | Text | URL slug for the WordPress post |
-| Featured Image Title | Text | Text overlay on the featured image (defaults to post title if blank) |
-| SEO Keyword | Text | Rank Math focus keyword |
-| WordPress Link | URL | Auto-filled with the WP post URL after sync/publish |
-
-The `Status` options are configurable per tenant — the names above are defaults. `Category` and `Tags` options are automatically synced from your WordPress site once you connect WP credentials. After syncing, the `WordPress Link` property is updated with the wp-admin edit URL for drafts, or the live frontend URL for published posts. If you delete a WP post and re-trigger "Post to Wordpress", a fresh draft is created automatically.
-
----
-
-## Billing & Plans
-
-When self-hosting, **all features are unlocked** with no restrictions — unlimited posts, featured images, webhooks, and instant sync. No billing configuration needed. New registrations automatically get the PRO plan when Stripe is not configured.
-
-The hosted version at [notipo.com](https://notipo.com) offers a Free tier (5 posts/month) and a Pro plan ($19/month) with unlimited posts and all features.
-
----
-
-## Admin UI
-
-The admin UI is served at `/admin`. Login with email and password, or enter an API key directly.
-
-New tenants see an onboarding stepper that guides them through connecting Notion and WordPress. The dashboard shows post status counts, recent jobs with live progress updates (via Server-Sent Events), and a "Sync Now" button for instant Notion polling.
-
-Pages:
-
-- **Dashboard** — post counts, recent jobs, config health check, instant sync
-- **Posts** — full post list with status badges, WordPress links, categories
-- **Categories & Tags** — auto-imported from WordPress, custom background images for featured image generation
-- **Jobs** — background job log with error details and status filtering
-- **Settings** — Notion connection, WordPress credentials, trigger statuses, code highlighter, webhook URL
-- **Billing** — current plan, upgrade to Pro, manage subscription
-- **Account** — profile, API key, change password, delete account
-- **Tenants** — admin-only, create and manage tenants
-
-Mobile-optimized: bottom navigation on phones, sidebar on desktop.
+For local development setup, see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 
 ---
 
