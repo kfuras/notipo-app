@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useApi, useApiCall } from "@/hooks/use-api";
 import { useAuth } from "@/lib/auth-context";
+import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,6 +84,7 @@ export default function AccountPage() {
         method: "DELETE",
         body: { password: deletePassword },
       });
+      capture("account_deleted");
       logout();
       router.push("/");
     } catch (err) {

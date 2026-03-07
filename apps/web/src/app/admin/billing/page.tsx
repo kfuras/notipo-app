@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useApi, useApiCall } from "@/hooks/use-api";
+import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ export default function BillingPage() {
   useEffect(() => {
     if (searchParams.get("checkout") === "success") {
       toast.success("Upgrade successful! Welcome to Pro.");
+      capture("checkout_completed");
       refetch();
       const url = new URL(window.location.href);
       url.searchParams.delete("checkout");
@@ -58,6 +60,7 @@ export default function BillingPage() {
   const b = billing?.data;
 
   const handleCheckout = () => {
+    capture("upgrade_clicked", { current_plan: b?.plan });
     router.push("/admin/billing/checkout");
   };
 

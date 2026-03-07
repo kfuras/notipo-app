@@ -93,9 +93,11 @@ export default function DashboardPage() {
       if (payload.status === "COMPLETED") {
         const label = payload.type === "PUBLISH_POST" ? "Published" : "Synced";
         toast.success(`${label} successfully`);
+        capture("job_completed", { type: payload.type });
       } else if (payload.status === "FAILED") {
         const label = payload.type === "PUBLISH_POST" ? "Publish" : "Sync";
         toast.error(`${label} failed — check Jobs for details`);
+        capture("job_failed", { type: payload.type });
       }
 
       refetchJobs();
@@ -127,6 +129,7 @@ export default function DashboardPage() {
   const handleSyncNow = async () => {
     setSyncing(true);
     setSyncError(null);
+    capture("sync_now_clicked");
     try {
       await call("/api/sync-now", { method: "POST" });
     } catch (err) {
@@ -421,6 +424,7 @@ function OAuthResultHandler({ onSettingsUpdate }: { onSettingsUpdate: () => void
     if (result) {
       if (result === "success") {
         toast.success("Notion connected successfully");
+        capture("onboarding_step_completed", { step: "notion", method: "oauth" });
         capture("notion_connected", { method: "oauth" });
         onSettingsUpdate();
       } else {
@@ -456,6 +460,7 @@ function SetupCard({
   function markTemplateDone() {
     if (apiKey) localStorage.setItem("notipo_template_done", apiKey);
     setTemplateDone(true);
+    capture("onboarding_step_completed", { step: "template" });
   }
 
   const activeStep = !templateDone ? 1 : !notion.configured ? 2 : !wordpress.configured ? 3 : 0;
@@ -593,6 +598,7 @@ function NotionStepContent({
         method: "PUT",
         body: { accessToken: token, databaseId: dbId || undefined },
       });
+      capture("onboarding_step_completed", { step: "notion", method: "manual" });
       capture("notion_connected", { method: "manual" });
       onDone();
     } catch (err) {
@@ -676,6 +682,7 @@ function WordPressStepContent({
         method: "PUT",
         body: { siteUrl, username, appPassword },
       });
+      capture("onboarding_step_completed", { step: "wordpress" });
       capture("wordpress_connected");
       onDone();
     } catch (err) {
@@ -741,6 +748,13 @@ function SetupCompleteCard({
   const [dismissed, setDismissed] = useState(
     () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_setup_dismissed") === apiKey,
   );
+
+  useEffect(() => {
+    if (apiKey && localStorage.getItem("notipo_setup_complete_tracked") !== apiKey) {
+      capture("onboarding_completed");
+      localStorage.setItem("notipo_setup_complete_tracked", apiKey);
+    }
+  }, [apiKey]);
 
   if (dismissed) return null;
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useApi, useApiCall } from "@/hooks/use-api";
+import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,6 +79,7 @@ function NotionCard({
         method: "PUT",
         body: { accessToken: token, databaseId: dbId || undefined },
       });
+      capture("settings_notion_updated", { method: "manual" });
       setToken("");
       setDbId("");
       setShowManual(false);
@@ -93,6 +95,7 @@ function NotionCard({
 
   async function disconnect() {
     await call("/api/settings/notion", { method: "DELETE" });
+    capture("notion_disconnected");
     setConfirmDisconnect(false);
     onUpdate();
   }
@@ -212,6 +215,7 @@ function WordPressCard({
         method: "PUT",
         body: { siteUrl, username, appPassword },
       });
+      capture("settings_wordpress_updated");
       setEditing(false);
       onUpdate();
     } catch (err) {
@@ -225,6 +229,7 @@ function WordPressCard({
 
   async function disconnect() {
     await call("/api/settings/wordpress", { method: "DELETE" });
+    capture("wordpress_disconnected");
     setConfirmDisconnect(false);
     onUpdate();
   }
@@ -336,6 +341,7 @@ function CodeHighlighterCard({
       method: "PATCH",
       body: { codeHighlighter: value },
     });
+    capture("settings_code_highlighter_changed", { value });
     onUpdate();
   }
 
@@ -389,6 +395,7 @@ function WebhookCard({
         method: "PATCH",
         body: { webhookUrl: url },
       });
+      capture("settings_webhook_updated", { has_url: !!url });
       setSuccess("Saved");
       onUpdate();
     } catch (err) {
