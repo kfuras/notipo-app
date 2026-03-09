@@ -32,6 +32,10 @@ server {
         proxy_set_header Host $host;
     }
 
+    # Strip trailing slashes (Next.js static export has no index.html in subdirs)
+    absolute_redirect off;
+    rewrite ^(.+)/$ $1 permanent;
+
     # --- Admin UI (local static files) ---
     location /admin {
         add_header Cache-Control "no-cache";

@@ -37,6 +37,10 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    # Strip trailing slashes (Next.js static export has no index.html in subdirs)
+    absolute_redirect off;
+    rewrite ^(.+)/$ $1 permanent;
+
     # HTML pages — always revalidate
     location / {
         add_header Cache-Control "no-cache";
