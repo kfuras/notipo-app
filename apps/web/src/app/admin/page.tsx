@@ -121,10 +121,9 @@ export default function DashboardPage() {
     failed: posts.filter((p) => p.status === "FAILED").length,
   };
 
-  const templateDone = typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_template_done") === apiKey;
   const servicesConnected = !!notion?.configured && !!wordpress?.configured;
   const needsSetup = settings && !servicesConnected;
-  const allSetUp = servicesConnected && templateDone;
+  const allSetUp = servicesConnected;
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -463,12 +462,11 @@ function SetupCard({
     capture("onboarding_step_completed", { step: "template" });
   }
 
-  const activeStep = !templateDone ? 1 : !notion.configured ? 2 : !wordpress.configured ? 3 : 0;
+  const activeStep = !notion.configured ? 1 : !wordpress.configured ? 2 : 0;
 
   const steps = [
-    { n: 1, done: templateDone },
-    { n: 2, done: notion.configured },
-    { n: 3, done: wordpress.configured },
+    { n: 1, done: notion.configured },
+    { n: 2, done: wordpress.configured },
   ];
 
   return (
@@ -490,13 +488,11 @@ function SetupCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <SetupStepRow number={1} title="Duplicate Notion template" done={templateDone} active={activeStep === 1}>
-          <TemplateStepContent onDone={markTemplateDone} />
-        </SetupStepRow>
-        <SetupStepRow number={2} title="Connect Notion" done={notion.configured} active={activeStep === 2}>
+        <TemplateTip done={templateDone} onDone={markTemplateDone} />
+        <SetupStepRow number={1} title="Connect Notion" done={notion.configured} active={activeStep === 1}>
           <NotionStepContent cfg={notion} onDone={onUpdate} />
         </SetupStepRow>
-        <SetupStepRow number={3} title="Connect WordPress" done={wordpress.configured} active={activeStep === 3}>
+        <SetupStepRow number={2} title="Connect WordPress" done={wordpress.configured} active={activeStep === 2}>
           <WordPressStepContent onDone={onUpdate} />
         </SetupStepRow>
       </CardContent>
@@ -545,26 +541,32 @@ function SetupStepRow({
   );
 }
 
-function TemplateStepContent({ onDone }: { onDone: () => void }) {
+function TemplateTip({ done, onDone }: { done: boolean; onDone: () => void }) {
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Notipo uses a Notion database with specific properties (Status, Category, Tags, SEO Keyword, etc.)
-        to sync and publish your posts. Duplicate our template into your workspace to get started.
-      </p>
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" asChild>
-          <a
-            href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open template
-          </a>
-        </Button>
-        <Button size="sm" onClick={onDone}>
-          I&apos;ve duplicated it
-        </Button>
+    <div className="rounded-lg border border-dashed border-muted-foreground/25 bg-muted/30 p-3 mb-2">
+      <div className="flex items-start gap-2.5">
+        <svg className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+        </svg>
+        <div className="space-y-2 flex-1">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Notipo uses a Notion database with specific properties (Status, Category, Tags, SEO Keyword, etc.).{" "}
+            <a
+              href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Duplicate our template
+            </a>{" "}
+            into your workspace to get started.
+          </p>
+          {!done && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onDone}>
+              I&apos;ve duplicated it
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

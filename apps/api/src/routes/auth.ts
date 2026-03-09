@@ -170,7 +170,7 @@ export async function authRoutes(app: FastifyInstance) {
       sendEmail(
         config.ADMIN_NOTIFY_EMAIL,
         `New signup: ${body.blogName}`,
-        `<p><strong>${body.name}</strong> (${body.email}) just registered with blog name <strong>${body.blogName}</strong>.</p>`,
+        `<p><strong>${body.name || body.email}</strong> (${body.email}) just registered with blog name <strong>${body.blogName}</strong>.</p>`,
       ).catch(() => {});
     }
 
