@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import posthog from "posthog-js";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { useApi } from "@/hooks/use-api";
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { BottomNav } from "@/components/admin/bottom-nav";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -34,6 +36,28 @@ function ImpersonationBanner() {
       </button>
     </div>
   );
+}
+
+/** Enrich PostHog person properties once per session */
+function PostHogEnrich() {
+  const enriched = useRef(false);
+  const { data } = useApi<{
+    data: { email: string; role: string; tenant: { name: string; plan: string } };
+  }>("/api/account");
+
+  useEffect(() => {
+    if (!data?.data || enriched.current || !posthog.__loaded) return;
+    enriched.current = true;
+    const a = data.data;
+    posthog.identify(a.email, {
+      email: a.email,
+      role: a.role,
+      tenant: a.tenant.name,
+      plan: a.tenant.plan,
+    });
+  }, [data]);
+
+  return null;
 }
 
 function AdminShell({ children }: { children: React.ReactNode }) {
@@ -114,6 +138,7 @@ export default function AdminLayout({
       <meta name="robots" content="noindex, nofollow" />
       <SetDarkMeta />
       <AuthProvider>
+        <PostHogEnrich />
         <AdminShell>{children}</AdminShell>
       </AuthProvider>
     </div>

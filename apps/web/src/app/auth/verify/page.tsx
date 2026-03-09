@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { identifyUser } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -65,6 +66,7 @@ function VerifyContent() {
         if (res?.data?.apiKey) {
           auth.setApiKey(res.data.apiKey);
           localStorage.setItem("notipo_email", res.data.user.email);
+          identifyUser(res.data.user.email);
           router.replace("/admin");
         } else {
           setStatus("success");
