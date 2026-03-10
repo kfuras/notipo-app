@@ -201,12 +201,21 @@ function WordPressCard({
   const { call } = useApiCall();
   const [editing, setEditing] = useState(false);
   const [siteUrl, setSiteUrl] = useState("");
+  const [showManual, setShowManual] = useState(false);
   const [username, setUsername] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function save(e: React.FormEvent) {
+  function connectOneClick(e: React.FormEvent) {
+    e.preventDefault();
+    const normalised = siteUrl.replace(/\/+$/, "");
+    const callbackUrl = `${window.location.origin}/admin`;
+    const wpAuthUrl = `${normalised}/wp-admin/authorize-application.php?app_name=Notipo&success_url=${encodeURIComponent(callbackUrl)}`;
+    window.location.href = wpAuthUrl;
+  }
+
+  async function saveManual(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
@@ -217,6 +226,7 @@ function WordPressCard({
       });
       capture("settings_wordpress_updated");
       setEditing(false);
+      setShowManual(false);
       onUpdate();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -268,53 +278,80 @@ function WordPressCard({
             </div>
           )
         ) : (
-          <form onSubmit={save} className="space-y-3">
-            <div className="space-y-2">
-              <Label>Site URL</Label>
-              <Input
-                type="url"
-                placeholder="https://yourblog.com"
-                value={siteUrl}
-                onChange={(e) => setSiteUrl(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Username</Label>
-              <Input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Application Password</Label>
-              <Input
-                type="password"
-                value={appPassword}
-                onChange={(e) => setAppPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
-              {cfg.configured && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditing(false)}
-                >
-                  Cancel
+          <div className="space-y-3">
+            <form onSubmit={connectOneClick} className="space-y-3">
+              <div className="space-y-2">
+                <Label>Site URL</Label>
+                <Input
+                  type="url"
+                  placeholder="https://yourblog.com"
+                  value={siteUrl}
+                  onChange={(e) => setSiteUrl(e.target.value)}
+                  required
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                You&apos;ll be redirected to your WordPress admin to approve the connection.
+              </p>
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" disabled={!siteUrl.trim()}>
+                  Connect WordPress
                 </Button>
-              )}
-            </div>
-          </form>
+                {cfg.configured && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </form>
+
+            <button
+              type="button"
+              className="block text-xs text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => setShowManual((v) => !v)}
+            >
+              {showManual ? "Hide manual entry" : "Enter credentials manually"}
+            </button>
+
+            {showManual && (
+              <form onSubmit={saveManual} className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Site URL</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://yourblog.com"
+                    value={siteUrl}
+                    onChange={(e) => setSiteUrl(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input value={username} onChange={(e) => setUsername(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Application Password</Label>
+                  <Input
+                    type="password"
+                    value={appPassword}
+                    onChange={(e) => setAppPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" disabled={saving}>
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                  {cfg.configured && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setEditing(false); setShowManual(false); }}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </form>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

@@ -150,6 +150,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <Suspense fallback={null}>
         <OAuthResultHandler onSettingsUpdate={refetchSettings} />
+        <WPAuthHandler onSettingsUpdate={refetchSettings} />
       </Suspense>
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -441,6 +442,57 @@ function OAuthResultHandler({ onSettingsUpdate }: { onSettingsUpdate: () => void
   return null;
 }
 
+function WPAuthHandler({ onSettingsUpdate }: { onSettingsUpdate: () => void }) {
+  const { call } = useApiCall();
+  const searchParams = useSearchParams();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const siteUrl = searchParams.get("site_url");
+    const userLogin = searchParams.get("user_login");
+    const password = searchParams.get("password");
+
+    if (!siteUrl || !userLogin || !password || saving) return;
+
+    setSaving(true);
+
+    // Clean URL immediately to prevent re-triggers
+    const url = new URL(window.location.href);
+    url.searchParams.delete("site_url");
+    url.searchParams.delete("user_login");
+    url.searchParams.delete("password");
+    window.history.replaceState({}, "", url.toString());
+
+    call("/api/settings/wordpress", {
+      method: "PUT",
+      body: { siteUrl, username: userLogin, appPassword: password },
+    })
+      .then(() => {
+        toast.success("WordPress connected successfully");
+        capture("onboarding_step_completed", { step: "wordpress", method: "auto" });
+        capture("wordpress_connected", { method: "auto" });
+        onSettingsUpdate();
+      })
+      .catch((err) => {
+        toast.error(err instanceof ApiError ? err.message : "Failed to connect WordPress");
+      })
+      .finally(() => setSaving(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (saving) {
+    return (
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="flex items-center gap-3 pt-6">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm">Connecting WordPress...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return null;
+}
+
 function SetupCard({
   settings,
   onUpdate,
@@ -670,12 +722,21 @@ function WordPressStepContent({
 }) {
   const { call } = useApiCall();
   const [siteUrl, setSiteUrl] = useState("");
+  const [showManual, setShowManual] = useState(false);
   const [username, setUsername] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function save(e: React.FormEvent) {
+  function connectOneClick(e: React.FormEvent) {
+    e.preventDefault();
+    const normalised = siteUrl.replace(/\/+$/, "");
+    const callbackUrl = `${window.location.origin}/admin`;
+    const wpAuthUrl = `${normalised}/wp-admin/authorize-application.php?app_name=Notipo&success_url=${encodeURIComponent(callbackUrl)}`;
+    window.location.href = wpAuthUrl;
+  }
+
+  async function saveManual(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
@@ -684,8 +745,8 @@ function WordPressStepContent({
         method: "PUT",
         body: { siteUrl, username, appPassword },
       });
-      capture("onboarding_step_completed", { step: "wordpress" });
-      capture("wordpress_connected");
+      capture("onboarding_step_completed", { step: "wordpress", method: "manual" });
+      capture("wordpress_connected", { method: "manual" });
       onDone();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save");
@@ -696,7 +757,7 @@ function WordPressStepContent({
 
   return (
     <div className="space-y-3">
-      <form onSubmit={save} className="space-y-3">
+      <form onSubmit={connectOneClick} className="space-y-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Site URL</Label>
           <Input
@@ -707,33 +768,54 @@ function WordPressStepContent({
             required
           />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Username</Label>
-          <Input value={username} onChange={(e) => setUsername(e.target.value)} required />
-          <p className="text-xs text-muted-foreground">
-            Your WordPress admin username (found under Users in WP admin).
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Application Password</Label>
-          <Input
-            type="password"
-            value={appPassword}
-            onChange={(e) => setAppPassword(e.target.value)}
-            required
-            placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
-          />
-          <p className="text-xs text-muted-foreground">
-            In WP admin, go to <strong>Users &rarr; Profile</strong>, scroll to
-            &ldquo;Application Passwords&rdquo;, enter a name (e.g. &ldquo;Notipo&rdquo;)
-            and click <strong>Add New Application Password</strong>.
-          </p>
-        </div>
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        <Button type="submit" size="sm" disabled={saving}>
-          {saving ? "Saving..." : "Connect WordPress"}
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          You&apos;ll be redirected to your WordPress admin to approve the connection. Requires WordPress 5.6+.
+        </p>
+        <Button type="submit" size="sm" disabled={!siteUrl.trim()}>
+          Connect WordPress
         </Button>
       </form>
+
+      <button
+        type="button"
+        className="block text-xs text-muted-foreground underline-offset-2 hover:underline"
+        onClick={() => setShowManual((v) => !v)}
+      >
+        {showManual ? "Hide manual entry" : "Enter credentials manually"}
+      </button>
+
+      {showManual && (
+        <form onSubmit={saveManual} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Site URL</Label>
+            <Input
+              type="url"
+              placeholder="https://yourblog.com"
+              value={siteUrl}
+              onChange={(e) => setSiteUrl(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Username</Label>
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Application Password</Label>
+            <Input
+              type="password"
+              value={appPassword}
+              onChange={(e) => setAppPassword(e.target.value)}
+              required
+              placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <Button type="submit" size="sm" disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
