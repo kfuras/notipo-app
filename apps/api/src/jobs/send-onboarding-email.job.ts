@@ -62,7 +62,7 @@ export async function registerSendOnboardingEmailJob(boss: PgBoss, prisma: Prism
           <p style="margin:24px 0;">
             <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Finish Setup</a>
           </p>
-          <p style="color:#666;font-size:13px;">If you have any questions, just reply to this email.</p>
+          <p style="color:#666;font-size:13px;">If you have any questions, reach out at support@notipo.com.</p>
           <p style="color:#888;font-size:12px;margin-top:32px;">— The Notipo Team</p>
         </div>`,
       );
