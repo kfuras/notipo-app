@@ -61,7 +61,7 @@ WordPress categories and tags are automatically imported and pushed to your Noti
 
 ### Settings & Code Highlighting
 
-Connect Notion (OAuth or manual token), set WordPress credentials, choose your code highlighter (Prism.js, Highlight.js, or WordPress default), and configure Slack/Discord webhook notifications.
+Connect Notion (OAuth or manual token), connect WordPress with one click via the built-in Application Password flow (or enter credentials manually), choose your code highlighter (Prism.js, Highlight.js, or WordPress default), and configure Slack/Discord webhook notifications.
 
 <p align="center">
   <img src="https://notipo.com/features/3-settings.gif" alt="Settings and code highlighting" width="700" />
