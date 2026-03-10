@@ -30,7 +30,9 @@ model Tenant {
   codeHighlighter CodeHighlighter @default(PRISMATIC)
 
   // Notifications
-  webhookUrl           String?
+  webhookUrl              String?
+  onboardingEmailSentAt   DateTime?
+  trialExpiryEmailSentAt  DateTime?
 
   // Billing
   plan                 Plan      @default(TRIAL)
