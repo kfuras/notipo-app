@@ -1,8 +1,8 @@
 === Notipo SEO ===
-Contributors: notipo
+Contributors: kfuras
 Tags: seo, notion, wordpress, rank math, yoast
 Requires at least: 5.5
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 7.4
 Stable tag: 1.0.0
 License: MIT
