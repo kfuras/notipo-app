@@ -167,20 +167,20 @@ export class SyncService {
           wpPostGone = true;
         }
 
-        // Apply/refresh Rank Math SEO meta on the existing WP post
+        // Apply/refresh SEO meta on the existing WP post (requires Notipo SEO plugin)
         if (result.metadata.seoKeyword && !wpPostGone) {
           onStep?.("Setting SEO metadata…");
           const seoDescription = this.deriveDescription(finalMarkdown);
-          await wp.updateRankMathSeo(existing!.wpPostId!, {
-            rank_math_focus_keyword: result.metadata.seoKeyword,
-            rank_math_title: "%title%",
-            rank_math_description: seoDescription,
+          await wp.updateSeo(existing!.wpPostId!, {
+            keyword: result.metadata.seoKeyword,
+            title: "%title%",
+            description: seoDescription,
           });
           await this.prisma.post.update({
             where: { id: postId },
             data: { seoDescription },
           });
-          logger.info({ wpPostId: existing!.wpPostId, seoKeyword: result.metadata.seoKeyword }, "Rank Math SEO meta updated");
+          logger.info({ wpPostId: existing!.wpPostId, seoKeyword: result.metadata.seoKeyword }, "SEO meta updated");
         }
       } catch (err: unknown) {
         const status = (err as { response?: { status?: number } }).response?.status;
@@ -299,20 +299,20 @@ export class SyncService {
         },
       });
 
-      // Apply Rank Math SEO meta on the draft so it's visible during review
+      // Apply SEO meta on the draft so it's visible during review (requires Notipo SEO plugin)
       if (result.metadata.seoKeyword) {
         onStep?.("Setting SEO metadata…");
         const seoDescription = this.deriveDescription(finalMarkdown);
-        await wp.updateRankMathSeo(wpPost.id, {
-          rank_math_focus_keyword: result.metadata.seoKeyword,
-          rank_math_title: "%title%",
-          rank_math_description: seoDescription,
+        await wp.updateSeo(wpPost.id, {
+          keyword: result.metadata.seoKeyword,
+          title: "%title%",
+          description: seoDescription,
         });
         await this.prisma.post.update({
           where: { id: postId },
           data: { seoDescription },
         });
-        logger.info({ wpPostId: wpPost.id, seoKeyword: result.metadata.seoKeyword }, "Rank Math SEO meta applied to draft");
+        logger.info({ wpPostId: wpPost.id, seoKeyword: result.metadata.seoKeyword }, "SEO meta applied to draft");
       }
     }
 

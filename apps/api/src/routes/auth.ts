@@ -266,17 +266,17 @@ export async function authRoutes(app: FastifyInstance) {
         "Welcome to Notipo — your 7-day Pro trial is active",
         `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;">
           <p>Hi there,</p>
-          <p>You're all set! Your Pro trial is active for the next 7 days — unlimited posts, Unsplash featured images, and instant sync included.</p>
-          <p>To get started, connect your WordPress site and your Notion database:</p>
+          <p>Your Pro trial is now active for 7 days. Here's how to publish your first post:</p>
           <ol style="padding-left:20px;">
-            <li><strong>Connect WordPress</strong> — enter your site URL and approve with one click. Your categories and tags are imported automatically.</li>
-            <li><strong>Connect Notion</strong> — link your Notion database. Notipo adds status, category, and tag fields to your pages.</li>
+            <li><strong>Connect WordPress</strong> — enter your site URL and approve with one click.</li>
+            <li><strong>Connect Notion</strong> — <a href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6" style="color:#7c3aed;">duplicate our template</a>, then connect it to Notipo.</li>
+            <li><strong>Write and publish</strong> — add a page, write your content, and set the status to "Post to WordPress".</li>
           </ol>
-          <p>Once both are connected, just set a page's status to "Post to WordPress" in Notion — Notipo handles the rest: content, inline images, featured image, code blocks with syntax highlighting, and SEO metadata if you have Rank Math SEO installed.</p>
+          <p>Notipo takes care of the rest.</p>
           <p style="margin:24px 0;">
             <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Get Started</a>
           </p>
-          <p style="color:#666;font-size:13px;">If you have any questions, reach out at <a href="mailto:support@notipo.com" style="color:#7c3aed;">support@notipo.com</a>.</p>
+          <p style="color:#666;font-size:13px;">Questions? <a href="mailto:support@notipo.com" style="color:#7c3aed;">support@notipo.com</a></p>
           <p style="color:#888;font-size:12px;margin-top:32px;">— The Notipo Team</p>
         </div>`,
       ).catch(() => {});

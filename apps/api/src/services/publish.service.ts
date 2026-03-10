@@ -68,14 +68,14 @@ export class PublishService {
             seoDescription = clean.length > 160 ? clean.slice(0, 159).trimEnd() + "..." : clean;
           }
         }
-        await wp.updateRankMathSeo(post.wpPostId, {
-          rank_math_focus_keyword: post.seoKeyword,
-          rank_math_title: "%title%",
-          rank_math_description: seoDescription ?? "",
+        await wp.updateSeo(post.wpPostId, {
+          keyword: post.seoKeyword,
+          title: "%title%",
+          description: seoDescription ?? "",
         });
-        logger.info({ wpPostId: post.wpPostId, seoKeyword: post.seoKeyword }, "Rank Math SEO meta applied");
+        logger.info({ wpPostId: post.wpPostId, seoKeyword: post.seoKeyword }, "SEO meta applied");
       } else {
-        logger.warn({ postId }, "seoKeyword not set — skipping Rank Math SEO (set 'SEO Keyword' in Notion)");
+        logger.warn({ postId }, "seoKeyword not set — skipping SEO (set 'SEO Keyword' in Notion)");
       }
 
       await this.prisma.post.update({
@@ -151,14 +151,14 @@ export class PublishService {
         if (clean) {
           seoDescription = clean.length > 160 ? clean.slice(0, 159).trimEnd() + "..." : clean;
         }
-        await wp.updateRankMathSeo(wpPost.id, {
-          rank_math_focus_keyword: post.seoKeyword,
-          rank_math_title: "%title%",
-          rank_math_description: seoDescription ?? "",
+        await wp.updateSeo(wpPost.id, {
+          keyword: post.seoKeyword,
+          title: "%title%",
+          description: seoDescription ?? "",
         });
-        logger.info({ wpPostId: wpPost.id, seoKeyword: post.seoKeyword }, "Rank Math SEO meta applied");
+        logger.info({ wpPostId: wpPost.id, seoKeyword: post.seoKeyword }, "SEO meta applied");
       } else {
-        logger.warn({ postId }, "seoKeyword not set — skipping Rank Math SEO (set 'SEO Keyword' in Notion)");
+        logger.warn({ postId }, "seoKeyword not set — skipping SEO (set 'SEO Keyword' in Notion)");
       }
 
       await this.prisma.post.update({

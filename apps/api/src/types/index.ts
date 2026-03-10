@@ -53,10 +53,10 @@ export interface WPMediaUpload {
   alt_text: string;
 }
 
-export interface RankMathSeoPayload {
-  rank_math_focus_keyword: string;
-  rank_math_title: string;
-  rank_math_description: string;
+export interface SeoPayload {
+  keyword: string;
+  title: string;
+  description: string;
 }
 
 // Featured image generation

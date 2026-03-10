@@ -5,7 +5,7 @@
  */
 
 import axios, { type AxiosInstance } from "axios";
-import type { WPPostPayload, WPMediaUpload, RankMathSeoPayload } from "../types/index.js";
+import type { WPPostPayload, WPMediaUpload, SeoPayload } from "../types/index.js";
 import { logger } from "../lib/logger.js";
 
 export interface WordPressCredentials {
@@ -16,18 +16,16 @@ export interface WordPressCredentials {
 
 export class WordPressService {
   private client: AxiosInstance;
+  private rawClient: AxiosInstance;
 
   constructor(credentials: WordPressCredentials) {
     const auth = Buffer.from(
       `${credentials.username}:${credentials.appPassword}`,
     ).toString("base64");
 
-    this.client = axios.create({
-      baseURL: credentials.siteUrl,
-      headers: {
-        Authorization: `Basic ${auth}`,
-      },
-    });
+    const headers = { Authorization: `Basic ${auth}` };
+
+    this.client = axios.create({ baseURL: credentials.siteUrl, headers });
 
     // Use ?rest_route= query-string format instead of /wp-json/ pretty URLs.
     // This works on all WordPress installs regardless of server rewrite rules.
@@ -35,6 +33,15 @@ export class WordPressService {
       const path = config.url || "";
       config.url = "/";
       config.params = { ...config.params, rest_route: `/wp/v2${path}` };
+      return config;
+    });
+
+    // Raw client for non-/wp/v2 REST routes (e.g. plugin-specific endpoints)
+    this.rawClient = axios.create({ baseURL: credentials.siteUrl, headers });
+    this.rawClient.interceptors.request.use((config) => {
+      const path = config.url || "";
+      config.url = "/";
+      config.params = { ...config.params, rest_route: path };
       return config;
     });
   }
@@ -166,11 +173,45 @@ export class WordPressService {
     return results;
   }
 
-  /** Update Rank Math SEO meta fields on a post. */
-  async updateRankMathSeo(wpPostId: number, seo: RankMathSeoPayload) {
-    const { data } = await this.client.post(`/posts/${wpPostId}`, {
-      meta: seo,
-    });
-    return data;
+  /** Update SEO meta fields using the SEO plugin's native REST API. */
+  async updateSeo(wpPostId: number, seo: SeoPayload) {
+    // Try Rank Math's native endpoint first
+    try {
+      const { data } = await this.rawClient.post("/rankmath/v1/updateMeta", {
+        objectID: wpPostId,
+        objectType: "post",
+        meta: {
+          rank_math_focus_keyword: seo.keyword,
+          rank_math_title: seo.title,
+          rank_math_description: seo.description,
+        },
+      });
+      logger.info({ wpPostId }, "SEO meta updated via Rank Math API");
+      return data;
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      // 404 = Rank Math not installed, try SEOPress
+      if (status === 404) {
+        try {
+          await this.rawClient.put(`/seopress/v1/posts/${wpPostId}/title-description-metas`, {
+            _seopress_titles_title: seo.title,
+            _seopress_titles_desc: seo.description,
+          });
+          await this.rawClient.put(`/seopress/v1/posts/${wpPostId}/target-keywords`, {
+            _seopress_analysis_target_kw: seo.keyword,
+          });
+          logger.info({ wpPostId }, "SEO meta updated via SEOPress API");
+          return;
+        } catch (spErr: unknown) {
+          const spStatus = (spErr as { response?: { status?: number } }).response?.status;
+          if (spStatus === 404) {
+            logger.debug({ wpPostId }, "No supported SEO plugin found — skipping SEO meta");
+            return;
+          }
+          throw spErr;
+        }
+      }
+      throw err;
+    }
   }
 }
