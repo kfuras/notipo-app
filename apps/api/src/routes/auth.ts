@@ -267,12 +267,12 @@ export async function authRoutes(app: FastifyInstance) {
         `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;">
           <p>Hi there,</p>
           <p>You're all set! Your Pro trial is active for the next 7 days — unlimited posts, Unsplash featured images, and instant sync included.</p>
-          <p>To start publishing from Notion to WordPress, you need two things:</p>
+          <p>To get started, connect your WordPress site and your Notion database:</p>
           <ol style="padding-left:20px;">
-            <li><strong>Connect WordPress</strong> — enter your site URL and approve with one click</li>
-            <li><strong>Connect Notion</strong> — link your Notion database</li>
+            <li><strong>Connect WordPress</strong> — enter your site URL and approve with one click. Your categories and tags are imported automatically.</li>
+            <li><strong>Connect Notion</strong> — link your Notion database. Notipo adds status, category, and tag fields to your pages.</li>
           </ol>
-          <p>Both take about a minute.</p>
+          <p>Once both are connected, just set a page's status to "Post to WordPress" in Notion — Notipo handles the rest: content, inline images, featured image, code blocks with syntax highlighting, and SEO metadata if you have Rank Math SEO installed.</p>
           <p style="margin:24px 0;">
             <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Get Started</a>
           </p>
