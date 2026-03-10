@@ -126,6 +126,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       data: {
         wordpressCredentials: null,
         wpSiteUrl: null,
+        wpSeoPlugin: null,
       },
     });
 
@@ -154,6 +155,16 @@ export async function settingsRoutes(app: FastifyInstance) {
       username: body.username,
       appPassword: body.appPassword,
     });
+
+    // Detect SEO plugin (best-effort, non-blocking)
+    const seoPlugin = await wp.detectSeoPlugin();
+    await app.prisma.tenant.update({
+      where: { id: request.tenant.id },
+      data: { wpSeoPlugin: seoPlugin },
+    });
+    if (seoPlugin) {
+      logger.info({ tenantId: request.tenant.id, seoPlugin }, "SEO plugin detected");
+    }
 
     // Auto-sync WP categories into the DB (and push to Notion if connected)
     try {

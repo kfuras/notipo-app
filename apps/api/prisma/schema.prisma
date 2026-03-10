@@ -27,6 +27,7 @@ model Tenant {
 
   // WordPress config
   wpSiteUrl       String?
+  wpSeoPlugin     String?         // Detected SEO plugin: "rankmath", "seopress", or null
   codeHighlighter CodeHighlighter @default(PRISMATIC)
 
   // Notifications

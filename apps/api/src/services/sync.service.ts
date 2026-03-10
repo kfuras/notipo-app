@@ -130,7 +130,7 @@ export class SyncService {
     onStep?.(isUpdate ? "Updating WP post…" : "Creating WP draft…");
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { codeHighlighter: true, plan: true, trialEndsAt: true },
+      select: { codeHighlighter: true, plan: true, trialEndsAt: true, wpSeoPlugin: true },
     });
     const highlighter = tenant!.codeHighlighter;
     const featuredImagesAllowed = canGenerateFeaturedImage(tenant!.plan, tenant!.trialEndsAt);
@@ -167,7 +167,7 @@ export class SyncService {
           wpPostGone = true;
         }
 
-        // Apply/refresh SEO meta on the existing WP post (requires Notipo SEO plugin)
+        // Apply/refresh SEO meta on the existing WP post
         if (result.metadata.seoKeyword && !wpPostGone) {
           onStep?.("Setting SEO metadata…");
           const seoDescription = this.deriveDescription(finalMarkdown);
@@ -175,7 +175,7 @@ export class SyncService {
             keyword: result.metadata.seoKeyword,
             title: "%title%",
             description: seoDescription,
-          });
+          }, tenant!.wpSeoPlugin);
           await this.prisma.post.update({
             where: { id: postId },
             data: { seoDescription },
@@ -299,7 +299,7 @@ export class SyncService {
         },
       });
 
-      // Apply SEO meta on the draft so it's visible during review (requires Notipo SEO plugin)
+      // Apply SEO meta on the draft so it's visible during review
       if (result.metadata.seoKeyword) {
         onStep?.("Setting SEO metadata…");
         const seoDescription = this.deriveDescription(finalMarkdown);
@@ -307,7 +307,7 @@ export class SyncService {
           keyword: result.metadata.seoKeyword,
           title: "%title%",
           description: seoDescription,
-        });
+        }, tenant!.wpSeoPlugin);
         await this.prisma.post.update({
           where: { id: postId },
           data: { seoDescription },

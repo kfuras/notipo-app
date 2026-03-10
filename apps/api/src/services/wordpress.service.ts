@@ -52,6 +52,22 @@ export class WordPressService {
     return { id: data.id, name: data.name };
   }
 
+  /** Detect which SEO plugin is installed. Returns "rankmath", "seopress", or null. */
+  async detectSeoPlugin(): Promise<string | null> {
+    try {
+      const { data: plugins } = await this.client.get("/plugins");
+      for (const p of plugins) {
+        const slug = (p.plugin || "").toLowerCase();
+        if (slug.startsWith("seo-by-rank-math/")) return "rankmath";
+        if (slug.startsWith("wp-seopress/")) return "seopress";
+      }
+    } catch {
+      // Plugins endpoint may not be available (requires manage_options in some setups)
+      logger.debug("Could not list plugins — SEO detection skipped");
+    }
+    return null;
+  }
+
   /** Create a draft post. */
   async createDraft(payload: WPPostPayload) {
     const response = await this.client.post("/posts", {
@@ -173,10 +189,14 @@ export class WordPressService {
     return results;
   }
 
-  /** Update SEO meta fields using the SEO plugin's native REST API. */
-  async updateSeo(wpPostId: number, seo: SeoPayload) {
-    // Try Rank Math's native endpoint first
-    try {
+  /** Update SEO meta fields using the detected SEO plugin's native REST API. */
+  async updateSeo(wpPostId: number, seo: SeoPayload, seoPlugin: string | null) {
+    if (!seoPlugin) {
+      logger.debug({ wpPostId }, "No SEO plugin detected — skipping SEO meta");
+      return;
+    }
+
+    if (seoPlugin === "rankmath") {
       const { data } = await this.rawClient.post("/rankmath/v1/updateMeta", {
         objectID: wpPostId,
         objectType: "post",
@@ -188,30 +208,20 @@ export class WordPressService {
       });
       logger.info({ wpPostId }, "SEO meta updated via Rank Math API");
       return data;
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      // 404 = Rank Math not installed, try SEOPress
-      if (status === 404) {
-        try {
-          await this.rawClient.put(`/seopress/v1/posts/${wpPostId}/title-description-metas`, {
-            _seopress_titles_title: seo.title,
-            _seopress_titles_desc: seo.description,
-          });
-          await this.rawClient.put(`/seopress/v1/posts/${wpPostId}/target-keywords`, {
-            _seopress_analysis_target_kw: seo.keyword,
-          });
-          logger.info({ wpPostId }, "SEO meta updated via SEOPress API");
-          return;
-        } catch (spErr: unknown) {
-          const spStatus = (spErr as { response?: { status?: number } }).response?.status;
-          if (spStatus === 404) {
-            logger.debug({ wpPostId }, "No supported SEO plugin found — skipping SEO meta");
-            return;
-          }
-          throw spErr;
-        }
-      }
-      throw err;
     }
+
+    if (seoPlugin === "seopress") {
+      await this.rawClient.put(`/seopress/v1/posts/${wpPostId}/title-description-metas`, {
+        _seopress_titles_title: seo.title,
+        _seopress_titles_desc: seo.description,
+      });
+      await this.rawClient.put(`/seopress/v1/posts/${wpPostId}/target-keywords`, {
+        _seopress_analysis_target_kw: seo.keyword,
+      });
+      logger.info({ wpPostId }, "SEO meta updated via SEOPress API");
+      return;
+    }
+
+    logger.warn({ wpPostId, seoPlugin }, "Unknown SEO plugin — skipping SEO meta");
   }
 }

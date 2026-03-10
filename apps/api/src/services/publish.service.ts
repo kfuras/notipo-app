@@ -72,7 +72,7 @@ export class PublishService {
           keyword: post.seoKeyword,
           title: "%title%",
           description: seoDescription ?? "",
-        });
+        }, post.tenant.wpSeoPlugin);
         logger.info({ wpPostId: post.wpPostId, seoKeyword: post.seoKeyword }, "SEO meta applied");
       } else {
         logger.warn({ postId }, "seoKeyword not set — skipping SEO (set 'SEO Keyword' in Notion)");
@@ -155,7 +155,7 @@ export class PublishService {
           keyword: post.seoKeyword,
           title: "%title%",
           description: seoDescription ?? "",
-        });
+        }, post.tenant.wpSeoPlugin);
         logger.info({ wpPostId: wpPost.id, seoKeyword: post.seoKeyword }, "SEO meta applied");
       } else {
         logger.warn({ postId }, "seoKeyword not set — skipping SEO (set 'SEO Keyword' in Notion)");
