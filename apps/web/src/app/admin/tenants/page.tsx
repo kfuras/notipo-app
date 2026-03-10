@@ -31,7 +31,7 @@ interface TenantRow {
   name: string;
   slug: string;
   wpSiteUrl: string | null;
-  notionDatabaseId: string | null;
+  notionConnected: boolean;
   codeHighlighter: string;
   plan: string;
   createdAt: string;
@@ -128,8 +128,8 @@ export default function TenantsPage() {
                 <Badge variant={t.wpSiteUrl ? "default" : "secondary"}>
                   WP: {t.wpSiteUrl ? "Yes" : "No"}
                 </Badge>
-                <Badge variant={t.notionDatabaseId ? "default" : "secondary"}>
-                  Notion: {t.notionDatabaseId ? "Yes" : "No"}
+                <Badge variant={t.notionConnected ? "default" : "secondary"}>
+                  Notion: {t.notionConnected ? "Yes" : "No"}
                 </Badge>
               </div>
             </div>
@@ -175,8 +175,8 @@ export default function TenantsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={t.notionDatabaseId ? "default" : "secondary"}>
-                      {t.notionDatabaseId ? "Connected" : "No"}
+                    <Badge variant={t.notionConnected ? "default" : "secondary"}>
+                      {t.notionConnected ? "Connected" : "No"}
                     </Badge>
                   </TableCell>
                   <TableCell>

@@ -20,6 +20,7 @@ export async function adminRoutes(app: FastifyInstance) {
         name: true,
         slug: true,
         wpSiteUrl: true,
+        notionCredentials: true,
         notionDatabaseId: true,
         codeHighlighter: true,
         plan: true,
@@ -32,7 +33,13 @@ export async function adminRoutes(app: FastifyInstance) {
         _count: { select: { users: true, posts: true } },
       },
     });
-    return { data: tenants };
+    return {
+      data: tenants.map((t) => ({
+        ...t,
+        notionConnected: t.notionCredentials !== null,
+        notionCredentials: undefined,
+      })),
+    };
   });
 
   /** POST /api/admin/tenants — create a new tenant with an initial owner user */
