@@ -256,6 +256,32 @@ export async function authRoutes(app: FastifyInstance) {
     });
 
     log.info({ userId: result.userId }, "Email verified");
+
+    // Send welcome email (SaaS only, fire-and-forget)
+    if (isStripeConfigured()) {
+      const frontendUrl = config.FRONTEND_URL || "https://notipo.com";
+      const dashboardUrl = `${frontendUrl}/admin`;
+      sendEmail(
+        user.email,
+        "Welcome to Notipo — your 7-day Pro trial is active",
+        `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;">
+          <p>Hi there,</p>
+          <p>You're all set! Your Pro trial is active for the next 7 days — unlimited posts, Unsplash featured images, and instant sync included.</p>
+          <p>To start publishing from Notion to WordPress, you need two things:</p>
+          <ol style="padding-left:20px;">
+            <li><strong>Connect WordPress</strong> — enter your site URL and approve with one click</li>
+            <li><strong>Connect Notion</strong> — link your Notion database</li>
+          </ol>
+          <p>Both take about a minute.</p>
+          <p style="margin:24px 0;">
+            <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Get Started</a>
+          </p>
+          <p style="color:#666;font-size:13px;">If you have any questions, reach out at <a href="mailto:support@notipo.com" style="color:#7c3aed;">support@notipo.com</a>.</p>
+          <p style="color:#888;font-size:12px;margin-top:32px;">— The Notipo Team</p>
+        </div>`,
+      ).catch(() => {});
+    }
+
     return {
       message: "Email verified successfully.",
       data: {

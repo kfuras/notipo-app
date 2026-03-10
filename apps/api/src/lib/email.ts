@@ -13,7 +13,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   try {
     const resend = new Resend(config.RESEND_API_KEY);
     await resend.emails.send({
-      from: config.RESEND_FROM_EMAIL,
+      from: `Notipo <${config.RESEND_FROM_EMAIL}>`,
       to,
       subject,
       html,
