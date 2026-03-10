@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Tenant" ADD COLUMN "wpSeoPlugin" TEXT;
+ALTER TABLE "tenants" ADD COLUMN "wpSeoPlugin" TEXT;
