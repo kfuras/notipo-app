@@ -12,6 +12,7 @@ interface SyncPostPayload {
   tenantId: string;
   notionPageId: string;
   thenPublish?: boolean;
+  forcePublish?: boolean;
 }
 
 export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, eventBus: EventEmitter) {
@@ -19,7 +20,7 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
   await boss.work<SyncPostPayload>("sync-post", { batchSize: 1 }, async (jobs) => {
     const job = jobs[0];
     const { tenantId, notionPageId } = job.data;
-    const { thenPublish } = job.data;
+    const { thenPublish, forcePublish } = job.data;
     const log = logger.child({ jobId: job.id, tenantId, notionPageId });
 
     log.info("Starting post sync");
@@ -45,6 +46,7 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
     const dbJob = await prisma.job.create({
       data: {
         tenantId,
+        postId: existingPost?.id,
         type: "SYNC_POST",
         status: "RUNNING",
         payload: job.data as object,
@@ -59,8 +61,8 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
       const syncService = new SyncService(prisma);
       const syncSteps: string[] = [];
       const onStep = async (step: string) => {
-        syncSteps.push(step);
-        await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step } } });
+        if (!syncSteps.includes(step)) syncSteps.push(step);
+        await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step, steps: syncSteps } } });
         eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "SYNC_POST", status: "RUNNING", notionPageId, step });
       };
       const { postId, wpStatus, wasPublished } = await syncService.syncPost(tenantId, notionPageId, onStep);
@@ -82,6 +84,7 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
           status: "COMPLETED",
           completedAt: new Date(),
           result: {
+            steps: syncSteps,
             category: post?.category?.name ?? null,
             images: post?._count.imageMappings ?? 0,
             wpPostId: post?.wpPostId ?? null,
@@ -95,11 +98,12 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
 
       if (thenPublish) {
         // Auto-publish if:
+        // - forcePublish is set (user triggered "Publish" — always publish even if WP post is a draft)
         // - WP post is already live (re-sync of published post)
         // - Post was previously published in our DB (prior sync may have reverted WP to draft)
         // - Brand new post (wpStatus is null) — user triggered "Publish" directly
-        if (wpStatus === "publish" || wasPublished || wpStatus === null) {
-          await boss.send("publish-post", { tenantId, postId, priorSteps: syncSteps }, { singletonKey: `publish:${postId}` });
+        if (forcePublish || wpStatus === "publish" || wasPublished || wpStatus === null) {
+          await boss.send("publish-post", { tenantId, postId }, { singletonKey: `publish:${postId}` });
           log.info({ postId, wpStatus, wasPublished }, "Post sync completed, publish enqueued");
         } else {
           // Draft re-sync where WP post exists as draft: revert status

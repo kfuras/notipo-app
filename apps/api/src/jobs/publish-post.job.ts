@@ -10,7 +10,6 @@ import { logger } from "../lib/logger.js";
 interface PublishPostPayload {
   tenantId: string;
   postId: string;
-  priorSteps?: string[];
 }
 
 export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient, eventBus: EventEmitter) {
@@ -41,13 +40,14 @@ export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient,
       },
     });
 
-    const priorSteps = job.data.priorSteps;
-    eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId, notionPageId, priorSteps });
+    const publishSteps: string[] = [];
+    eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId, notionPageId });
 
     try {
       const publishService = new PublishService(prisma);
       const onStep = async (step: string) => {
-        await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step } } });
+        if (!publishSteps.includes(step)) publishSteps.push(step);
+        await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step, steps: publishSteps } } });
         eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId, notionPageId, step });
       };
       await publishService.publishPost(tenantId, postId, onStep);
@@ -63,6 +63,7 @@ export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient,
           status: "COMPLETED",
           completedAt: new Date(),
           result: {
+            steps: publishSteps,
             wpPostId: post?.wpPostId ?? null,
             wpUrl: post?.wpUrl ?? null,
             postStatus: post?.status ?? null,

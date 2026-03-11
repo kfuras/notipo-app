@@ -33,7 +33,6 @@ interface JobUpdateEvent {
   step?: string;
   postId?: string;
   notionPageId?: string;
-  priorSteps?: string[];
 }
 
 interface LiveJob {
@@ -70,11 +69,7 @@ export default function DashboardPage() {
       setLiveJobs((prev) => {
         const next = new Map(prev);
         const existing = next.get(payload.jobId);
-        let steps = existing?.steps ? [...existing.steps] : [];
-        // Inherit prior steps from the sync job (passed via job payload)
-        if (!existing && payload.priorSteps?.length) {
-          steps = [...payload.priorSteps];
-        }
+        const steps = existing?.steps ? [...existing.steps] : [];
         if (payload.step && !steps.includes(payload.step)) {
           steps.push(payload.step);
         }

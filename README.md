@@ -69,8 +69,9 @@ Connect Notion (OAuth or manual token), connect WordPress with one click via the
 
 ### Everything else
 
-- **Two-step publish** — review the draft in WordPress, then set "Publish" in Notion to go live
+- **Two-step or one-step publish** — review the draft first, or skip straight to live by setting "Publish" in Notion (re-syncs content automatically)
 - **Content updates** — re-sync from Notion without creating duplicates
+- **Post deletion** — delete posts from the dashboard and Notipo cleans up the WordPress post, images, and resets Notion
 - **Featured images** — auto-generated with your post title on a background (upload your own, Unsplash, or gradient)
 - **Inline images** — Notion images uploaded to your WordPress media library automatically
 - **SEO metadata** — Rank Math focus keyword, title, and description applied during sync
@@ -82,8 +83,9 @@ Connect Notion (OAuth or manual token), connect WordPress with one click via the
 1. **Write** your post in Notion
 2. **Set the status** to "Post to Wordpress" — Notipo converts content to Gutenberg blocks, uploads images, generates a featured image, applies SEO metadata, and creates a WordPress draft
 3. **Review** the draft in WordPress
-4. **Set the status** to "Publish" — the draft goes live
+4. **Set the status** to "Publish" — Notipo re-syncs from Notion and publishes the post live
 5. **Update anytime** — set "Update Wordpress" to re-sync content from Notion
+6. **Delete** — remove a post from the dashboard to clean up WordPress and reset Notion
 
 Notion webhooks are the primary trigger. A safety-net poll runs every 5 minutes to catch missed events. If a job fails, the Notion status resets automatically so you can retry.
 

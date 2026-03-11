@@ -70,6 +70,16 @@ export default function JobsPage() {
   const [offset, setOffset] = useState(0);
   const limit = 20;
   const [liveSteps, setLiveSteps] = useState<Map<string, LiveStep>>(new Map());
+  const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(jobId: string) {
+    setExpandedJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  }
 
   const queryFilter = filter === "ALL" ? "" : `&status=${filter}`;
   const { data, loading, refetch } = useApi<{ data: JobRow[]; total: number }>(
@@ -125,15 +135,19 @@ export default function JobsPage() {
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
-  function getJobStep(job: JobRow): string | null {
-    // Live step from SSE
+  function getJobSteps(job: JobRow): string[] {
+    // Live steps from SSE take priority
     const live = liveSteps.get(job.id);
-    if (live?.steps.length) return live.steps[live.steps.length - 1];
-    // Persisted step from API result
-    if (job.status === "RUNNING" && job.result && typeof job.result === "object" && "step" in job.result) {
-      return job.result.step as string;
+    if (live?.steps.length) return live.steps;
+    // Persisted steps from API result
+    if (job.result && typeof job.result === "object" && "steps" in job.result && Array.isArray(job.result.steps)) {
+      return job.result.steps as string[];
     }
-    return null;
+    // Fallback: single step
+    if (job.result && typeof job.result === "object" && "step" in job.result) {
+      return [job.result.step as string];
+    }
+    return [];
   }
 
   return (
@@ -179,8 +193,7 @@ export default function JobsPage() {
           </div>
         ) : (
           jobs.map((job) => {
-            const step = getJobStep(job);
-            const live = liveSteps.get(job.id);
+            const steps = getJobSteps(job);
             return (
               <div key={job.id} className="rounded-md border p-3 space-y-1">
                 <div className="flex items-start justify-between gap-2">
@@ -200,22 +213,40 @@ export default function JobsPage() {
                 {job.post && (
                   <p className="text-sm truncate">{job.post.title}</p>
                 )}
-                {/* Live steps */}
-                {job.status === "RUNNING" && live && live.steps.length > 0 && (
-                  <div className="space-y-1 pt-1">
-                    {live.steps.map((s) => (
-                      <div key={s} className="flex items-center gap-1.5">
-                        <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
+                {steps.length > 0 && (
+                  job.status === "RUNNING" ? (
+                    <div className="space-y-1 pt-1">
+                      {steps.map((s, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                          <span className="text-xs text-muted-foreground">{s}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="pt-1">
+                      <button onClick={() => toggleExpanded(job.id)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <svg className={`w-3 h-3 transition-transform ${expandedJobs.has(job.id) ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6"/>
                         </svg>
-                        <span className="text-xs text-muted-foreground">{s}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Fallback: single step from API */}
-                {job.status === "RUNNING" && !live && step && (
-                  <p className="text-xs text-violet-400">{step}</p>
+                        {steps.length} step{steps.length === 1 ? "" : "s"}
+                      </button>
+                      {expandedJobs.has(job.id) && (
+                        <div className="space-y-1 mt-1">
+                          {steps.map((s, i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                              <span className="text-xs text-muted-foreground">{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
                 )}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{timeAgo(job.createdAt)}</span>
@@ -263,7 +294,9 @@ export default function JobsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              jobs.map((job) => (
+              jobs.map((job) => {
+                  const steps = getJobSteps(job);
+                  return (
                   <TableRow key={job.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -276,8 +309,43 @@ export default function JobsPage() {
                         <span className="text-xs font-medium">{jobTypeLabel(job.type)}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm truncate max-w-[200px]">
-                      {job.post?.title ?? "\u2014"}
+                    <TableCell className="max-w-[300px]">
+                      <div className="text-sm truncate">{job.post?.title ?? "\u2014"}</div>
+                      {steps.length > 0 && (
+                        job.status === "RUNNING" ? (
+                          <div className="space-y-0.5 mt-1">
+                            {steps.map((s, i) => (
+                              <div key={i} className="flex items-center gap-1.5">
+                                <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span className="text-xs text-muted-foreground">{s}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-1">
+                            <button onClick={() => toggleExpanded(job.id)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                              <svg className={`w-3 h-3 transition-transform ${expandedJobs.has(job.id) ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"/>
+                              </svg>
+                              {steps.length} step{steps.length === 1 ? "" : "s"}
+                            </button>
+                            {expandedJobs.has(job.id) && (
+                              <div className="space-y-0.5 mt-1">
+                                {steps.map((s, i) => (
+                                  <div key={i} className="flex items-center gap-1.5">
+                                    <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    <span className="text-xs text-muted-foreground">{s}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[job.status] ?? "secondary"} className={job.status === "RUNNING" ? "text-violet-400 border-violet-500/30" : ""}>
@@ -291,7 +359,9 @@ export default function JobsPage() {
                       {job.error ?? ""}
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
+
             )}
           </TableBody>
         </Table>

@@ -1,5 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { WordPressService } from "../services/wordpress.service.js";
+import { CredentialService } from "../services/credential.service.js";
+import { NotionService } from "../services/notion.service.js";
+import { logger } from "../lib/logger.js";
 
 const syncBodySchema = z.object({
   notionPageId: z.string().min(1),
@@ -65,5 +69,65 @@ export async function postRoutes(app: FastifyInstance) {
     return reply.code(202).send({
       data: { jobId, message: "Publish job queued" },
     });
+  });
+
+  // Delete post and clean up WP resources
+  app.delete<{ Params: { id: string } }>("/api/posts/:id", async (request, reply) => {
+    const tenantId = request.tenant.id;
+    const postId = request.params.id;
+
+    const post = await app.prisma.post.findFirst({
+      where: { id: postId, tenantId },
+      include: { imageMappings: true },
+    });
+    if (!post) return reply.notFound("Post not found");
+
+    const credService = new CredentialService(app.prisma);
+    const wpCreds = await credService.getWordPressCredentials(tenantId);
+
+    // Clean up WordPress resources (best-effort)
+    if (wpCreds) {
+      const wp = new WordPressService(wpCreds);
+
+      // Delete WP post
+      if (post.wpPostId) {
+        await wp.deletePost(post.wpPostId).catch((e) =>
+          logger.warn({ err: e, wpPostId: post.wpPostId }, "Failed to delete WP post"),
+        );
+      }
+
+      // Delete featured image
+      if (post.wpFeaturedMediaId) {
+        await wp.deleteMedia(post.wpFeaturedMediaId).catch((e) =>
+          logger.warn({ err: e, wpFeaturedMediaId: post.wpFeaturedMediaId }, "Failed to delete featured media"),
+        );
+      }
+
+      // Delete inline images
+      for (const mapping of post.imageMappings) {
+        await wp.deleteMedia(mapping.wpMediaId).catch((e) =>
+          logger.warn({ err: e, wpMediaId: mapping.wpMediaId }, "Failed to delete inline media"),
+        );
+      }
+    }
+
+    // Reset Notion page status (best-effort)
+    if (post.notionPageId) {
+      const notionCreds = await credService.getNotionCredentials(tenantId);
+      if (notionCreds) {
+        const notion = new NotionService(notionCreds.accessToken);
+        await notion.updatePageStatus(post.notionPageId, "Draft").catch((e) =>
+          logger.warn({ err: e }, "Failed to reset Notion status"),
+        );
+      }
+    }
+
+    // Delete from database (image mappings cascade)
+    await app.prisma.imageMapping.deleteMany({ where: { postId, tenantId } });
+    await app.prisma.job.deleteMany({ where: { postId, tenantId } });
+    await app.prisma.post.delete({ where: { id: postId } });
+
+    logger.info({ tenantId, postId, wpPostId: post.wpPostId }, "Post deleted with WP cleanup");
+    return { data: { message: "Post deleted" } };
   });
 }

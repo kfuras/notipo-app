@@ -108,7 +108,7 @@ export async function pollTenant(boss: PgBoss, prisma: PrismaClient, tenant: Ten
     log.info({ tenantId: tenant.id, pageId }, "Found post to publish, enqueuing sync-then-publish");
     await boss.send(
       "sync-post",
-      { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
+      { tenantId: tenant.id, notionPageId: pageId, thenPublish: true, forcePublish: true },
       { singletonKey: `sync:${pageId}` },
     );
   }

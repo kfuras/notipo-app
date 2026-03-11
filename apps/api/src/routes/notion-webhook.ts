@@ -195,7 +195,7 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
       log.info({ tenantId: tenant.id, pageId }, "Webhook: enqueuing sync-then-publish");
       await app.boss.send(
         "sync-post",
-        { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
+        { tenantId: tenant.id, notionPageId: pageId, thenPublish: true, forcePublish: true },
         { singletonKey: `sync:${pageId}` },
       );
       return reply.code(200).send();

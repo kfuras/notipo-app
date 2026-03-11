@@ -1,10 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useApi } from "@/hooks/use-api";
+import { useApi, useApiCall } from "@/hooks/use-api";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -33,7 +42,25 @@ const filters: Array<{ label: string; value: PostStatus | "ALL" }> = [
 
 export default function PostsPage() {
   const [filter, setFilter] = useState<PostStatus | "ALL">("ALL");
-  const { data, loading } = useApi<ApiListResponse<ApiPost>>("/api/posts");
+  const [deleteTarget, setDeleteTarget] = useState<ApiPost | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { data, loading, refetch } = useApi<ApiListResponse<ApiPost>>("/api/posts");
+  const { call } = useApiCall();
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await call(`/api/posts/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success("Post deleted");
+      setDeleteTarget(null);
+      refetch();
+    } catch {
+      toast.error("Failed to delete post");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const posts = (data?.data ?? []).filter(
     (p) => filter === "ALL" || p.status === filter,
@@ -90,11 +117,19 @@ export default function PostsPage() {
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{post.category?.name ?? "No category"}</span>
-                {post.wpUrl && (
-                  <a href={post.wpUrl} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline">
-                    View on WP
-                  </a>
-                )}
+                <div className="flex items-center gap-3">
+                  {post.wpUrl && (
+                    <a href={post.wpUrl} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline">
+                      View on WP
+                    </a>
+                  )}
+                  <button
+                    onClick={() => setDeleteTarget(post)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -110,6 +145,7 @@ export default function PostsPage() {
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>WP Link</TableHead>
+              <TableHead className="w-[1%]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -120,11 +156,12 @@ export default function PostsPage() {
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                  <TableCell></TableCell>
                 </TableRow>
               ))
             ) : posts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-12">
+                <TableCell colSpan={5} className="text-center py-12">
                   <svg className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
@@ -158,12 +195,40 @@ export default function PostsPage() {
                       "—"
                     )}
                   </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => setDeleteTarget(post)}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      Delete
+                    </button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Delete post</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;? This will also remove it from WordPress.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -155,6 +155,11 @@ export class WordPressService {
     await this.client.delete(`/media/${wpMediaId}`, { params: { force: true } });
   }
 
+  /** Permanently delete a post from WordPress (bypasses trash). */
+  async deletePost(wpPostId: number) {
+    await this.client.delete(`/posts/${wpPostId}`, { params: { force: true } });
+  }
+
   /** Fetch all categories from the WordPress site. */
   async listCategories(): Promise<Array<{ id: number; name: string; slug: string; count: number }>> {
     const results: Array<{ id: number; name: string; slug: string; count: number }> = [];
