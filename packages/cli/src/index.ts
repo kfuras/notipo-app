@@ -4,13 +4,13 @@ import { readConfig, type Config } from "./config.js";
 // ── API client ────────────────────────────────────────────────────────────────
 
 async function api<T>(config: Config, path: string, method = "GET", body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { "X-API-Key": config.apiKey };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
   const res = await fetch(`${config.url}${path}`, {
     method,
-    headers: {
-      "X-API-Key": config.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   if (!res.ok) {
