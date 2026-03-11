@@ -20,8 +20,8 @@ jobs:
           timeout_minutes: 2
           max_attempts: 3
           retry_wait_seconds: 10
-          command: |
-            curl -L https://fly.io/install.sh | FLYCTL_INSTALL=/usr/local sh
+          command: curl -L https://fly.io/install.sh | sh
+      - run: echo "$HOME/.fly/bin" >> $GITHUB_PATH
       - run: flyctl deploy --config fly.prod-api.toml --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -39,8 +39,8 @@ jobs:
           timeout_minutes: 2
           max_attempts: 3
           retry_wait_seconds: 10
-          command: |
-            curl -L https://fly.io/install.sh | FLYCTL_INSTALL=/usr/local sh
+          command: curl -L https://fly.io/install.sh | sh
+      - run: echo "$HOME/.fly/bin" >> $GITHUB_PATH
       - run: flyctl deploy --config fly.prod-web.toml --remote-only --build-arg "NEXT_PUBLIC_POSTHOG_KEY=$POSTHOG_KEY" --build-arg "NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
