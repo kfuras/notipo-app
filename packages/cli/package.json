@@ -1,0 +1,35 @@
+{
+  "name": "notipo",
+  "version": "1.0.0",
+  "description": "CLI for the Notipo publishing API",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "notipo": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "notipo",
+    "notion",
+    "wordpress",
+    "publishing",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kfuras/notipo.git"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
