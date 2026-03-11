@@ -540,7 +540,7 @@ function SetupCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <TemplateTip done={templateDone} onDone={markTemplateDone} />
+        {!notion.oauthAvailable && <TemplateTip done={templateDone} onDone={markTemplateDone} />}
         <SetupStepRow number={1} title="Connect Notion" done={notion.configured} active={activeStep === 1}>
           <NotionStepContent cfg={notion} onDone={onUpdate} />
         </SetupStepRow>
