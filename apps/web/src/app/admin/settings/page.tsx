@@ -156,7 +156,7 @@ function NotionCard({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Database ID (optional)</Label>
+                  <Label>Database ID</Label>
                   <Input
                     value={dbId}
                     onChange={(e) => setDbId(e.target.value)}

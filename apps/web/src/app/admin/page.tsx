@@ -697,7 +697,7 @@ function NotionStepContent({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">
-              Database ID <span className="text-muted-foreground">(optional)</span>
+              Database ID
             </Label>
             <Input
               value={dbId}

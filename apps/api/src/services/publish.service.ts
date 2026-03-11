@@ -51,6 +51,33 @@ export class PublishService {
       await notion.updatePageStatus(post.notionPageId, "Publishing");
     }
 
+    // Check if the WP post still exists before attempting to publish
+    if (post.wpPostId) {
+      try {
+        const currentWpPost = await wp.getPost(post.wpPostId);
+        if (currentWpPost?.status === "trash") {
+          logger.warn({ wpPostId: post.wpPostId }, "WP post is trashed, will re-create from scratch");
+          await this.prisma.post.update({
+            where: { id: postId },
+            data: { wpPostId: null, wpFeaturedMediaId: null },
+          });
+          post.wpPostId = null;
+        }
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } }).response?.status;
+        if (status === 404) {
+          logger.warn({ wpPostId: post.wpPostId }, "WP post deleted, will re-create from scratch");
+          await this.prisma.post.update({
+            where: { id: postId },
+            data: { wpPostId: null, wpFeaturedMediaId: null },
+          });
+          post.wpPostId = null;
+        } else {
+          throw err;
+        }
+      }
+    }
+
     if (post.wpPostId) {
       // Normal path: WP draft already exists from sync — just publish it
       onStep?.("Publishing…");
