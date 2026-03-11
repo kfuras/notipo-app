@@ -20,7 +20,12 @@ async function api<T>(config: Config, path: string, method = "GET", body?: unkno
     throw new Error(`${res.status} ${msg || res.statusText}`);
   }
 
-  return res.json() as Promise<T>;
+  const json = await res.json() as { data?: T } | T;
+  // Unwrap Notipo's { data: ... } envelope if present
+  if (json !== null && typeof json === "object" && "data" in json) {
+    return (json as { data: T }).data;
+  }
+  return json as T;
 }
 
 function out(data: unknown) {
@@ -36,10 +41,12 @@ function err(message: string, detail?: unknown) {
 
 async function cmdStatus(config: Config) {
   const data = await api<{
-    notion?: { connected: boolean; databaseId?: string };
-    wordpress?: { connected: boolean; siteUrl?: string };
+    notion?: { configured: boolean; databaseId?: string };
+    wordpress?: { configured: boolean; siteUrl?: string };
+    plan?: string;
+    effectivePlan?: string;
   }>(config, "/api/settings");
-  out({ notion: data.notion, wordpress: data.wordpress });
+  out(data);
 }
 
 async function cmdSync(config: Config) {
@@ -48,34 +55,30 @@ async function cmdSync(config: Config) {
 }
 
 async function cmdPosts(config: Config) {
-  const data = await api<{
-    posts: Array<{
-      id: string;
-      title: string;
-      status: string;
-      wpPostId?: number;
-      wpUrl?: string;
-      notionPageId?: string;
-      updatedAt: string;
-    }>;
-  }>(config, "/api/posts");
-  out(data.posts ?? []);
+  const posts = await api<Array<{
+    id: string;
+    title: string;
+    status: string;
+    wpPostId?: number;
+    wpUrl?: string;
+    notionPageId?: string;
+    updatedAt: string;
+  }>>(config, "/api/posts");
+  out(posts ?? []);
 }
 
 async function cmdJobs(config: Config) {
-  const data = await api<{
-    jobs: Array<{
-      id: string;
-      type: string;
-      status: string;
-      postTitle?: string;
-      steps?: string[];
-      error?: string;
-      startedAt: string;
-      completedAt?: string;
-    }>;
-  }>(config, "/api/jobs");
-  out(data.jobs ?? []);
+  const jobs = await api<Array<{
+    id: string;
+    type: string;
+    status: string;
+    postTitle?: string;
+    steps?: string[];
+    error?: string;
+    startedAt: string;
+    completedAt?: string;
+  }>>(config, "/api/jobs");
+  out(jobs ?? []);
 }
 
 async function cmdPostsDelete(config: Config, id: string) {
