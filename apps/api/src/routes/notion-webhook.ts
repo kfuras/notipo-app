@@ -142,7 +142,7 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
       // If already synced, check if WP post still exists before blocking
       const existingPost = await app.prisma.post.findUnique({
         where: { tenantId_notionPageId: { tenantId: tenant.id, notionPageId: pageId } },
-        select: { id: true, wpPostId: true, status: true },
+        select: { id: true, wpPostId: true, wpFeaturedMediaId: true, status: true },
       });
       if (existingPost?.wpPostId) {
         let wpPostAlive = true;
@@ -163,6 +163,10 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
           return reply.code(200).send();
         }
         log.info({ tenantId: tenant.id, pageId, wpPostId: existingPost.wpPostId }, "WP post deleted, clearing stale data for re-sync");
+        if (existingPost.wpFeaturedMediaId && wpCreds) {
+          const wp = new WordPressService(wpCreds);
+          wp.deleteMedia(existingPost.wpFeaturedMediaId).catch((e) => log.warn({ err: e }, "Failed to delete old featured media"));
+        }
         await app.prisma.post.update({
           where: { id: existingPost.id },
           data: { wpPostId: null, wpFeaturedMediaId: null, wpContent: null, wpUrl: null },

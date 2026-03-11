@@ -39,7 +39,7 @@ export async function pollTenant(boss: PgBoss, prisma: PrismaClient, tenant: Ten
     // "Post to Wordpress" is for new posts — if already synced, check WP post still exists
     const existingPost = await prisma.post.findUnique({
       where: { tenantId_notionPageId: { tenantId: tenant.id, notionPageId: pageId } },
-      select: { id: true, wpPostId: true, status: true },
+      select: { id: true, wpPostId: true, wpFeaturedMediaId: true, status: true },
     });
     if (existingPost?.wpPostId) {
       // Verify the WP post still exists — if deleted, clear stale data and allow re-sync
@@ -59,8 +59,12 @@ export async function pollTenant(boss: PgBoss, prisma: PrismaClient, tenant: Ten
         await notion.updatePageStatus(pageId, resetStatus);
         continue;
       }
-      // WP post was deleted — clear stale data so sync creates a fresh draft
+      // WP post was deleted — clean up old featured media and clear stale data
       log.info({ tenantId: tenant.id, pageId, wpPostId: existingPost.wpPostId }, "WP post deleted, clearing stale data for re-sync");
+      if (existingPost.wpFeaturedMediaId && wpCreds) {
+        const wp = new WordPressService(wpCreds);
+        wp.deleteMedia(existingPost.wpFeaturedMediaId).catch((e) => log.warn({ err: e }, "Failed to delete old featured media"));
+      }
       await prisma.post.update({
         where: { id: existingPost.id },
         data: { wpPostId: null, wpFeaturedMediaId: null, wpContent: null, wpUrl: null },

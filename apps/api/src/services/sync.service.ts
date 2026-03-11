@@ -67,7 +67,7 @@ export class SyncService {
     // Determine final status: re-syncing a published post → UPDATE_PENDING
     const existing = await this.prisma.post.findUnique({
       where: { tenantId_notionPageId: { tenantId, notionPageId } },
-      select: { wpPostId: true, status: true },
+      select: { wpPostId: true, wpFeaturedMediaId: true, status: true },
     });
     const isUpdate = existing?.wpPostId != null;
     const wasPublished = existing?.status === "PUBLISHED";
@@ -194,6 +194,10 @@ export class SyncService {
 
       if (wpPostGone) {
         needsNewDraft = true;
+        // Delete old featured media from WP to avoid orphans
+        if (existing!.wpFeaturedMediaId) {
+          wp.deleteMedia(existing!.wpFeaturedMediaId).catch((e) => logger.warn({ err: e }, "Failed to delete old featured media"));
+        }
         // Clear stale wpPostId/featured media so the new draft ID gets stored cleanly
         await this.prisma.post.update({
           where: { id: postId },

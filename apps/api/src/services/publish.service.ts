@@ -57,6 +57,9 @@ export class PublishService {
         const currentWpPost = await wp.getPost(post.wpPostId);
         if (currentWpPost?.status === "trash") {
           logger.warn({ wpPostId: post.wpPostId }, "WP post is trashed, will re-create from scratch");
+          if (post.wpFeaturedMediaId) {
+            wp.deleteMedia(post.wpFeaturedMediaId).catch((e) => logger.warn({ err: e }, "Failed to delete old featured media"));
+          }
           await this.prisma.post.update({
             where: { id: postId },
             data: { wpPostId: null, wpFeaturedMediaId: null },
@@ -68,6 +71,9 @@ export class PublishService {
         const status = (err as { response?: { status?: number } }).response?.status;
         if (status === 404) {
           logger.warn({ wpPostId: post.wpPostId }, "WP post deleted, will re-create from scratch");
+          if (post.wpFeaturedMediaId) {
+            wp.deleteMedia(post.wpFeaturedMediaId).catch((e) => logger.warn({ err: e }, "Failed to delete old featured media"));
+          }
           await this.prisma.post.update({
             where: { id: postId },
             data: { wpPostId: null, wpFeaturedMediaId: null },
