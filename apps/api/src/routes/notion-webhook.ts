@@ -186,29 +186,13 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
       return reply.code(200).send();
     }
 
-    // "Publish" → publish the existing draft live
+    // "Publish" → always re-sync from Notion then publish
     if (status === tenant.notionPublishTriggerStatus) {
-      const post = await app.prisma.post.findUnique({
-        where: { tenantId_notionPageId: { tenantId: tenant.id, notionPageId: pageId } },
-        select: { id: true },
-      });
-
-      if (!post) {
-        // Post not synced yet — sync first, then auto-publish
-        log.info({ tenantId: tenant.id, pageId }, "Webhook: publish triggered but post not in DB — syncing first then publishing");
-        await app.boss.send(
-          "sync-post",
-          { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
-          { singletonKey: `sync:${pageId}` },
-        );
-        return reply.code(200).send();
-      }
-
-      log.info({ tenantId: tenant.id, pageId, postId: post.id }, "Webhook: enqueuing publish-post");
+      log.info({ tenantId: tenant.id, pageId }, "Webhook: enqueuing sync-then-publish");
       await app.boss.send(
-        "publish-post",
-        { tenantId: tenant.id, postId: post.id },
-        { singletonKey: `publish:${post.id}` },
+        "sync-post",
+        { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
+        { singletonKey: `sync:${pageId}` },
       );
       return reply.code(200).send();
     }

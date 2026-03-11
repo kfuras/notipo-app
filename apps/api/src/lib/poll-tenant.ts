@@ -84,7 +84,7 @@ export async function pollTenant(boss: PgBoss, prisma: PrismaClient, tenant: Ten
     );
   }
 
-  // ── 2. "Publish" → publish the existing draft live ──
+  // ── 2. "Publish" → always re-sync from Notion then publish ──
   const publishPages = await notion.getReadyPosts(
     tenant.notionDatabaseId,
     tenant.notionPublishTriggerStatus,
@@ -93,27 +93,19 @@ export async function pollTenant(boss: PgBoss, prisma: PrismaClient, tenant: Ten
   for (const page of publishPages) {
     const pageId = (page as { id: string }).id;
 
-    const post = await prisma.post.findUnique({
-      where: { tenantId_notionPageId: { tenantId: tenant.id, notionPageId: pageId } },
-      select: { id: true },
+    const runningPublishJob = await prisma.job.findFirst({
+      where: { tenantId: tenant.id, type: "SYNC_POST", status: "RUNNING", payload: { path: ["notionPageId"], equals: pageId } },
     });
-
-    if (!post) {
-      // Post not synced yet — sync first, then auto-publish
-      log.info({ tenantId: tenant.id, pageId }, "Publish triggered but post not in DB — syncing first then publishing");
-      await boss.send(
-        "sync-post",
-        { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
-        { singletonKey: `sync:${pageId}` },
-      );
+    if (runningPublishJob) {
+      log.debug({ tenantId: tenant.id, pageId }, "Sync already running, skipping publish");
       continue;
     }
 
-    log.info({ tenantId: tenant.id, pageId, postId: post.id }, "Found post to publish, enqueuing publish-post");
+    log.info({ tenantId: tenant.id, pageId }, "Found post to publish, enqueuing sync-then-publish");
     await boss.send(
-      "publish-post",
-      { tenantId: tenant.id, postId: post.id },
-      { singletonKey: `publish:${post.id}` },
+      "sync-post",
+      { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
+      { singletonKey: `sync:${pageId}` },
     );
   }
 

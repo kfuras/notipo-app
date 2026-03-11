@@ -10,6 +10,7 @@ import { logger } from "../lib/logger.js";
 interface PublishPostPayload {
   tenantId: string;
   postId: string;
+  priorSteps?: string[];
 }
 
 export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient, eventBus: EventEmitter) {
@@ -20,6 +21,13 @@ export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient,
     const log = logger.child({ jobId: job.id, tenantId, postId });
 
     log.info("Starting post publish");
+
+    // Look up notionPageId so SSE events can link sync → publish steps in the UI
+    const postRecord = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { notionPageId: true },
+    });
+    const notionPageId = postRecord?.notionPageId;
 
     const dbJob = await prisma.job.create({
       data: {
@@ -33,13 +41,14 @@ export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient,
       },
     });
 
-    eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId });
+    const priorSteps = job.data.priorSteps;
+    eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId, notionPageId, priorSteps });
 
     try {
       const publishService = new PublishService(prisma);
       const onStep = async (step: string) => {
         await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step } } });
-        eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId, step });
+        eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "RUNNING", postId, notionPageId, step });
       };
       await publishService.publishPost(tenantId, postId, onStep);
 
@@ -61,7 +70,7 @@ export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient,
         },
       });
 
-      eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "COMPLETED", postId });
+      eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "COMPLETED", postId, notionPageId });
 
       log.info("Post publish completed");
     } catch (error) {
@@ -73,7 +82,7 @@ export async function registerPublishPostJob(boss: PgBoss, prisma: PrismaClient,
         data: { status: "FAILED", error: message },
       });
 
-      eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "FAILED", postId });
+      eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "PUBLISH_POST", status: "FAILED", postId, notionPageId });
 
       await prisma.post
         .update({

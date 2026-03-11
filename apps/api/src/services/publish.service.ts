@@ -62,6 +62,7 @@ export class PublishService {
             data: { wpPostId: null, wpFeaturedMediaId: null },
           });
           post.wpPostId = null;
+          post.wpFeaturedMediaId = null;
         }
       } catch (err: unknown) {
         const status = (err as { response?: { status?: number } }).response?.status;
@@ -72,6 +73,7 @@ export class PublishService {
             data: { wpPostId: null, wpFeaturedMediaId: null },
           });
           post.wpPostId = null;
+          post.wpFeaturedMediaId = null;
         } else {
           throw err;
         }

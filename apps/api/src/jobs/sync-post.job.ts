@@ -57,7 +57,9 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
 
     try {
       const syncService = new SyncService(prisma);
+      const syncSteps: string[] = [];
       const onStep = async (step: string) => {
+        syncSteps.push(step);
         await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step } } });
         eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "SYNC_POST", status: "RUNNING", notionPageId, step });
       };
@@ -89,18 +91,20 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
         },
       });
 
-      eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "SYNC_POST", status: "COMPLETED", postId });
+      eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "SYNC_POST", status: "COMPLETED", postId, notionPageId });
 
       if (thenPublish) {
-        // Auto-publish if the WP post is live OR was previously published in our DB
-        // (a prior sync may have accidentally reverted the WP status to draft).
-        if (wpStatus === "publish" || wasPublished) {
-          await boss.send("publish-post", { tenantId, postId }, { singletonKey: `publish:${postId}` });
+        // Auto-publish if:
+        // - WP post is already live (re-sync of published post)
+        // - Post was previously published in our DB (prior sync may have reverted WP to draft)
+        // - Brand new post (wpStatus is null) — user triggered "Publish" directly
+        if (wpStatus === "publish" || wasPublished || wpStatus === null) {
+          await boss.send("publish-post", { tenantId, postId, priorSteps: syncSteps }, { singletonKey: `publish:${postId}` });
           log.info({ postId, wpStatus, wasPublished }, "Post sync completed, publish enqueued");
         } else {
-          // Draft re-sync: revert status from UPDATE_PENDING back to SYNCED
+          // Draft re-sync where WP post exists as draft: revert status
           await prisma.post.update({ where: { id: postId }, data: { status: "SYNCED" } });
-          log.info({ postId, wpStatus }, "Post sync completed, skipping auto-publish (WP post is not live)");
+          log.info({ postId, wpStatus }, "Post sync completed, skipping auto-publish (WP post is draft)");
         }
       } else {
         log.info({ postId }, "Post sync completed, awaiting Publish trigger");

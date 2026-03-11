@@ -33,6 +33,7 @@ interface JobUpdateEvent {
   step?: string;
   postId?: string;
   notionPageId?: string;
+  priorSteps?: string[];
 }
 
 interface LiveJob {
@@ -55,6 +56,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [liveJobs, setLiveJobs] = useState<Map<string, LiveJob>>(new Map());
+  const hasRunningJobs = liveJobs.size > 0;
 
   const onEvent = useCallback((_event: string, data: unknown) => {
     const payload = data as JobUpdateEvent;
@@ -68,7 +70,11 @@ export default function DashboardPage() {
       setLiveJobs((prev) => {
         const next = new Map(prev);
         const existing = next.get(payload.jobId);
-        const steps = existing?.steps ? [...existing.steps] : [];
+        let steps = existing?.steps ? [...existing.steps] : [];
+        // Inherit prior steps from the sync job (passed via job payload)
+        if (!existing && payload.priorSteps?.length) {
+          steps = [...payload.priorSteps];
+        }
         if (payload.step && !steps.includes(payload.step)) {
           steps.push(payload.step);
         }
@@ -83,7 +89,6 @@ export default function DashboardPage() {
         return next;
       });
     } else {
-      // Job finished — remove from live tracking
       setLiveJobs((prev) => {
         const next = new Map(prev);
         next.delete(payload.jobId);
@@ -171,7 +176,7 @@ export default function DashboardPage() {
         <SetupCard settings={settings} onUpdate={refetchSettings} apiKey={apiKey} />
       )}
       {allSetUp && canSyncNow && (
-        <SetupCompleteCard onSyncNow={handleSyncNow} syncing={syncing || liveJobs.size > 0} apiKey={apiKey} />
+        <SetupCompleteCard onSyncNow={handleSyncNow} syncing={syncing || hasRunningJobs} apiKey={apiKey} />
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -223,12 +228,12 @@ export default function DashboardPage() {
                 <Button
                   size="sm"
                   className="w-full bg-violet-600 hover:bg-violet-700 text-white"
-                  disabled={syncing || liveJobs.size > 0}
+                  disabled={syncing || hasRunningJobs}
                   onClick={handleSyncNow}
                 >
                   {syncing
                     ? "Starting sync..."
-                    : liveJobs.size > 0
+                    : hasRunningJobs
                       ? (() => {
                           const latest = Array.from(liveJobs.values()).pop();
                           const step = latest?.steps[latest.steps.length - 1];
@@ -259,7 +264,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {/* Live running jobs with step progress */}
-            {Array.from(liveJobs.values()).map((lj) => (
+            {Array.from(liveJobs.values()).filter((lj) => lj.status === "RUNNING").map((lj) => (
               <div key={lj.jobId} className="mb-4 pb-4 border-b border-border last:border-0">
                 <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2">
@@ -285,11 +290,11 @@ export default function DashboardPage() {
             ))}
 
             {/* Completed/failed jobs from API */}
-            {jobs.length === 0 && liveJobs.size === 0 ? (
+            {jobs.length === 0 && !hasRunningJobs ? (
               <p className="text-sm text-muted-foreground">No recent jobs</p>
             ) : (
               <div className="space-y-2">
-                {jobs.filter((j) => !liveJobs.has(j.id)).slice(0, liveJobs.size > 0 ? 3 : 5).map((job) => (
+                {jobs.filter((j) => !liveJobs.has(j.id)).slice(0, hasRunningJobs ? 3 : 5).map((job) => (
                   <div key={job.id} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 truncate mr-2">
                       {job.status === "COMPLETED" && (
