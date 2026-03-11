@@ -194,7 +194,13 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
       });
 
       if (!post) {
-        log.warn({ tenantId: tenant.id, pageId }, "Publish triggered but post not in DB — run sync first");
+        // Post not synced yet — sync first, then auto-publish
+        log.info({ tenantId: tenant.id, pageId }, "Webhook: publish triggered but post not in DB — syncing first then publishing");
+        await app.boss.send(
+          "sync-post",
+          { tenantId: tenant.id, notionPageId: pageId, thenPublish: true },
+          { singletonKey: `sync:${pageId}` },
+        );
         return reply.code(200).send();
       }
 
