@@ -177,10 +177,10 @@ export class SyncService {
         // Apply/refresh SEO meta on the existing WP post
         if (result.metadata.seoKeyword && !wpPostGone) {
           onStep?.("Setting SEO metadata…");
-          const seoDescription = this.deriveDescription(finalMarkdown);
+          const seoDescription = this.deriveDescription(finalMarkdown, result.metadata.seoKeyword);
           await wp.updateSeo(existing!.wpPostId!, {
             keyword: result.metadata.seoKeyword,
-            title: "%title%",
+            title: result.metadata.title,
             description: seoDescription,
           }, tenant!.wpSeoPlugin);
           await this.prisma.post.update({
@@ -313,10 +313,10 @@ export class SyncService {
       // Apply SEO meta on the draft so it's visible during review
       if (result.metadata.seoKeyword) {
         onStep?.("Setting SEO metadata…");
-        const seoDescription = this.deriveDescription(finalMarkdown);
+        const seoDescription = this.deriveDescription(finalMarkdown, result.metadata.seoKeyword);
         await wp.updateSeo(wpPost.id, {
           keyword: result.metadata.seoKeyword,
-          title: "%title%",
+          title: result.metadata.title,
           description: seoDescription,
         }, tenant!.wpSeoPlugin);
         await this.prisma.post.update({
@@ -340,15 +340,24 @@ export class SyncService {
     return { postId, wpStatus, wasPublished };
   }
 
-  /** Strip markdown syntax and truncate to ~160 chars for SEO description. */
-  private deriveDescription(markdown: string): string {
+  /** Strip markdown syntax and truncate to ~160 chars for SEO description.
+   *  If the keyword is not present in the derived text, it is appended so
+   *  Rank Math can find it in the meta description. */
+  private deriveDescription(markdown: string, keyword?: string): string {
     const plain = markdown
       .replace(/!\[[^\]]*\]\([^)]*\)/g, "")  // images
       .replace(/\[[^\]]*\]\([^)]*\)/g, "")   // links
       .replace(/[#*_`~>|-]/g, "")             // markdown syntax
       .replace(/\s+/g, " ")
       .trim();
-    return plain.length > 160 ? plain.slice(0, 159).trimEnd() + "..." : plain;
+    const truncated = plain.length > 160 ? plain.slice(0, 159).trimEnd() + "..." : plain;
+    if (keyword && !truncated.toLowerCase().includes(keyword.toLowerCase())) {
+      const suffix = ` ${keyword}.`;
+      const maxBase = 160 - suffix.length;
+      const base = plain.length > maxBase ? plain.slice(0, maxBase).trimEnd() + "..." : plain;
+      return base + suffix;
+    }
+    return truncated;
   }
 
   private async upsertPost(
