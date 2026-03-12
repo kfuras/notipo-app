@@ -97,6 +97,7 @@ async function cmdPostsCreate(config: Config, args: string[]) {
   const tags = get("--tags"); if (tags) body.tags = (tags as string).split(",").map((t) => t.trim());
   const seoKeyword = get("--seo-keyword"); if (seoKeyword) body.seoKeyword = seoKeyword;
   const imageTitle = get("--image-title"); if (imageTitle) body.imageTitle = imageTitle;
+  const slug = get("--slug"); if (slug) body.slug = slug;
   if (has("--publish")) body.publish = true;
 
   const result = await api<{ jobId: string; notionPageId: string; message: string }>(
@@ -108,8 +109,8 @@ async function cmdPostsCreate(config: Config, args: string[]) {
     process.stderr.write("Waiting for job to complete...\n");
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 3000));
-      const jobs = await api<Array<{ id: string; status: string; result?: unknown; error?: string }>>(config, "/api/jobs");
-      const job = jobs.find((j) => j.id === result.jobId);
+      const jobs = await api<Array<{ id: string; pgBossJobId?: string; status: string; result?: unknown; error?: string }>>(config, "/api/jobs");
+      const job = jobs.find((j) => j.pgBossJobId === result.jobId);
       if (job?.status === "COMPLETED" || job?.status === "FAILED") {
         out(job);
         return;

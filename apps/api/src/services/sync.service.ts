@@ -18,7 +18,7 @@ export class SyncService {
   constructor(private prisma: PrismaClient) {}
 
   /** Sync a single Notion page to the database. Returns the post ID, WP status, and whether the post was previously published. */
-  async syncPost(tenantId: string, notionPageId: string, onStep?: (step: string) => void): Promise<{ postId: string; wpStatus: string | null; wasPublished: boolean }> {
+  async syncPost(tenantId: string, notionPageId: string, onStep?: (step: string) => void, wpSlug?: string): Promise<{ postId: string; wpStatus: string | null; wasPublished: boolean }> {
     const credService = new CredentialService(this.prisma);
 
     // Get tenant credentials
@@ -54,6 +54,9 @@ export class SyncService {
       pageObj.properties as Record<string, unknown>,
       notionPageId,
     );
+
+    // Override slug if explicitly provided (e.g. via CLI --slug flag)
+    if (wpSlug) result.metadata.slug = wpSlug;
 
     // 3. Resolve category
     const category = result.metadata.category

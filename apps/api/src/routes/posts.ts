@@ -16,6 +16,7 @@ const createPostSchema = z.object({
   tags: z.array(z.string()).optional(),
   seoKeyword: z.string().optional(),
   imageTitle: z.string().optional(),
+  slug: z.string().optional(),
   publish: z.boolean().optional().default(false),
 });
 
@@ -78,6 +79,7 @@ export async function postRoutes(app: FastifyInstance) {
       tenantId,
       notionPageId,
       ...(body.publish && { forcePublish: true }),
+      ...(body.slug && { wpSlug: body.slug }),
     });
 
     return reply.code(202).send({

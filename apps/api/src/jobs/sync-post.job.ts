@@ -13,6 +13,7 @@ interface SyncPostPayload {
   notionPageId: string;
   thenPublish?: boolean;
   forcePublish?: boolean;
+  wpSlug?: string;
 }
 
 export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, eventBus: EventEmitter) {
@@ -20,7 +21,7 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
   await boss.work<SyncPostPayload>("sync-post", { batchSize: 1 }, async (jobs) => {
     const job = jobs[0];
     const { tenantId, notionPageId } = job.data;
-    const { thenPublish, forcePublish } = job.data;
+    const { thenPublish, forcePublish, wpSlug } = job.data;
     const log = logger.child({ jobId: job.id, tenantId, notionPageId });
 
     log.info("Starting post sync");
@@ -65,7 +66,7 @@ export async function registerSyncPostJob(boss: PgBoss, prisma: PrismaClient, ev
         await prisma.job.update({ where: { id: dbJob.id }, data: { result: { step, steps: syncSteps } } });
         eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "SYNC_POST", status: "RUNNING", notionPageId, step });
       };
-      const { postId, wpStatus, wasPublished } = await syncService.syncPost(tenantId, notionPageId, onStep);
+      const { postId, wpStatus, wasPublished } = await syncService.syncPost(tenantId, notionPageId, onStep, wpSlug);
 
       // Build result summary from the synced post
       const post = await prisma.post.findFirst({
