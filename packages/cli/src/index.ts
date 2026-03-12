@@ -107,15 +107,33 @@ async function cmdPostsCreate(config: Config, args: string[]) {
 
   if (has("--wait")) {
     process.stderr.write("Waiting for job to complete...\n");
+    type Job = { id: string; type: string; pgBossJobId?: string; postId?: string; status: string; result?: unknown; error?: string };
+    let syncPostId: string | undefined;
+
+    // Phase 1: wait for SYNC_POST to complete
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 3000));
-      const jobs = await api<Array<{ id: string; pgBossJobId?: string; status: string; result?: unknown; error?: string }>>(config, "/api/jobs");
+      const jobs = await api<Job[]>(config, "/api/jobs");
       const job = jobs.find((j) => j.pgBossJobId === result.jobId);
-      if (job?.status === "COMPLETED" || job?.status === "FAILED") {
-        out(job);
-        return;
+      if (job?.status === "FAILED") { out(job); return; }
+      if (job?.status === "COMPLETED") {
+        syncPostId = job.postId;
+        if (!has("--publish")) { out(job); return; }
+        break;
       }
     }
+
+    // Phase 2: if --publish, wait for the subsequent PUBLISH_POST job
+    if (has("--publish") && syncPostId) {
+      process.stderr.write("Waiting for publish to complete...\n");
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const jobs = await api<Job[]>(config, "/api/jobs");
+        const job = jobs.find((j) => j.type === "PUBLISH_POST" && j.postId === syncPostId);
+        if (job?.status === "COMPLETED" || job?.status === "FAILED") { out(job); return; }
+      }
+    }
+
     err("Timed out waiting for job. Run `notipo jobs` to check status.");
   }
 }
