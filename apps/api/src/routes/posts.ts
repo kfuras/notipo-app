@@ -78,7 +78,7 @@ export async function postRoutes(app: FastifyInstance) {
     const jobId = await app.boss.send("sync-post", {
       tenantId,
       notionPageId,
-      ...(body.publish && { forcePublish: true }),
+      ...(body.publish && { thenPublish: true, forcePublish: true }),
       ...(body.slug && { wpSlug: body.slug }),
     });
 

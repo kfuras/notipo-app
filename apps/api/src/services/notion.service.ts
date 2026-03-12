@@ -105,11 +105,26 @@ export class NotionService {
     };
 
     const children: unknown[] = params.body
-      ? params.body.split("\n\n").filter(Boolean).map((para) => ({
-          object: "block",
-          type: "paragraph",
-          paragraph: { rich_text: [{ type: "text", text: { content: para } }] },
-        }))
+      ? params.body.split("\n\n").filter(Boolean).flatMap((chunk) => {
+          const lines = chunk.split("\n");
+          const blocks: unknown[] = [];
+          let paragraphLines: string[] = [];
+          for (const line of lines) {
+            const h1 = line.match(/^# (.+)/);
+            const h2 = line.match(/^## (.+)/);
+            const h3 = line.match(/^### (.+)/);
+            if (h1 || h2 || h3) {
+              if (paragraphLines.length) { blocks.push({ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: paragraphLines.join("\n") } }] } }); paragraphLines = []; }
+              const level = h3 ? "heading_3" : h2 ? "heading_2" : "heading_1";
+              const text = (h1 ?? h2 ?? h3)![1];
+              blocks.push({ object: "block", type: level, [level]: { rich_text: [{ type: "text", text: { content: text } }] } });
+            } else {
+              paragraphLines.push(line);
+            }
+          }
+          if (paragraphLines.length) blocks.push({ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: paragraphLines.join("\n") } }] } });
+          return blocks;
+        })
       : [];
 
     const page = await this.client.pages.create({
