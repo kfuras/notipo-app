@@ -1,6 +1,13 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+
+/** Non-cryptographic hash used only for localStorage keying — never for auth. */
+function shortHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useApi, useApiCall } from "@/hooks/use-api";
@@ -505,11 +512,11 @@ function SetupCard({
   const notion = settings.data.notion;
   const wordpress = settings.data.wordpress;
   const [templateDone, setTemplateDone] = useState(
-    () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_template_done") === apiKey,
+    () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_template_done") === shortHash(apiKey),
   );
 
   function markTemplateDone() {
-    if (apiKey) localStorage.setItem("notipo_template_done", apiKey);
+    if (apiKey) localStorage.setItem("notipo_template_done", shortHash(apiKey));
     setTemplateDone(true);
     capture("onboarding_step_completed", { step: "template" });
   }
@@ -731,6 +738,7 @@ function WordPressStepContent({
   function connectOneClick(e: React.FormEvent) {
     e.preventDefault();
     const normalised = siteUrl.replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(normalised)) return;
     const callbackUrl = `${window.location.origin}/admin`;
     const wpAuthUrl = `${normalised}/wp-admin/authorize-application.php?app_name=Notipo&success_url=${encodeURIComponent(callbackUrl)}`;
     window.location.href = wpAuthUrl;
@@ -830,20 +838,20 @@ function SetupCompleteCard({
   apiKey: string | null;
 }) {
   const [dismissed, setDismissed] = useState(
-    () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_setup_dismissed") === apiKey,
+    () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_setup_dismissed") === shortHash(apiKey),
   );
 
   useEffect(() => {
-    if (apiKey && localStorage.getItem("notipo_setup_complete_tracked") !== apiKey) {
+    if (apiKey && localStorage.getItem("notipo_setup_complete_tracked") !== shortHash(apiKey)) {
       capture("onboarding_completed");
-      localStorage.setItem("notipo_setup_complete_tracked", apiKey);
+      localStorage.setItem("notipo_setup_complete_tracked", shortHash(apiKey));
     }
   }, [apiKey]);
 
   if (dismissed) return null;
 
   function dismiss() {
-    if (apiKey) localStorage.setItem("notipo_setup_dismissed", apiKey);
+    if (apiKey) localStorage.setItem("notipo_setup_dismissed", shortHash(apiKey));
     setDismissed(true);
   }
 

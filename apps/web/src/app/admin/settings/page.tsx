@@ -210,6 +210,7 @@ function WordPressCard({
   function connectOneClick(e: React.FormEvent) {
     e.preventDefault();
     const normalised = siteUrl.replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(normalised)) return;
     const callbackUrl = `${window.location.origin}/admin`;
     const wpAuthUrl = `${normalised}/wp-admin/authorize-application.php?app_name=Notipo&success_url=${encodeURIComponent(callbackUrl)}`;
     window.location.href = wpAuthUrl;
