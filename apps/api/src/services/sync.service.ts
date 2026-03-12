@@ -55,8 +55,12 @@ export class SyncService {
       notionPageId,
     );
 
-    // Override slug if explicitly provided (e.g. via CLI --slug flag)
-    if (wpSlug) result.metadata.slug = wpSlug;
+    // Slug priority: explicit --slug > Notion formula > SEO keyword > title (WordPress default)
+    if (wpSlug) {
+      result.metadata.slug = wpSlug;
+    } else if (!result.metadata.slug && result.metadata.seoKeyword) {
+      result.metadata.slug = result.metadata.seoKeyword.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    }
 
     // 3. Resolve category
     const category = result.metadata.category
