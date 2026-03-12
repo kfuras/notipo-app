@@ -21,7 +21,11 @@
     "sharp": "^0.34.5"
   },
   "overrides": {
-    "hono": "^4.12.7",
-    "@hono/node-server": "^1.19.11"
+    "hono": "4.12.7",
+    "@hono/node-server": "1.19.11",
+    "@prisma/dev": {
+      "hono": "4.12.7",
+      "@hono/node-server": "1.19.11"
+    }
   }
 }
