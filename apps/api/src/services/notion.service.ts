@@ -85,6 +85,42 @@ export class NotionService {
     });
   }
 
+  /** Create a new page in a Notion database. */
+  async createPage(databaseId: string, params: {
+    title: string;
+    status: string;
+    category?: string;
+    tags?: string[];
+    seoKeyword?: string;
+    imageTitle?: string;
+    body?: string;
+  }): Promise<string> {
+    const properties: Record<string, unknown> = {
+      Name: { title: [{ text: { content: params.title } }] },
+      Status: { select: { name: params.status } },
+      ...(params.category && { Category: { select: { name: params.category } } }),
+      ...(params.tags?.length && { Tags: { multi_select: params.tags.map((t) => ({ name: t })) } }),
+      ...(params.seoKeyword && { "SEO Keyword": { rich_text: [{ text: { content: params.seoKeyword } }] } }),
+      ...(params.imageTitle && { "Featured Image Title": { rich_text: [{ text: { content: params.imageTitle } }] } }),
+    };
+
+    const children: unknown[] = params.body
+      ? params.body.split("\n\n").filter(Boolean).map((para) => ({
+          object: "block",
+          type: "paragraph",
+          paragraph: { rich_text: [{ type: "text", text: { content: para } }] },
+        }))
+      : [];
+
+    const page = await this.client.pages.create({
+      parent: { database_id: databaseId },
+      properties: properties as Parameters<typeof this.client.pages.create>[0]["properties"],
+      children: children as Parameters<typeof this.client.pages.create>[0]["children"],
+    });
+
+    return page.id;
+  }
+
   /** Get a page's Status select value (returns null if not set). */
   async getPageStatus(pageId: string): Promise<string | null> {
     const page = await this.getPageProperties(pageId);

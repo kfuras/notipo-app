@@ -32,7 +32,7 @@ function out(data: unknown) {
   console.log(JSON.stringify(data, null, 2));
 }
 
-function err(message: string, detail?: unknown) {
+function err(message: string, detail?: unknown): never {
   console.error(JSON.stringify({ error: message, ...(detail ? { detail } : {}) }, null, 2));
   process.exit(1);
 }
@@ -81,6 +81,44 @@ async function cmdJobs(config: Config) {
   out(jobs ?? []);
 }
 
+async function cmdPostsCreate(config: Config, args: string[]) {
+  const get = (flag: string) => {
+    const i = args.indexOf(flag);
+    return i !== -1 ? args[i + 1] : undefined;
+  };
+  const has = (flag: string) => args.includes(flag);
+
+  const title = get("--title");
+  if (!title) err("Missing --title. Usage: notipo posts create --title \"My Post\" [options]");
+
+  const body: Record<string, unknown> = { title };
+  const bodyText = get("--body"); if (bodyText) body.body = bodyText;
+  const category = get("--category"); if (category) body.category = category;
+  const tags = get("--tags"); if (tags) body.tags = (tags as string).split(",").map((t) => t.trim());
+  const seoKeyword = get("--seo-keyword"); if (seoKeyword) body.seoKeyword = seoKeyword;
+  const imageTitle = get("--image-title"); if (imageTitle) body.imageTitle = imageTitle;
+  if (has("--publish")) body.publish = true;
+
+  const result = await api<{ jobId: string; notionPageId: string; message: string }>(
+    config, "/api/posts/create", "POST", body
+  );
+  out(result);
+
+  if (has("--wait")) {
+    process.stderr.write("Waiting for job to complete...\n");
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const jobs = await api<Array<{ id: string; status: string; result?: unknown; error?: string }>>(config, "/api/jobs");
+      const job = jobs.find((j) => j.id === result.jobId);
+      if (job?.status === "COMPLETED" || job?.status === "FAILED") {
+        out(job);
+        return;
+      }
+    }
+    err("Timed out waiting for job. Run `notipo jobs` to check status.");
+  }
+}
+
 async function cmdPostsDelete(config: Config, id: string) {
   if (!id) err("Missing post ID. Usage: notipo posts delete <id>");
   await api(config, `/api/posts/${id}`, "DELETE");
@@ -94,6 +132,8 @@ function cmdHelp() {
       status: "Show Notion and WordPress connection status",
       sync: "Trigger an immediate Notion poll",
       posts: "List all posts",
+      "posts create": "Create a post in Notion and sync to WordPress",
+      "posts create --title <title> [--body <text>] [--category <cat>] [--tags <a,b>] [--seo-keyword <kw>] [--image-title <title>] [--publish] [--wait]": "",
       "posts delete <id>": "Delete a post (cleans up WordPress + Notion)",
       jobs: "List recent sync and publish jobs",
     },
@@ -102,6 +142,7 @@ function cmdHelp() {
       file: "~/.notipo/config.json (written by `notipo login` if using the interactive wrapper)",
     },
     examples: [
+      "notipo posts create --title \"My Post\" --category \"AI\" --publish --wait",
       "NOTIPO_URL=https://notipo.com NOTIPO_API_KEY=ntp_... notipo sync",
       "notipo posts",
       "notipo jobs",
@@ -111,7 +152,7 @@ function cmdHelp() {
 
 // ── Entry ─────────────────────────────────────────────────────────────────────
 
-const [, , cmd, sub, arg] = process.argv;
+const [, , cmd, sub, ...rest] = process.argv;
 
 if (!cmd || cmd === "help") {
   cmdHelp();
@@ -125,8 +166,10 @@ try {
     await cmdStatus(config);
   } else if (cmd === "sync") {
     await cmdSync(config);
+  } else if (cmd === "posts" && sub === "create") {
+    await cmdPostsCreate(config, rest);
   } else if (cmd === "posts" && sub === "delete") {
-    await cmdPostsDelete(config, arg);
+    await cmdPostsDelete(config, rest[0]);
   } else if (cmd === "posts") {
     await cmdPosts(config);
   } else if (cmd === "jobs") {

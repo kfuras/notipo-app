@@ -9,6 +9,16 @@ const syncBodySchema = z.object({
   notionPageId: z.string().min(1),
 });
 
+const createPostSchema = z.object({
+  title: z.string().min(1),
+  body: z.string().optional(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  seoKeyword: z.string().optional(),
+  imageTitle: z.string().optional(),
+  publish: z.boolean().optional().default(false),
+});
+
 const publishParamsSchema = z.object({
   id: z.string().min(1),
 });
@@ -32,6 +42,47 @@ export async function postRoutes(app: FastifyInstance) {
     });
     if (!post) return reply.notFound("Post not found");
     return { data: post };
+  });
+
+  // Create a new post in Notion and trigger sync
+  app.post("/api/posts/create", async (request, reply) => {
+    const body = createPostSchema.parse(request.body);
+    const tenantId = request.tenant.id;
+
+    const credService = new CredentialService(app.prisma);
+    const notionCreds = await credService.getNotionCredentials(tenantId);
+    if (!notionCreds) return reply.code(400).send({ error: "Notion is not configured" });
+
+    const tenant = await app.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { notionDatabaseId: true, notionTriggerStatus: true, notionPublishTriggerStatus: true },
+    });
+    if (!tenant.notionDatabaseId) return reply.code(400).send({ error: "Notion database not configured" });
+
+    const notion = new NotionService(notionCreds.accessToken);
+    const status = body.publish
+      ? (tenant.notionPublishTriggerStatus ?? "Publish")
+      : (tenant.notionTriggerStatus ?? "Post to Wordpress");
+
+    const notionPageId = await notion.createPage(tenant.notionDatabaseId, {
+      title: body.title,
+      body: body.body,
+      category: body.category,
+      tags: body.tags,
+      seoKeyword: body.seoKeyword,
+      imageTitle: body.imageTitle,
+      status,
+    });
+
+    const jobId = await app.boss.send("sync-post", {
+      tenantId,
+      notionPageId,
+      ...(body.publish && { forcePublish: true }),
+    });
+
+    return reply.code(202).send({
+      data: { jobId, notionPageId, message: "Post created. Run `notipo jobs` to monitor progress." },
+    });
   });
 
   // Trigger sync from Notion
