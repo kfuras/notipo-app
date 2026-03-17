@@ -41,12 +41,13 @@ function ImpersonationBanner() {
 /** Enrich PostHog person properties once per session */
 function PostHogEnrich() {
   const enriched = useRef(false);
+  const { impersonating } = useAuth();
   const { data } = useApi<{
     data: { email: string; role: string; tenant: { name: string; plan: string } };
   }>("/api/account");
 
   useEffect(() => {
-    if (!data?.data || enriched.current || !posthog.__loaded) return;
+    if (!data?.data || enriched.current || !posthog.__loaded || impersonating) return;
     enriched.current = true;
     const a = data.data;
     posthog.identify(a.email, {
@@ -55,7 +56,7 @@ function PostHogEnrich() {
       tenant: a.tenant.name,
       plan: a.tenant.plan,
     });
-  }, [data]);
+  }, [data, impersonating]);
 
   return null;
 }
