@@ -50,6 +50,13 @@ export async function buildApp() {
     throw error; // let Fastify handle everything else
   });
 
+  // Security headers
+  app.addHook("onSend", (_request, reply, payload, done) => {
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("X-Content-Type-Options", "nosniff");
+    done(null, payload);
+  });
+
   // Plugins
   await app.register(cors, {
     origin: config.FRONTEND_URL
