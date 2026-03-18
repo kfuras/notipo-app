@@ -1,12 +1,20 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import axios from "axios";
 import { WordPressService } from "../services/wordpress.service.js";
 import { CredentialService } from "../services/credential.service.js";
 import { NotionService } from "../services/notion.service.js";
 import { logger } from "../lib/logger.js";
+import { config } from "../config.js";
+import { canGenerateFeaturedImage } from "../lib/plan-limits.js";
 
 const syncBodySchema = z.object({
   notionPageId: z.string().min(1),
+});
+
+const imageSchema = z.object({
+  query: z.string().min(1),
+  afterHeading: z.string().min(1),
 });
 
 const createPostSchema = z.object({
@@ -18,6 +26,7 @@ const createPostSchema = z.object({
   imageTitle: z.string().optional(),
   slug: z.string().optional(),
   publish: z.boolean().optional().default(false),
+  images: z.array(imageSchema).optional(),
 });
 
 const publishParamsSchema = z.object({
@@ -65,9 +74,50 @@ export async function postRoutes(app: FastifyInstance) {
       ? (tenant.notionPublishTriggerStatus ?? "Publish")
       : (tenant.notionTriggerStatus ?? "Post to Wordpress");
 
+    // Insert Unsplash images into body (Pro plan only)
+    let enrichedBody = body.body;
+    if (body.images?.length && enrichedBody && config.UNSPLASH_ACCESS_KEY) {
+      const tenantPlan = await app.prisma.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { plan: true, trialEndsAt: true },
+      });
+      if (canGenerateFeaturedImage(tenantPlan.plan, tenantPlan.trialEndsAt)) {
+        for (const img of body.images) {
+          try {
+            const search = await axios.get<{
+              results: Array<{ urls: { regular: string }; alt_description: string | null; links: { download_location: string } }>;
+            }>("https://api.unsplash.com/search/photos", {
+              params: { query: img.query, orientation: "landscape", per_page: 5 },
+              headers: { Authorization: `Client-ID ${config.UNSPLASH_ACCESS_KEY}` },
+              timeout: 10_000,
+            });
+            const photo = search.data.results[0];
+            if (photo) {
+              // Trigger download tracking (Unsplash ToS)
+              axios.get(photo.links.download_location, {
+                headers: { Authorization: `Client-ID ${config.UNSPLASH_ACCESS_KEY}` },
+                timeout: 5_000,
+              }).catch(() => {});
+              const alt = photo.alt_description || img.query;
+              const imageMarkdown = `\n\n![${alt}](${photo.urls.regular})`;
+              // Insert after the matching heading
+              const headingIndex = enrichedBody!.indexOf(img.afterHeading);
+              if (headingIndex !== -1) {
+                const endOfLine: number = enrichedBody!.indexOf("\n", headingIndex + img.afterHeading.length);
+                const insertAt: number = endOfLine !== -1 ? endOfLine : headingIndex + img.afterHeading.length;
+                enrichedBody = enrichedBody!.slice(0, insertAt) + imageMarkdown + enrichedBody!.slice(insertAt);
+              }
+            }
+          } catch (err) {
+            logger.warn({ err, query: img.query }, "Unsplash search failed for inline image");
+          }
+        }
+      }
+    }
+
     const notionPageId = await notion.createPage(tenant.notionDatabaseId, {
       title: body.title,
-      body: body.body,
+      body: enrichedBody,
       category: body.category,
       tags: body.tags,
       seoKeyword: body.seoKeyword,
