@@ -245,7 +245,7 @@ For curl/HTTP usage, `POST /api/posts/create` accepts:
 
 ## Common Gotchas
 
-1. **Only `title` is required** — all other fields are optional. A minimal request with just a title creates a blank Notion page and syncs it as a WordPress draft.
+1. **Include all fields for best results** — only `title` is technically required, but AI agents should always generate body, category, tags, seoKeyword, imageTitle, and slug for a complete post.
 2. **Category must exist** — the category name must match an existing WordPress category. Fetch valid options first.
 3. **`--publish` runs two jobs** — first SYNC_POST (creates draft), then PUBLISH_POST (makes it live). Use `--wait` to block until both complete.
 4. **Images require Pro plan** — the `images` array and featured image generation are Pro features. On Free plan, these fields are silently ignored.
