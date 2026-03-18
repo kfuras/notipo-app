@@ -7,7 +7,7 @@ import sharp from "sharp";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 
-const GEMINI_MODEL = "gemini-2.0-flash-exp";
+const GEMINI_MODEL = "gemini-3-pro-image-preview";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const WIDTH = 1200;
