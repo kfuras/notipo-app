@@ -45,6 +45,24 @@ export const Plan = {
 } as const;
 export type Plan = (typeof Plan)[keyof typeof Plan];
 
+export const FeaturedImageMode = {
+  STANDARD: "STANDARD",
+  AI_GENERATED: "AI_GENERATED",
+} as const;
+export type FeaturedImageMode =
+  (typeof FeaturedImageMode)[keyof typeof FeaturedImageMode];
+
+export const AI_IMAGE_STYLES = [
+  "comic book",
+  "watercolor",
+  "3D render",
+  "minimalist",
+  "photorealistic",
+  "cyberpunk",
+  "retro",
+] as const;
+export type AiImageStyle = (typeof AI_IMAGE_STYLES)[number];
+
 export const UserRole = {
   OWNER: "OWNER",
   ADMIN: "ADMIN",

@@ -25,6 +25,8 @@ const wordpressSettingsSchema = z.object({
 
 const generalSettingsSchema = z.object({
   codeHighlighter: z.enum(["PRISMATIC", "WP_CODE", "HIGHLIGHT_JS", "PRISM_JS"]).optional(),
+  featuredImageMode: z.enum(["STANDARD", "AI_GENERATED"]).optional(),
+  aiImageStyle: z.string().max(100).optional(),
   databaseId: z.string().optional(),
   triggerStatus: z.string().optional(),
   publishTriggerStatus: z.string().optional(),
@@ -48,6 +50,8 @@ export async function settingsRoutes(app: FastifyInstance) {
         notionUpdateTriggerStatus: true,
         wpSiteUrl: true,
         codeHighlighter: true,
+        featuredImageMode: true,
+        aiImageStyle: true,
         webhookUrl: true,
         plan: true,
         trialEndsAt: true,
@@ -71,6 +75,9 @@ export async function settingsRoutes(app: FastifyInstance) {
           siteUrl: tenant.wpSiteUrl,
         },
         codeHighlighter: tenant.codeHighlighter,
+        featuredImageMode: tenant.featuredImageMode,
+        aiImageStyle: tenant.aiImageStyle,
+        geminiAvailable: !!config.GEMINI_API_KEY,
         webhookUrl: tenant.webhookUrl,
         plan: tenant.plan,
         effectivePlan: getEffectivePlan(tenant.plan, tenant.trialEndsAt),
@@ -187,6 +194,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       where: { id: request.tenant.id },
       data: {
         ...(body.codeHighlighter !== undefined && { codeHighlighter: body.codeHighlighter }),
+        ...(body.featuredImageMode !== undefined && { featuredImageMode: body.featuredImageMode }),
+        ...(body.aiImageStyle !== undefined && { aiImageStyle: body.aiImageStyle || null }),
         ...(body.databaseId !== undefined && { notionDatabaseId: body.databaseId }),
         ...(body.triggerStatus !== undefined && { notionTriggerStatus: body.triggerStatus }),
         ...(body.publishTriggerStatus !== undefined && { notionPublishTriggerStatus: body.publishTriggerStatus }),

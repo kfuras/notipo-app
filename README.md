@@ -72,7 +72,7 @@ Connect Notion (OAuth or manual token), connect WordPress with one click via the
 - **Two-step or one-step publish** — review the draft first, or skip straight to live by setting "Publish" in Notion (re-syncs content automatically)
 - **Content updates** — re-sync from Notion without creating duplicates
 - **Post deletion** — delete posts from the dashboard and Notipo cleans up the WordPress post, images, and resets Notion
-- **Featured images** — auto-generated with your post title on a background (upload your own, Unsplash, or gradient)
+- **Featured images** — auto-generated with your post title on a background (upload your own, Unsplash, AI-generated via Gemini, or gradient)
 - **Inline images** — Notion images uploaded to your WordPress media library automatically
 - **SEO metadata** — Rank Math focus keyword, title, and description applied during sync
 - **Webhook notifications** — Slack or Discord alerts when jobs fail
@@ -99,7 +99,7 @@ All credentials are encrypted in the database with AES-256-GCM.
 |--|-------------------|-----------------|
 | **Setup** | Sign up and start publishing in minutes | You deploy and manage your own server |
 | **Infrastructure** | Managed for you — backups, updates, uptime | You handle hosting, updates, and backups |
-| **Features** | Free tier (5 posts/month) or Pro ($19/month, unlimited) | All features unlocked, no restrictions |
+| **Features** | Free tier (5 posts/month) or Pro ($19/month, unlimited + AI images) | All features unlocked, no restrictions |
 | **Updates** | Continuous — new features available immediately | Pull the latest Docker image when you want |
 | **Email & auth** | Built in — email verification and password reset | Optional — works without email, first user auto-verified |
 | **Support** | Direct support from the developer | Community support via [GitHub Discussions](https://github.com/kfuras/notipo/discussions) |

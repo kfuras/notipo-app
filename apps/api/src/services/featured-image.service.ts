@@ -12,6 +12,7 @@ import axios from "axios";
 import { isPrivateUrl } from "../lib/url-validation.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
+import { GeminiImageService } from "./gemini-image.service.js";
 import type { FeaturedImageRequest, FeaturedImageResult, UnsplashAttribution } from "../types/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -195,6 +196,18 @@ export class FeaturedImageService {
 
   /** Generate a featured image and return PNG bytes with optional Unsplash attribution. */
   async generate(params: FeaturedImageRequest): Promise<FeaturedImageResult> {
+    // AI-generated mode: delegate to Gemini, skip the standard sharp/canvas pipeline
+    if (params.mode === "AI_GENERATED" && config.GEMINI_API_KEY) {
+      const gemini = new GeminiImageService();
+      const buffer = await gemini.generate({
+        title: params.title,
+        category: params.category,
+        style: params.aiImageStyle || "minimalist",
+        tags: params.tags,
+      });
+      return { buffer };
+    }
+
     let resized: Buffer;
     let unsplashAttribution: UnsplashAttribution | undefined;
 

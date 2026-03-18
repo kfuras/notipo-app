@@ -37,6 +37,7 @@ const envSchema = z.object({
   ADMIN_NOTIFY_EMAIL: emptyToUndefinedEmail,
   FRONTEND_URL: emptyToUndefinedUrl,
   UNSPLASH_ACCESS_KEY: emptyToUndefined,
+  GEMINI_API_KEY: emptyToUndefined,
 });
 
 export type Config = z.infer<typeof envSchema>;

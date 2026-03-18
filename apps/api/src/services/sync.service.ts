@@ -137,7 +137,7 @@ export class SyncService {
     onStep?.(isUpdate ? "Updating WP post…" : "Creating WP draft…");
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { codeHighlighter: true, plan: true, trialEndsAt: true, wpSeoPlugin: true },
+      select: { codeHighlighter: true, plan: true, trialEndsAt: true, wpSeoPlugin: true, featuredImageMode: true, aiImageStyle: true },
     });
     const highlighter = tenant!.codeHighlighter;
     const featuredImagesAllowed = canGenerateFeaturedImage(tenant!.plan, tenant!.trialEndsAt);
@@ -273,6 +273,9 @@ export class SyncService {
           title: result.metadata.featuredImageTitle,
           category: category?.name || result.metadata.category || "Blog",
           backgroundImageUrl: category?.backgroundImage || undefined,
+          mode: tenant!.featuredImageMode,
+          aiImageStyle: tenant!.aiImageStyle ?? undefined,
+          tags: result.metadata.tags,
         });
         const media = await wp.uploadMedia(imageBuffer, `${safeSlug}-featured.png`);
         await wp.updateMediaMeta(media.id, {

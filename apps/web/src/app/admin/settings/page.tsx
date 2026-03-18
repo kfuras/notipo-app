@@ -27,7 +27,11 @@ interface SettingsData {
       siteUrl: string | null;
     };
     codeHighlighter: string;
+    featuredImageMode: string;
+    aiImageStyle: string | null;
+    geminiAvailable: boolean;
     webhookUrl: string | null;
+    effectivePlan: string;
   };
 }
 
@@ -44,6 +48,13 @@ export default function SettingsPage() {
           <NotionCard cfg={cfg.notion} onUpdate={refetch} />
           <WordPressCard cfg={cfg.wordpress} onUpdate={refetch} />
           <CodeHighlighterCard current={cfg.codeHighlighter} onUpdate={refetch} />
+          <FeaturedImageCard
+            mode={cfg.featuredImageMode}
+            style={cfg.aiImageStyle}
+            geminiAvailable={cfg.geminiAvailable}
+            isPro={cfg.effectivePlan === "PRO"}
+            onUpdate={refetch}
+          />
           <WebhookCard current={cfg.webhookUrl} onUpdate={refetch} />
         </>
       )}
@@ -405,6 +416,116 @@ function CodeHighlighterCard({
             </Button>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const AI_IMAGE_STYLES = [
+  { value: "comic book", label: "Comic Book" },
+  { value: "watercolor", label: "Watercolor" },
+  { value: "3D render", label: "3D Render" },
+  { value: "minimalist", label: "Minimalist" },
+  { value: "photorealistic", label: "Photorealistic" },
+  { value: "cyberpunk", label: "Cyberpunk" },
+  { value: "retro", label: "Retro" },
+];
+
+function FeaturedImageCard({
+  mode,
+  style,
+  geminiAvailable,
+  isPro,
+  onUpdate,
+}: {
+  mode: string;
+  style: string | null;
+  geminiAvailable: boolean;
+  isPro: boolean;
+  onUpdate: () => void;
+}) {
+  const { call } = useApiCall();
+  const [selectedStyle, setSelectedStyle] = useState(style ?? "minimalist");
+
+  async function setMode(value: string) {
+    await call("/api/settings", {
+      method: "PATCH",
+      body: {
+        featuredImageMode: value,
+        ...(value === "AI_GENERATED" && { aiImageStyle: selectedStyle }),
+      },
+    });
+    onUpdate();
+  }
+
+  async function changeStyle(value: string) {
+    setSelectedStyle(value);
+    if (mode === "AI_GENERATED") {
+      await call("/api/settings", {
+        method: "PATCH",
+        body: { aiImageStyle: value },
+      });
+      onUpdate();
+    }
+  }
+
+  const canUseAi = geminiAvailable && isPro;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Featured Images</CardTitle>
+        <CardDescription>
+          How featured images are generated for new posts
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={mode === "STANDARD" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("STANDARD")}
+          >
+            Standard
+          </Button>
+          <Button
+            variant={mode === "AI_GENERATED" ? "default" : "outline"}
+            size="sm"
+            disabled={!canUseAi}
+            onClick={() => setMode("AI_GENERATED")}
+          >
+            AI Generated
+          </Button>
+        </div>
+
+        {!geminiAvailable && (
+          <p className="text-xs text-muted-foreground">
+            AI image generation requires a Gemini API key to be configured.
+          </p>
+        )}
+        {geminiAvailable && !isPro && (
+          <p className="text-xs text-muted-foreground">
+            AI image generation is available on the Pro plan.
+          </p>
+        )}
+
+        {canUseAi && (
+          <div className="space-y-2">
+            <Label>AI Image Style</Label>
+            <div className="flex flex-wrap gap-2">
+              {AI_IMAGE_STYLES.map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={selectedStyle === opt.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => changeStyle(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

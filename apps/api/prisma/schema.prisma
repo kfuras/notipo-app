@@ -28,7 +28,9 @@ model Tenant {
   // WordPress config
   wpSiteUrl       String?
   wpSeoPlugin     String?         // Detected SEO plugin: "rankmath", "seopress", or null
-  codeHighlighter CodeHighlighter @default(PRISMATIC)
+  codeHighlighter    CodeHighlighter    @default(PRISMATIC)
+  featuredImageMode  FeaturedImageMode  @default(STANDARD)
+  aiImageStyle       String?
 
   // Notifications
   webhookUrl              String?
@@ -63,6 +65,11 @@ enum CodeHighlighter {
   WP_CODE
   HIGHLIGHT_JS
   PRISM_JS
+}
+
+enum FeaturedImageMode {
+  STANDARD
+  AI_GENERATED
 }
 
 model User {
