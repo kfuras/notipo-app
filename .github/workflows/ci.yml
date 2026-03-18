@@ -33,6 +33,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: corepack enable
       - run: npm ci
       - run: npm run generate -w @notipo/api
       - run: npx turbo build
