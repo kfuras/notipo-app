@@ -4,7 +4,7 @@ import { CredentialService } from "../services/credential.service.js";
 import { WordPressService } from "../services/wordpress.service.js";
 import { NotionService } from "../services/notion.service.js";
 import { syncWpCategories } from "../lib/sync-wp-categories.js";
-import { uploadFile, deleteFile, getSignedUrl } from "../lib/storage.js";
+import { uploadFile, deleteFile, getPreviewUrl } from "../lib/storage.js";
 import type { Category } from "@prisma/client";
 
 const ALLOWED_MIME_TYPES: Record<string, string> = {
@@ -13,16 +13,17 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/webp": "webp",
 };
 
-/** Delete a GCS-hosted background image if it uses the gcs: prefix. */
+/** Delete an uploaded background image (gcs: or upload: prefix). */
 async function deleteBackgroundImage(backgroundImage: string | null) {
-  if (!backgroundImage?.startsWith("gcs:")) return;
+  if (!backgroundImage?.startsWith("gcs:") && !backgroundImage?.startsWith("upload:")) return;
   await deleteFile(backgroundImage);
 }
 
-/** Add a previewUrl for gcs: background images so the frontend can display them. */
+/** Add a previewUrl for uploaded background images so the frontend can display them. */
 async function withPreviewUrl(category: Category) {
-  if (category.backgroundImage?.startsWith("gcs:")) {
-    return { ...category, previewUrl: await getSignedUrl(category.backgroundImage) };
+  const bg = category.backgroundImage;
+  if (bg?.startsWith("gcs:") || bg?.startsWith("upload:")) {
+    return { ...category, previewUrl: await getPreviewUrl(bg) };
   }
   return category;
 }

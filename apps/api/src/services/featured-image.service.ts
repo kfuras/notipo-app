@@ -213,10 +213,10 @@ export class FeaturedImageService {
     let unsplashAttribution: UnsplashAttribution | undefined;
 
     if (params.backgroundImageUrl) {
-      // Load background — gcs: ref from Cloud Storage, URL via HTTP, plain filename from bundled assets
+      // Load background — gcs:/upload: ref from storage, URL via HTTP, plain filename from bundled assets
       let bgBuffer: Buffer;
       const bg = params.backgroundImageUrl;
-      if (bg.startsWith("gcs:")) {
+      if (bg.startsWith("gcs:") || bg.startsWith("upload:")) {
         bgBuffer = await downloadFile(bg);
       } else if (bg.startsWith("http://") || bg.startsWith("https://")) {
         if (await isPrivateUrl(bg)) {

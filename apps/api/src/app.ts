@@ -70,6 +70,18 @@ export async function buildApp() {
   await app.register(multipart, {
     limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   });
+  // Serve user-uploaded category images from local disk (self-hosted mode, no GCS)
+  if (!config.GCS_BUCKET) {
+    const fs = await import("node:fs/promises");
+    const uploadsRoot = path.join(process.cwd(), "uploads", "category-images");
+    await fs.mkdir(uploadsRoot, { recursive: true });
+    await app.register(fastifyStatic, {
+      root: uploadsRoot,
+      prefix: "/api/uploads/category-images/",
+      decorateReply: false,
+      wildcard: true,
+    });
+  }
   await app.register(fastifyStatic, {
     root: path.join(process.cwd(), "public", "category-images"),
     prefix: "/api/default-category-images/",
