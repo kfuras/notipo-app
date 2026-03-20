@@ -16,7 +16,7 @@ const emptyToUndefinedEmail = z.preprocess(
 );
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.string().min(1),
   ENCRYPTION_KEY: z.string().min(64),
   API_KEY: z.string().min(8),
   PORT: z.coerce.number().default(3000),
