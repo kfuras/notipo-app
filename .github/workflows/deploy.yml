@@ -1,4 +1,4 @@
-name: Deploy to Fly.io
+name: Deploy to Cloud Run
 
 on:
   workflow_run:
@@ -6,28 +6,84 @@ on:
     types: [completed]
     branches: [main]
 
+env:
+  REGION: europe-west4
+  REGISTRY: europe-west4-docker.pkg.dev/notipo-prod/notipo
+
 jobs:
   deploy-api:
     name: Deploy API
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     concurrency: deploy-api
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --config fly.prod-api.toml --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/625508940450/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deploy@notipo-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
+      - name: Build API image
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild-api.yaml \
+            --substitutions=_IMAGE=$REGISTRY/api \
+            --region=$REGION .
+
+      - name: Run Prisma migrations
+        run: |
+          gcloud run jobs update notipo-migrate \
+            --image $REGISTRY/api \
+            --region $REGION
+          gcloud run jobs execute notipo-migrate \
+            --region $REGION \
+            --wait
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy notipo-api \
+            --image $REGISTRY/api \
+            --region $REGION
 
   deploy-web:
     name: Deploy Web
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     concurrency: deploy-web
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --config fly.prod-web.toml --remote-only --build-arg "NEXT_PUBLIC_POSTHOG_KEY=$POSTHOG_KEY" --build-arg "NEXT_PUBLIC_POSTHOG_HOST=/ingest"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/625508940450/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deploy@notipo-prod.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+
+      - name: Build Web image
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild-web.yaml \
+            --substitutions=_IMAGE=$REGISTRY/web,_POSTHOG_KEY=$POSTHOG_KEY \
+            --region=$REGION .
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+
+      - name: Deploy Web
+        run: |
+          gcloud run deploy notipo-web \
+            --image $REGISTRY/web \
+            --region $REGION

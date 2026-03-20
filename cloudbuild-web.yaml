@@ -1,0 +1,14 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '$_IMAGE'
+      - '-f'
+      - 'apps/web/Dockerfile'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_POSTHOG_KEY=$_POSTHOG_KEY'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_POSTHOG_HOST=/ingest'
+      - '.'
+images: ['$_IMAGE']
