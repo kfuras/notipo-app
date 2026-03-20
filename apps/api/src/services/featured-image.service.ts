@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
 import axios from "axios";
 import { isPrivateUrl } from "../lib/url-validation.js";
+import { downloadFile } from "../lib/storage.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { GeminiImageService } from "./gemini-image.service.js";
@@ -212,10 +213,12 @@ export class FeaturedImageService {
     let unsplashAttribution: UnsplashAttribution | undefined;
 
     if (params.backgroundImageUrl) {
-      // Load background — URL fetched via HTTP, upload: prefix from uploads dir, plain filename from bundled assets
+      // Load background — gcs: ref from Cloud Storage, URL via HTTP, plain filename from bundled assets
       let bgBuffer: Buffer;
       const bg = params.backgroundImageUrl;
-      if (bg.startsWith("http://") || bg.startsWith("https://")) {
+      if (bg.startsWith("gcs:")) {
+        bgBuffer = await downloadFile(bg);
+      } else if (bg.startsWith("http://") || bg.startsWith("https://")) {
         if (await isPrivateUrl(bg)) {
           throw new Error("Background image URL points to a private/internal address");
         }
@@ -225,14 +228,6 @@ export class FeaturedImageService {
           maxRedirects: 0,
         });
         bgBuffer = Buffer.from(res.data);
-      } else if (bg.startsWith("upload:")) {
-        const relPath = bg.slice("upload:".length);
-        const uploadsDir = path.join(process.cwd(), "uploads", "category-images");
-        const uploadPath = path.resolve(uploadsDir, relPath);
-        if (!uploadPath.startsWith(uploadsDir + path.sep)) {
-          throw new Error("Invalid background image path");
-        }
-        bgBuffer = await fs.readFile(uploadPath);
       } else {
         const localPath = path.join(
           process.cwd(),

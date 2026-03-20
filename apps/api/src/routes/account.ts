@@ -1,9 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { rm } from "fs/promises";
-import { join } from "path";
 import { logger } from "../lib/logger.js";
+import { deleteTenantFiles } from "../lib/storage.js";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 
 const log = logger.child({ route: "account" });
@@ -124,9 +123,8 @@ export async function accountRoutes(app: FastifyInstance) {
         }
       }
 
-      // Clean up uploaded category images
-      const uploadsDir = join(process.cwd(), "uploads", "category-images", request.tenant.id);
-      await rm(uploadsDir, { recursive: true, force: true }).catch(() => {});
+      // Clean up uploaded category images from GCS
+      await deleteTenantFiles(request.tenant.id);
 
       // Delete tenant — cascades to all related records
       await app.prisma.tenant.delete({ where: { id: request.tenant.id } });

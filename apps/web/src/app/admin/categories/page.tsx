@@ -26,17 +26,13 @@ import type { ApiCategory, ApiTag, ApiListResponse } from "@notipo/shared";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-function getPreviewUrl(backgroundImage: string | null): string | null {
-  if (!backgroundImage) return null;
-  if (backgroundImage.startsWith("http://") || backgroundImage.startsWith("https://")) {
-    return backgroundImage;
-  }
-  if (backgroundImage.startsWith("upload:")) {
-    const relPath = backgroundImage.slice("upload:".length);
-    return `${API_BASE}/api/uploads/category-images/${relPath}`;
-  }
+function getPreviewUrl(category: ApiCategory): string | null {
+  if (category.previewUrl) return category.previewUrl;
+  const bg = category.backgroundImage;
+  if (!bg) return null;
+  if (bg.startsWith("http://") || bg.startsWith("https://")) return bg;
   // Default bundled image (bare filename like "automation.png")
-  return `${API_BASE}/api/default-category-images/${backgroundImage}`;
+  return `${API_BASE}/api/default-category-images/${bg}`;
 }
 
 function CategoryImageCell({
@@ -51,7 +47,7 @@ function CategoryImageCell({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const previewUrl = getPreviewUrl(category.backgroundImage);
+  const previewUrl = getPreviewUrl(category);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

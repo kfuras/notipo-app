@@ -96,6 +96,7 @@ export interface ApiCategory {
   wpCategoryId: number | null;
   wpTagIds: number[];
   backgroundImage: string | null;
+  previewUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

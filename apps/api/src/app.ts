@@ -5,7 +5,6 @@ import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import path from "node:path";
-import fs from "node:fs/promises";
 import { ZodError } from "zod";
 import { config } from "./config.js";
 import { prismaPlugin } from "./plugins/prisma.js";
@@ -70,14 +69,6 @@ export async function buildApp() {
   });
   await app.register(multipart, {
     limits: { fileSize: 5 * 1024 * 1024, files: 1 },
-  });
-  const uploadsRoot = path.join(process.cwd(), "uploads", "category-images");
-  await fs.mkdir(uploadsRoot, { recursive: true });
-  await app.register(fastifyStatic, {
-    root: uploadsRoot,
-    prefix: "/api/uploads/category-images/",
-    decorateReply: false,
-    wildcard: true,
   });
   await app.register(fastifyStatic, {
     root: path.join(process.cwd(), "public", "category-images"),

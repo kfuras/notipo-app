@@ -38,6 +38,7 @@ const envSchema = z.object({
   FRONTEND_URL: emptyToUndefinedUrl,
   UNSPLASH_ACCESS_KEY: emptyToUndefined,
   GEMINI_API_KEY: emptyToUndefined,
+  GCS_BUCKET: emptyToUndefined,
 });
 
 export type Config = z.infer<typeof envSchema>;
