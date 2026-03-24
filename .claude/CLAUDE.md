@@ -215,7 +215,7 @@ Generates 1200x628 PNG featured images. Two modes controlled by tenant `featured
 Photographer attribution (Unsplash only) is appended as a Gutenberg paragraph block in sync/publish services.
 
 ### `gemini-image.service.ts`
-Calls Google Gemini API (`gemini-3-pro-image-preview`) to generate blog featured images. Builds a prompt from post title, category, tags, and style. Returns 1200x628 PNG buffer. No text is included in the generated image.
+Calls Google Gemini API (`gemini-2.5-flash-image`, free tier) to generate blog featured images. Builds a prompt from post title, category, tags, and style. Returns 1200x628 PNG buffer. No text is included in the generated image.
 
 ### Inline Unsplash Images (POST /api/posts/create)
 The `images` field accepts an array of `{ query, afterHeading }` objects. On Pro plan, the route searches Unsplash for each query and inserts `![alt](url)` into the markdown body after the matching heading before creating the Notion page. Gated by `canGenerateFeaturedImage()` (same as featured images). Falls back silently if Unsplash search fails.
@@ -289,14 +289,15 @@ GCS_BUCKET=                # Google Cloud Storage bucket for category image uplo
 - `notipo-api` — Fastify backend (min-instances=1 for pg-boss background jobs)
 - `notipo-web` → `notipo.com/admin` — Admin UI (nginx, static Next.js export)
 - `notipo-site` → `notipo.com` — Marketing site (separate `notipo-site` repo)
-- `notipo-db` — Cloud SQL for PostgreSQL (db-f1-micro, Postgres 17)
-- `notipo-uploads` — GCS bucket for user-uploaded category images (private, signed URLs)
+- `notipo-db` — Cloud SQL for PostgreSQL (db-f1-micro, Postgres 17, no authorized networks, SSL encrypted-only)
+- `notipo-uploads` — GCS bucket for user-uploaded category images (private, signed URLs, 365-day lifecycle)
 - Cloudflare Worker (`notipo-router`) routes `notipo.com/*` to the correct Cloud Run service
 - Cloud Run connects to Cloud SQL via built-in Unix socket proxy (`--add-cloudsql-instances`)
 - Secrets stored in Google Cloud Secret Manager
 - CI/CD: push to main → CI → Cloud Build → Cloud Run deploy (`.github/workflows/deploy.yml`)
 - Workload Identity Federation for keyless GitHub Actions auth
-- Prisma migrations run via a Cloud Run job (`notipo-migrate`) before each API deploy
+- Prisma migrations run via a Cloud Run job (`notipo-migrate`) with Cloud SQL Auth Proxy sidecar before each API deploy
+- Budget alert: $50/month on billing account
 
 **Dev VPS:** `ssh dev`. Domain: `dev.notipo.com`.
 

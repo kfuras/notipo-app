@@ -2,7 +2,7 @@
   "name": "notipo",
   "version": "0.1.0",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "UNLICENSED",
   "packageManager": "npm@10.9.4",
   "workspaces": [
     "apps/*",
