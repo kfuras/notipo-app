@@ -72,7 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setApiKey = useCallback(
     async (key: string) => {
+      // Validate key by trying a tenant endpoint first; admin keys skip this check
       const isAdmin = await detectAdmin(key);
+      if (!isAdmin) {
+        await api("/api/settings", { apiKey: key });
+      }
       localStorage.setItem("notipo_api_key", key);
       setState({ apiKey: key, email: null, isAdmin, isLoading: false, impersonating: null });
     },
