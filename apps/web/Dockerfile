@@ -16,6 +16,7 @@ RUN npm run build --workspace=@notipo/shared
 COPY apps/web/ ./apps/web/
 ARG NEXT_PUBLIC_POSTHOG_KEY
 ARG NEXT_PUBLIC_POSTHOG_HOST
+ARG NEXT_PUBLIC_META_PIXEL_ID
 RUN npm run build --workspace=@notipo/web
 
 FROM nginx:alpine

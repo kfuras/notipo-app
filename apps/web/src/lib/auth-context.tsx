@@ -115,9 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({ apiKey: res.data.apiKey, email, isAdmin, isLoading: false, impersonating: null });
         identifyUser(email);
         capture("user_registered", { auto_verified: true });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (typeof window !== "undefined" && typeof (window as any).fbq === "function") (window as any).fbq("track", "CompleteRegistration");
         return true; // auto-logged in
       }
       capture("user_registered", { auto_verified: false });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (typeof window !== "undefined" && typeof (window as any).fbq === "function") (window as any).fbq("track", "CompleteRegistration");
       return false; // needs email verification
     },
     [detectAdmin],
