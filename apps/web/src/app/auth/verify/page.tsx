@@ -62,9 +62,9 @@ function VerifyContent() {
       method: "POST",
       body: { token },
     })
-      .then((res) => {
+      .then(async (res) => {
         if (res?.data?.apiKey) {
-          auth.setApiKey(res.data.apiKey);
+          await auth.setApiKey(res.data.apiKey);
           localStorage.setItem("notipo_email", res.data.user.email);
           identifyUser(res.data.user.email);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
