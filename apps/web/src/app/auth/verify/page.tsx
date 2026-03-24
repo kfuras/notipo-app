@@ -67,6 +67,8 @@ function VerifyContent() {
           auth.setApiKey(res.data.apiKey);
           localStorage.setItem("notipo_email", res.data.user.email);
           identifyUser(res.data.user.email);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (typeof (window as any).fbq === "function") (window as any).fbq("track", "CompleteRegistration");
           router.replace("/admin");
         } else {
           setStatus("success");

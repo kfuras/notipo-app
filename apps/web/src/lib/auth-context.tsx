@@ -120,8 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true; // auto-logged in
       }
       capture("user_registered", { auto_verified: false });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (typeof window !== "undefined" && typeof (window as any).fbq === "function") (window as any).fbq("track", "CompleteRegistration");
       return false; // needs email verification
     },
     [detectAdmin],
