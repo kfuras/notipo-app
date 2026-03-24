@@ -12,7 +12,6 @@ npm install -g notipo
 ```
 
 - npm release: https://www.npmjs.com/package/notipo
-- notipo github: https://github.com/kfuras/notipo
 - notipo docs: https://notipo.com/docs/api/introduction
 - notipo cli docs: https://notipo.com/docs/api/cli
 
@@ -26,8 +25,6 @@ Set the environment variables:
 export NOTIPO_URL="https://notipo.com"
 export NOTIPO_API_KEY="ntp_your-api-key"
 ```
-
-Self-hosted users replace `notipo.com` with their own domain.
 
 ## Core Workflow
 
@@ -251,7 +248,6 @@ For curl/HTTP usage, `POST /api/posts/create` accepts:
 4. **Images require Pro plan** — the `images` array and featured image generation are Pro features. On Free plan, these fields are silently ignored.
 5. **Fire and forget** — the API returns a `jobId` immediately. Processing happens in the background. Use `notipo jobs` to check status.
 6. **Markdown body format** — use `## Heading` for h2, `### Heading` for h3. Paragraphs are separated by `\n\n`. Images can be included as `![alt](url)`.
-7. **Self-hosted users** — set `NOTIPO_URL` to your own domain.
 8. **Rate limits** — `notipo sync` has a 15-second cooldown. `notipo posts create` has no rate limit.
 9. **API key format** — keys start with `ntp_`. Get yours from Settings → Account in the dashboard.
 10. **Slug defaults** — if not set, the slug is derived from the SEO keyword. If no SEO keyword, WordPress generates it from the title.
