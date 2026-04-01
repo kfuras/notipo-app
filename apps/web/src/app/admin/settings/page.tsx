@@ -425,7 +425,6 @@ const AI_IMAGE_STYLES = [
   { value: "comic book", label: "Comic Book" },
   { value: "watercolor", label: "Watercolor" },
   { value: "3D render", label: "3D Render" },
-  { value: "minimalist", label: "Minimalist" },
   { value: "photorealistic", label: "Photorealistic" },
   { value: "cyberpunk", label: "Cyberpunk" },
   { value: "retro", label: "Retro" },
@@ -445,7 +444,7 @@ function FeaturedImageCard({
   onUpdate: () => void;
 }) {
   const { call } = useApiCall();
-  const [selectedStyle, setSelectedStyle] = useState(style ?? "minimalist");
+  const [selectedStyle, setSelectedStyle] = useState(style ?? "cyberpunk");
 
   async function setMode(value: string) {
     await call("/api/settings", {

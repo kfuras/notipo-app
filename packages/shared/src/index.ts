@@ -56,7 +56,6 @@ export const AI_IMAGE_STYLES = [
   "comic book",
   "watercolor",
   "3D render",
-  "minimalist",
   "photorealistic",
   "cyberpunk",
   "retro",

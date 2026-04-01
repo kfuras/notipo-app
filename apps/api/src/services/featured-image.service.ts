@@ -155,7 +155,7 @@ export class FeaturedImageService {
       const buffer = await gemini.generate({
         title: params.title,
         category: params.category,
-        style: params.aiImageStyle || "minimalist",
+        style: params.aiImageStyle || "cyberpunk",
         tags: params.tags,
       });
       return { buffer };

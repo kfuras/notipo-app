@@ -90,24 +90,46 @@ export class GeminiImageService {
     return resized;
   }
 
+  private static readonly STYLE_GUIDANCE: Record<string, string> = {
+    "comic book": "Bold ink outlines, vibrant flat colors, dynamic action poses, halftone dot shading, dramatic angles like a graphic novel splash page.",
+    "watercolor": "Soft translucent washes, visible brush strokes, bleeding edges, dreamy organic feel with rich pigment pools.",
+    "3d render": "Clean glossy surfaces, volumetric lighting, soft shadows, Pixar/Blender aesthetic with depth of field.",
+    "photorealistic": "Looks like a real photograph — natural lighting, shallow depth of field, realistic materials and textures, cinematic color grading.",
+    "cyberpunk": "Neon-soaked dark cityscape aesthetic, glowing purple/cyan/magenta, rain-slicked surfaces, holographic displays, dystopian tech noir.",
+    "retro": "Vintage 80s/90s aesthetic, synthwave colors, CRT scan lines, pixel art influences, nostalgic warm tones.",
+  };
+
   private buildPrompt(params: GeminiImageRequest): string {
     const tagContext = params.tags?.length
       ? `\nRelated topics: ${params.tags.join(", ")}.`
       : "";
 
+    const styleLower = params.style.toLowerCase();
+    const styleGuide = GeminiImageService.STYLE_GUIDANCE[styleLower] || "";
+
     return [
-      `Generate a wide 16:9 landscape blog featured image in ${params.style} style.`,
+      `Generate a wide 16:9 landscape blog featured image.`,
       ``,
       `Post title: "${params.title}"`,
       `Category: ${params.category}${tagContext}`,
       ``,
-      `IMPORTANT INSTRUCTIONS:`,
-      `- Think about what the post is actually about based on the title and tags, then create a scene that captures the core concept visually.`,
-      `- Be creative and specific — show a concrete scene, not an abstract generic illustration.`,
-      `- Use dramatic lighting, rich colors, and cinematic composition.`,
-      `- Make it visually striking and bold — something that stops you mid-scroll.`,
-      `- Do NOT include any text, titles, words, labels, or watermarks in the image.`,
-      `- Avoid generic stock-photo aesthetics (boring gradients, floating icons, bland corporate art).`,
+      `Style: ${params.style}`,
+      styleGuide ? `Style details: ${styleGuide}` : "",
+      ``,
+      `INSTRUCTIONS:`,
+      `First, analyze the post title and tags to identify the specific tools, platforms, and technologies the post is about.`,
+      ``,
+      `Then create a scene that ILLUSTRATES what the post is about by including:`,
+      `- Recognizable visual representations of the actual tools and platforms mentioned (e.g. their logos, icons, or UI screens)`,
+      `- A central character, mascot, or focal element that ties the scene together`,
+      `- Visual storytelling that shows the WORKFLOW or CONCEPT — how the tools connect or interact`,
+      ``,
+      `The image should look like a custom illustration made specifically for this post, not a generic stock image that could be used for any tech article.`,
+      ``,
+      `- Use dramatic lighting and cinematic composition.`,
+      `- Make it visually striking and bold — the kind of image that stops you mid-scroll.`,
+      `- Do NOT include any readable text, titles, words, or watermarks in the image. Logos and icons are OK.`,
+      `- AVOID: generic abstract backgrounds, boring gradients, bland corporate art, vague "tech" imagery.`,
     ].join("\n");
   }
 }
