@@ -41,9 +41,9 @@ jobs:
       - name: Run Prisma migrations
         run: |
           gcloud run jobs update notipo-migrate \
-            --image $REGISTRY/api \
             --region $REGION \
-            --container migrate
+            --container migrate \
+            --image $REGISTRY/api
           gcloud run jobs execute notipo-migrate \
             --region $REGION \
             --wait
