@@ -42,7 +42,8 @@ jobs:
         run: |
           gcloud run jobs update notipo-migrate \
             --image $REGISTRY/api \
-            --region $REGION
+            --region $REGION \
+            --container migrate
           gcloud run jobs execute notipo-migrate \
             --region $REGION \
             --wait
