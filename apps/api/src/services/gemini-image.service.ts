@@ -92,15 +92,22 @@ export class GeminiImageService {
 
   private buildPrompt(params: GeminiImageRequest): string {
     const tagContext = params.tags?.length
-      ? ` Related topics: ${params.tags.join(", ")}.`
+      ? `\nRelated topics: ${params.tags.join(", ")}.`
       : "";
 
-    return (
-      `Create a blog featured image in ${params.style} style for a post titled "${params.title}" ` +
-      `in the "${params.category}" category.${tagContext} ` +
-      `The image should be a wide landscape illustration (16:9 aspect ratio) suitable as a blog header. ` +
-      `Do NOT include any text, titles, or words in the image — only visual elements. ` +
-      `Make it visually striking and professional.`
-    );
+    return [
+      `Generate a wide 16:9 landscape blog featured image in ${params.style} style.`,
+      ``,
+      `Post title: "${params.title}"`,
+      `Category: ${params.category}${tagContext}`,
+      ``,
+      `IMPORTANT INSTRUCTIONS:`,
+      `- Think about what the post is actually about based on the title and tags, then create a scene that captures the core concept visually.`,
+      `- Be creative and specific — show a concrete scene, not an abstract generic illustration.`,
+      `- Use dramatic lighting, rich colors, and cinematic composition.`,
+      `- Make it visually striking and bold — something that stops you mid-scroll.`,
+      `- Do NOT include any text, titles, words, labels, or watermarks in the image.`,
+      `- Avoid generic stock-photo aesthetics (boring gradients, floating icons, bland corporate art).`,
+    ].join("\n");
   }
 }
