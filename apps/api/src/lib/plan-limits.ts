@@ -86,6 +86,11 @@ export function canUseWebhooks(plan: string, trialEndsAt: Date | null): boolean 
   return getPlanLimits(getEffectivePlan(plan, trialEndsAt)).webhooks;
 }
 
+export function canImportFromWordPress(plan: string, trialEndsAt: Date | null): boolean {
+  const effective = getEffectivePlan(plan, trialEndsAt);
+  return effective === "PRO" || effective === "TRIAL";
+}
+
 export function getPollInterval(plan: string, trialEndsAt: Date | null): number {
   return getPlanLimits(getEffectivePlan(plan, trialEndsAt)).pollIntervalSeconds;
 }
