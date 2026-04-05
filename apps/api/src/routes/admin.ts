@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomBytes } from "crypto";
+import { CredentialService } from "../services/credential.service.js";
 
 const createTenantSchema = z.object({
   name: z.string().min(1),
@@ -76,6 +77,16 @@ export async function adminRoutes(app: FastifyInstance) {
 
     // Return 201 with the API key — this is the only time it's returned in plaintext
     return reply.code(201).send({ data: tenant });
+  });
+
+  /** GET /api/admin/tenants/:id/wordpress-credentials — return decrypted WP credentials */
+  app.get<{ Params: { id: string } }>("/api/admin/tenants/:id/wordpress-credentials", async (request, reply) => {
+    const credentialService = new CredentialService(app.prisma);
+    const creds = await credentialService.getWordPressCredentials(request.params.id);
+    if (!creds) {
+      return reply.code(404).send({ error: "WordPress not connected for this tenant" });
+    }
+    return { data: creds };
   });
 
   /** DELETE /api/admin/tenants/:id — delete a tenant and all its data */
