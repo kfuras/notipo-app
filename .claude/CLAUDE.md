@@ -58,6 +58,7 @@ All events use the `capture()` helper from `src/lib/posthog.tsx`. No-ops if Post
 | `notion_disconnected` | — | admin/settings/page.tsx |
 | `wordpress_disconnected` | — | admin/settings/page.tsx |
 | `account_deleted` | — | admin/account/page.tsx |
+| `import_started` | `count`, `overwrite` | admin/import/page.tsx |
 
 Mobile: bottom nav bar on phones (<768px), sidebar on desktop. Admin tables switch to card layouts on mobile via `md:hidden`/`hidden md:block` pattern. Dark theme-color meta tag set dynamically for phone safe areas.
 
@@ -195,6 +196,10 @@ In the frontend, clicking "View" on the Tenants page stores `{ tenantId, tenantN
 | GET | `/api/account` | Current user profile + tenant info |
 | PATCH | `/api/account/password` | Change password (rate-limited) |
 | DELETE | `/api/account` | Delete account (OWNER deletes tenant + cascade) |
+| GET | `/api/import/wp-posts` | List WordPress posts with pagination, marks already-imported (Pro only) |
+| POST | `/api/import/posts` | Import single WP post to Notion `{ wpPostId, overwrite? }` (Pro only) |
+| POST | `/api/import/posts/bulk` | Import multiple WP posts `{ wpPostIds[], overwrite? }` (Pro only) |
+| GET | `/api/admin/tenants/:id/wordpress-credentials` | Return decrypted WP credentials (admin only) |
 
 ## Key Services
 
@@ -203,6 +208,12 @@ Orchestrates `Post to Wordpress` trigger. Notion → markdown → images → Gut
 
 ### `publish.service.ts`
 Orchestrates `Publish` trigger. Draft → live, refreshes SEO meta with WP excerpt, updates Notion status.
+
+### `import.service.ts`
+Orchestrates WordPress → Notion import (reverse of sync). Fetches WP post → converts Gutenberg HTML to markdown → creates Notion page with properties (category, tags, status) → upserts Post record. Duplicate detection via `wpPostId`, optional overwrite. Pro-only feature.
+
+### `gutenberg-to-markdown.ts`
+Converts WordPress Gutenberg block HTML (or classic editor HTML) to Markdown. Two-pass: if `<!-- wp: -->` markers found, splits into blocks and converts each; otherwise falls back to classic HTML tag parsing. Handles paragraphs, headings, lists, code blocks, images, quotes, tables, embeds, separators, and inline formatting.
 
 ### `poll-tenant.ts` (lib)
 Per-tenant Notion poll logic, shared by the poll-notion job and `POST /api/sync-now` endpoint.

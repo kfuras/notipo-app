@@ -17,6 +17,7 @@ export const JobType = {
   GENERATE_FEATURED_IMAGE: "GENERATE_FEATURED_IMAGE",
   PUBLISH_POST: "PUBLISH_POST",
   UPDATE_POST: "UPDATE_POST",
+  IMPORT_POST: "IMPORT_POST",
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 

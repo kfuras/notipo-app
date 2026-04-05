@@ -242,6 +242,7 @@ enum JobType {
   GENERATE_FEATURED_IMAGE
   PUBLISH_POST
   UPDATE_POST
+  IMPORT_POST
 }
 
 enum JobStatus {

@@ -11,6 +11,7 @@ import { registerPollNotionJob } from "./poll-notion.job.js";
 import { registerCheckTrialsJob } from "./check-trials.job.js";
 import { registerSendOnboardingEmailJob } from "./send-onboarding-email.job.js";
 import { registerSendTrialExpiryEmailJob } from "./send-trial-expiry-email.job.js";
+import { registerImportPostJob } from "./import-post.job.js";
 import { resetNotionStatusForFailedJobs } from "./reset-notion-status.js";
 import { logger } from "../lib/logger.js";
 
@@ -31,6 +32,7 @@ export async function registerAllJobs(boss: PgBoss, prisma: PrismaClient, eventB
   await registerCheckTrialsJob(boss, prisma);
   await registerSendOnboardingEmailJob(boss, prisma);
   await registerSendTrialExpiryEmailJob(boss, prisma);
+  await registerImportPostJob(boss, prisma, eventBus);
 
   // Periodically fail jobs stuck in RUNNING for more than 5 minutes
   setInterval(async () => {

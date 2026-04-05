@@ -194,6 +194,42 @@ export class WordPressService {
     return results;
   }
 
+  /** List posts with pagination. Returns posts, total count, and total pages. */
+  async listPosts(params?: {
+    status?: string;
+    page?: number;
+    perPage?: number;
+  }): Promise<{
+    posts: Array<{
+      id: number;
+      title: { rendered: string };
+      content: { rendered: string };
+      excerpt: { rendered: string };
+      status: string;
+      slug: string;
+      date: string;
+      link: string;
+      categories: number[];
+      tags: number[];
+    }>;
+    total: number;
+    totalPages: number;
+  }> {
+    const status = params?.status ?? "any";
+    const page = params?.page ?? 1;
+    const perPage = params?.perPage ?? 20;
+
+    const response = await this.client.get("/posts", {
+      params: { status, page, per_page: perPage },
+    });
+
+    return {
+      posts: response.data,
+      total: Number(response.headers["x-wp-total"] || response.data.length),
+      totalPages: Number(response.headers["x-wp-totalpages"] || 1),
+    };
+  }
+
   /** Update SEO meta fields using the detected SEO plugin's native REST API. */
   async updateSeo(wpPostId: number, seo: SeoPayload, seoPlugin: string | null) {
     if (!seoPlugin) {

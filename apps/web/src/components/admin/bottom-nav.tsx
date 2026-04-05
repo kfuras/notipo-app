@@ -10,6 +10,7 @@ import {
   UserCog,
   Users,
   LogOut,
+  Download,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -20,6 +21,7 @@ const tenantNavItems = [
   { title: "Posts", href: "/admin/posts", icon: FileText },
   { title: "Categories", href: "/admin/categories", icon: FolderTree },
   { title: "Jobs", href: "/admin/jobs", icon: Activity },
+  { title: "Import", href: "/admin/import", icon: Download },
   { title: "Settings", href: "/admin/settings", icon: Settings },
   { title: "Billing", href: "/admin/billing", icon: CreditCard },
   { title: "Account", href: "/admin/account", icon: UserCog },
