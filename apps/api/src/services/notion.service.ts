@@ -131,11 +131,24 @@ export class NotionService {
         })
       : [];
 
+    // Notion API limits page creation to 100 children at a time.
+    // Create the page with the first 100, then append the rest in chunks.
+    const firstBatch = children.slice(0, 100);
+    const remaining = children.slice(100);
+
     const page = await this.client.pages.create({
       parent: { database_id: databaseId },
       properties: properties as Parameters<typeof this.client.pages.create>[0]["properties"],
-      children: children as Parameters<typeof this.client.pages.create>[0]["children"],
+      children: firstBatch as Parameters<typeof this.client.pages.create>[0]["children"],
     });
+
+    for (let i = 0; i < remaining.length; i += 100) {
+      const chunk = remaining.slice(i, i + 100);
+      await this.client.blocks.children.append({
+        block_id: page.id,
+        children: chunk as Parameters<typeof this.client.blocks.children.append>[0]["children"],
+      });
+    }
 
     return page.id;
   }
