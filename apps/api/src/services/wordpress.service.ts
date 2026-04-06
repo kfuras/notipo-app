@@ -95,10 +95,17 @@ export class WordPressService {
 
   /** Get a post by ID. */
   async getPost(wpPostId: number) {
-    const { data } = await this.client.get(`/posts/${wpPostId}`, {
-      params: { context: "edit" }, // "edit" context exposes meta fields (e.g. SEO plugin focus keywords)
-    });
-    return data;
+    try {
+      // "edit" context exposes meta fields (SEO plugin focus keywords)
+      const { data } = await this.client.get(`/posts/${wpPostId}`, {
+        params: { context: "edit" },
+      });
+      return data;
+    } catch {
+      // Fall back to default context (e.g. if user lacks edit permission)
+      const { data } = await this.client.get(`/posts/${wpPostId}`);
+      return data;
+    }
   }
 
   /** Upload media to WordPress media library. */
@@ -217,7 +224,12 @@ export class WordPressService {
     total: number;
     totalPages: number;
   }> {
-    const status = params?.status ?? "any";
+    // Use "any" internally but filter to standard WP statuses to exclude plugin backup copies
+    // (e.g. Surfer SEO's "surfer-backup") that don't represent real content.
+    const rawStatus = params?.status ?? "any";
+    const status = rawStatus === "any"
+      ? "publish,draft,pending,private,future"
+      : rawStatus;
     const page = params?.page ?? 1;
     const perPage = params?.perPage ?? 20;
 
