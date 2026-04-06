@@ -61,6 +61,7 @@ export class ImportService {
     onStep?.("Fetching WordPress post…");
     const wpPost = await wp.getPost(wpPostId);
     const title = this.decodeHtmlEntities(wpPost.title.rendered);
+    logger.debug({ tenantId, wpPostId, meta: wpPost.meta, slug: wpPost.slug }, "WP post meta fields");
 
     // 4. Resolve category/tag names
     onStep?.("Resolving categories and tags…");
@@ -122,6 +123,7 @@ export class ImportService {
         category: categoryName,
         tags: tagNames,
         seoKeyword,
+        slug: wpPost.slug || undefined,
         body: markdown,
       });
     } else {
@@ -132,6 +134,7 @@ export class ImportService {
         category: categoryName,
         tags: tagNames,
         seoKeyword,
+        slug: wpPost.slug || undefined,
         body: markdown,
       });
     }

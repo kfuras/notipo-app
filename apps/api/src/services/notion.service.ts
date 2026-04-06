@@ -252,6 +252,7 @@ export class NotionService {
     category?: string;
     tags?: string[];
     seoKeyword?: string;
+    slug?: string;
     imageTitle?: string;
     body?: string;
   }): Promise<string> {
@@ -260,7 +261,8 @@ export class NotionService {
       Status: { select: { name: params.status } },
       ...(params.category && { Category: { select: { name: params.category } } }),
       ...(params.tags?.length && { Tags: { multi_select: params.tags.map((t) => ({ name: t })) } }),
-      ...(params.seoKeyword && { "SEO Keyword": { rich_text: [{ text: { content: params.seoKeyword } }] } }),
+      ...(params.seoKeyword && { "SEO Keyword": { rich_text: [{ text: { content: params.seoKeyword.slice(0, 2000) } }] } }),
+      ...(params.slug && { Slug: { rich_text: [{ text: { content: params.slug.slice(0, 2000) } }] } }),
       ...(params.imageTitle && { "Featured Image Title": { rich_text: [{ text: { content: params.imageTitle } }] } }),
     };
 
