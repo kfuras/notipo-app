@@ -5,6 +5,152 @@
 
 import { Client } from "@notionhq/client";
 
+// ---------------------------------------------------------------------------
+// Markdown → Notion block helpers (used by createPage)
+// ---------------------------------------------------------------------------
+
+/** Parse inline markdown into Notion rich_text objects. */
+function parseInlineMarkdown(text: string): unknown[] {
+  if (!text) return [{ type: "text", text: { content: "" } }];
+  const decoded = text
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#039;/g, "'");
+  const result: unknown[] = [];
+  const pattern = /(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(decoded)) !== null) {
+    if (m.index > last) result.push({ type: "text", text: { content: decoded.slice(last, m.index) } });
+    if (m[2]) result.push({ type: "text", text: { content: m[2] }, annotations: { bold: true, italic: true } });
+    else if (m[3]) result.push({ type: "text", text: { content: m[3] }, annotations: { bold: true } });
+    else if (m[4]) result.push({ type: "text", text: { content: m[4] }, annotations: { italic: true } });
+    else if (m[5]) result.push({ type: "text", text: { content: m[5] }, annotations: { code: true } });
+    else if (m[6] && m[7]) result.push({ type: "text", text: { content: m[6], link: { url: m[7] } } });
+    last = m.index + m[0].length;
+  }
+  if (last < decoded.length) result.push({ type: "text", text: { content: decoded.slice(last) } });
+  return result.length ? result : [{ type: "text", text: { content: decoded } }];
+}
+
+/** Map common language aliases to Notion-supported code block languages. */
+function normalizeCodeLang(lang: string): string {
+  const map: Record<string, string> = {
+    js: "javascript", ts: "typescript", py: "python", rb: "ruby",
+    sh: "bash", shell: "bash", zsh: "bash", yml: "yaml",
+    html: "html", css: "css", sql: "sql", json: "json",
+    xml: "xml", php: "php", java: "java", go: "go",
+    rust: "rust", cpp: "c++", "c++": "c++", c: "c",
+    cs: "c#", csharp: "c#", swift: "swift", kotlin: "kotlin",
+    scala: "scala", r: "r", dockerfile: "dockerfile", diff: "diff",
+    markdown: "markdown", md: "markdown", graphql: "graphql",
+  };
+  return map[lang.toLowerCase()] ?? "plain text";
+}
+
+/** Convert markdown to an array of Notion block objects. */
+function markdownToNotionBlocks(markdown: string): unknown[] {
+  const blocks: unknown[] = [];
+  const lines = markdown.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (!line.trim()) { i++; continue; }
+
+    // Fenced code block
+    if (line.startsWith("```")) {
+      const lang = line.slice(3).trim().toLowerCase() || "plain text";
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
+      i++; // skip closing ```
+      blocks.push({ object: "block", type: "code", code: { rich_text: [{ type: "text", text: { content: codeLines.join("\n") } }], language: normalizeCodeLang(lang) } });
+      continue;
+    }
+
+    // Headings
+    const h3 = line.match(/^### (.+)/);
+    const h2 = line.match(/^## (.+)/);
+    const h1 = line.match(/^# (.+)/);
+    if (h3) { blocks.push({ object: "block", type: "heading_3", heading_3: { rich_text: parseInlineMarkdown(h3[1]) } }); i++; continue; }
+    if (h2) { blocks.push({ object: "block", type: "heading_2", heading_2: { rich_text: parseInlineMarkdown(h2[1]) } }); i++; continue; }
+    if (h1) { blocks.push({ object: "block", type: "heading_1", heading_1: { rich_text: parseInlineMarkdown(h1[1]) } }); i++; continue; }
+
+    // Horizontal rule
+    if (/^[-*]{3,}$/.test(line.trim())) { blocks.push({ object: "block", type: "divider", divider: {} }); i++; continue; }
+
+    // Blockquote
+    if (line.startsWith("> ") || line === ">") {
+      const quoteLines: string[] = [];
+      while (i < lines.length && (lines[i].startsWith("> ") || lines[i] === ">")) {
+        quoteLines.push(lines[i].startsWith("> ") ? lines[i].slice(2) : ""); i++;
+      }
+      blocks.push({ object: "block", type: "quote", quote: { rich_text: parseInlineMarkdown(quoteLines.join("\n")) } });
+      continue;
+    }
+
+    // Image
+    const img = line.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
+    if (img) {
+      blocks.push({ object: "block", type: "image", image: { type: "external", external: { url: img[2] }, ...(img[1] && { caption: [{ type: "text", text: { content: img[1] } }] }) } });
+      i++; continue;
+    }
+
+    // Bullet list
+    if (/^[-*] /.test(line)) {
+      while (i < lines.length && /^[-*] /.test(lines[i])) {
+        blocks.push({ object: "block", type: "bulleted_list_item", bulleted_list_item: { rich_text: parseInlineMarkdown(lines[i].slice(2)) } }); i++;
+      }
+      continue;
+    }
+
+    // Numbered list
+    if (/^\d+\. /.test(line)) {
+      while (i < lines.length && /^\d+\. /.test(lines[i])) {
+        blocks.push({ object: "block", type: "numbered_list_item", numbered_list_item: { rich_text: parseInlineMarkdown(lines[i].replace(/^\d+\. /, "")) } }); i++;
+      }
+      continue;
+    }
+
+    // Table
+    if (line.startsWith("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].startsWith("|")) { tableLines.push(lines[i]); i++; }
+      const dataRows = tableLines.filter((l) => !/^\|[-:| ]+\|$/.test(l));
+      if (dataRows.length > 0) {
+        const parsedRows = dataRows.map((row) =>
+          row.split("|").slice(1, -1).map((c) => parseInlineMarkdown(c.trim())),
+        );
+        const tableWidth = Math.max(...parsedRows.map((r) => r.length));
+        blocks.push({
+          object: "block", type: "table",
+          table: {
+            table_width: tableWidth, has_column_header: true, has_row_header: false,
+            children: parsedRows.map((cells) => ({ object: "block", type: "table_row", table_row: { cells } })),
+          },
+        });
+      }
+      continue;
+    }
+
+    // Paragraph
+    const paragraphLines: string[] = [];
+    while (
+      i < lines.length && lines[i].trim() &&
+      !lines[i].startsWith("```") && !lines[i].match(/^#{1,6} /) &&
+      !/^[-*]{3,}$/.test(lines[i].trim()) && !lines[i].startsWith("> ") &&
+      !lines[i].startsWith("![") && !/^[-*] /.test(lines[i]) &&
+      !/^\d+\. /.test(lines[i]) && !lines[i].startsWith("|")
+    ) { paragraphLines.push(lines[i]); i++; }
+    if (paragraphLines.length) {
+      blocks.push({ object: "block", type: "paragraph", paragraph: { rich_text: parseInlineMarkdown(paragraphLines.join(" ")) } });
+    }
+  }
+
+  return blocks;
+}
+
 export class NotionService {
   private client: Client;
 
@@ -104,32 +250,7 @@ export class NotionService {
       ...(params.imageTitle && { "Featured Image Title": { rich_text: [{ text: { content: params.imageTitle } }] } }),
     };
 
-    const children: unknown[] = params.body
-      ? params.body.split("\n\n").filter(Boolean).flatMap((chunk) => {
-          const lines = chunk.split("\n");
-          const blocks: unknown[] = [];
-          let paragraphLines: string[] = [];
-          for (const line of lines) {
-            const h1 = line.match(/^# (.+)/);
-            const h2 = line.match(/^## (.+)/);
-            const h3 = line.match(/^### (.+)/);
-            const img = line.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
-            if (h1 || h2 || h3) {
-              if (paragraphLines.length) { blocks.push({ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: paragraphLines.join("\n") } }] } }); paragraphLines = []; }
-              const level = h3 ? "heading_3" : h2 ? "heading_2" : "heading_1";
-              const text = (h1 ?? h2 ?? h3)![1];
-              blocks.push({ object: "block", type: level, [level]: { rich_text: [{ type: "text", text: { content: text } }] } });
-            } else if (img) {
-              if (paragraphLines.length) { blocks.push({ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: paragraphLines.join("\n") } }] } }); paragraphLines = []; }
-              blocks.push({ object: "block", type: "image", image: { type: "external", external: { url: img[2] }, ...(img[1] && { caption: [{ type: "text", text: { content: img[1] } }] }) } });
-            } else {
-              paragraphLines.push(line);
-            }
-          }
-          if (paragraphLines.length) blocks.push({ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: paragraphLines.join("\n") } }] } });
-          return blocks;
-        })
-      : [];
+    const children: unknown[] = params.body ? markdownToNotionBlocks(params.body) : [];
 
     // Notion API limits page creation to 100 children at a time.
     // Create the page with the first 100, then append the rest in chunks.

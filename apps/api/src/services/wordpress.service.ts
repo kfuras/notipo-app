@@ -95,7 +95,9 @@ export class WordPressService {
 
   /** Get a post by ID. */
   async getPost(wpPostId: number) {
-    const { data } = await this.client.get(`/posts/${wpPostId}`);
+    const { data } = await this.client.get(`/posts/${wpPostId}`, {
+      params: { context: "edit" }, // "edit" context exposes meta fields (e.g. SEO plugin focus keywords)
+    });
     return data;
   }
 
