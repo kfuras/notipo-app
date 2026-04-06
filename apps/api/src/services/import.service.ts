@@ -96,7 +96,7 @@ export class ImportService {
       seoKeyword = await wp.getRankMathFocusKeyword(wpPostId);
     }
 
-    logger.info({ tenantId, wpPostId, slug: wpPost.slug, metaKeys: Object.keys(meta || {}), seoKeyword }, "WP post SEO fields");
+    logger.info({ tenantId, wpPostId, slug: wpPost.slug, metaKeys: Object.keys(meta || {}), seoKeyword, wpPostKeys: Object.keys(wpPost) }, "WP post SEO fields");
 
     // 6. Convert HTML to markdown
     onStep?.("Converting content to markdown…");
