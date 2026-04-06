@@ -61,7 +61,7 @@ export class ImportService {
     onStep?.("Fetching WordPress post…");
     const wpPost = await wp.getPost(wpPostId);
     const title = this.decodeHtmlEntities(wpPost.title.rendered);
-    logger.debug({ tenantId, wpPostId, meta: wpPost.meta, slug: wpPost.slug }, "WP post meta fields");
+    logger.info({ tenantId, wpPostId, slug: wpPost.slug, metaKeys: Object.keys(wpPost.meta || {}) }, "WP post meta fields");
 
     // 4. Resolve category/tag names
     onStep?.("Resolving categories and tags…");
@@ -122,8 +122,6 @@ export class ImportService {
         status: notionStatus,
         category: categoryName,
         tags: tagNames,
-        seoKeyword,
-        slug: wpPost.slug || undefined,
         body: markdown,
       });
     } else {
@@ -133,11 +131,17 @@ export class ImportService {
         status: notionStatus,
         category: categoryName,
         tags: tagNames,
-        seoKeyword,
-        slug: wpPost.slug || undefined,
         body: markdown,
       });
     }
+
+    // Set SEO Keyword and Slug separately so failures don't break the import
+    await notion.updatePageSeoFields(notionPageId, {
+      seoKeyword: seoKeyword || undefined,
+      slug: wpPost.slug || undefined,
+    }).catch((err: unknown) => {
+      logger.warn({ tenantId, wpPostId, notionPageId, err: err instanceof Error ? err.message : String(err) }, "Could not set SEO/Slug fields on Notion page");
+    });
 
     // Set WordPress Link URL on the Notion page
     const wpUrl = wpPost.status === "publish"
