@@ -101,10 +101,21 @@ export class WordPressService {
         params: { context: "edit" },
       });
       return data;
-    } catch {
-      // Fall back to default context (e.g. if user lacks edit permission)
+    } catch (err) {
+      logger.warn({ wpPostId, err: err instanceof Error ? err.message : String(err) }, "getPost context=edit failed, falling back to default context (meta fields will not be available)");
       const { data } = await this.client.get(`/posts/${wpPostId}`);
       return data;
+    }
+  }
+
+  /** Fetch Rank Math focus keyword for a post via Rank Math REST API. */
+  async getRankMathFocusKeyword(wpPostId: number): Promise<string | undefined> {
+    try {
+      const { data } = await this.rawClient.get(`/rankmath/v1/posts/${wpPostId}`);
+      return (data?.focusKeyword || data?.focus_keyword || data?.rankMathFocusKeyword) as string | undefined;
+    } catch {
+      // Rank Math endpoint may not exist or post may have no focus keyword
+      return undefined;
     }
   }
 
