@@ -245,6 +245,15 @@ export class NotionService {
     });
   }
 
+  /** Set SEO Keyword and Slug on an existing Notion page (separate call so failures don't break import). */
+  async updatePageSeoFields(pageId: string, fields: { seoKeyword?: string; slug?: string }) {
+    const properties: Record<string, unknown> = {};
+    if (fields.seoKeyword) properties["SEO Keyword"] = { rich_text: [{ text: { content: fields.seoKeyword.slice(0, 2000) } }] };
+    if (fields.slug) properties["Slug"] = { rich_text: [{ text: { content: fields.slug.slice(0, 2000) } }] };
+    if (Object.keys(properties).length === 0) return;
+    await this.client.pages.update({ page_id: pageId, properties: properties as Parameters<typeof this.client.pages.update>[0]["properties"] });
+  }
+
   /** Create a new page in a Notion database. */
   async createPage(databaseId: string, params: {
     title: string;
@@ -252,7 +261,6 @@ export class NotionService {
     category?: string;
     tags?: string[];
     seoKeyword?: string;
-    slug?: string;
     imageTitle?: string;
     body?: string;
   }): Promise<string> {
@@ -262,7 +270,6 @@ export class NotionService {
       ...(params.category && { Category: { select: { name: params.category } } }),
       ...(params.tags?.length && { Tags: { multi_select: params.tags.map((t) => ({ name: t })) } }),
       ...(params.seoKeyword && { "SEO Keyword": { rich_text: [{ text: { content: params.seoKeyword.slice(0, 2000) } }] } }),
-      ...(params.slug && { Slug: { rich_text: [{ text: { content: params.slug.slice(0, 2000) } }] } }),
       ...(params.imageTitle && { "Featured Image Title": { rich_text: [{ text: { content: params.imageTitle } }] } }),
     };
 
