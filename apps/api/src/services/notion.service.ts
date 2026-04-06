@@ -9,7 +9,21 @@ import { Client } from "@notionhq/client";
 // Markdown → Notion block helpers (used by createPage)
 // ---------------------------------------------------------------------------
 
-/** Parse inline markdown into Notion rich_text objects. */
+/** Notion limits each rich_text content string to 2000 characters. */
+const NOTION_TEXT_LIMIT = 2000;
+
+/** Split a long string into ≤2000-char plain text rich_text segments. */
+function chunkPlainText(content: string, annotations?: Record<string, unknown>): unknown[] {
+  const chunks: unknown[] = [];
+  for (let i = 0; i < content.length; i += NOTION_TEXT_LIMIT) {
+    const seg: Record<string, unknown> = { type: "text", text: { content: content.slice(i, i + NOTION_TEXT_LIMIT) } };
+    if (annotations) seg.annotations = annotations;
+    chunks.push(seg);
+  }
+  return chunks.length ? chunks : [{ type: "text", text: { content: "" } }];
+}
+
+/** Parse inline markdown into Notion rich_text objects, respecting the 2000-char limit. */
 function parseInlineMarkdown(text: string): unknown[] {
   if (!text) return [{ type: "text", text: { content: "" } }];
   const decoded = text
@@ -20,16 +34,16 @@ function parseInlineMarkdown(text: string): unknown[] {
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = pattern.exec(decoded)) !== null) {
-    if (m.index > last) result.push({ type: "text", text: { content: decoded.slice(last, m.index) } });
-    if (m[2]) result.push({ type: "text", text: { content: m[2] }, annotations: { bold: true, italic: true } });
-    else if (m[3]) result.push({ type: "text", text: { content: m[3] }, annotations: { bold: true } });
-    else if (m[4]) result.push({ type: "text", text: { content: m[4] }, annotations: { italic: true } });
-    else if (m[5]) result.push({ type: "text", text: { content: m[5] }, annotations: { code: true } });
-    else if (m[6] && m[7]) result.push({ type: "text", text: { content: m[6], link: { url: m[7] } } });
+    if (m.index > last) result.push(...chunkPlainText(decoded.slice(last, m.index)));
+    if (m[2]) result.push(...chunkPlainText(m[2], { bold: true, italic: true }));
+    else if (m[3]) result.push(...chunkPlainText(m[3], { bold: true }));
+    else if (m[4]) result.push(...chunkPlainText(m[4], { italic: true }));
+    else if (m[5]) result.push(...chunkPlainText(m[5], { code: true }));
+    else if (m[6] && m[7]) result.push({ type: "text", text: { content: m[6].slice(0, NOTION_TEXT_LIMIT), link: { url: m[7] } } });
     last = m.index + m[0].length;
   }
-  if (last < decoded.length) result.push({ type: "text", text: { content: decoded.slice(last) } });
-  return result.length ? result : [{ type: "text", text: { content: decoded } }];
+  if (last < decoded.length) result.push(...chunkPlainText(decoded.slice(last)));
+  return result.length ? result : [{ type: "text", text: { content: decoded.slice(0, NOTION_TEXT_LIMIT) } }];
 }
 
 /** Map common language aliases to Notion-supported code block languages. */
@@ -65,7 +79,7 @@ function markdownToNotionBlocks(markdown: string): unknown[] {
       i++;
       while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
       i++; // skip closing ```
-      blocks.push({ object: "block", type: "code", code: { rich_text: [{ type: "text", text: { content: codeLines.join("\n") } }], language: normalizeCodeLang(lang) } });
+      blocks.push({ object: "block", type: "code", code: { rich_text: chunkPlainText(codeLines.join("\n")), language: normalizeCodeLang(lang) } });
       continue;
     }
 
