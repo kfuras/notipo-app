@@ -51,6 +51,7 @@ export class ImportService {
 
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
+      select: { notionDatabaseId: true, wpSeoPlugin: true },
     });
     if (!tenant.notionDatabaseId) throw new Error("Notion database not configured");
 
@@ -61,7 +62,6 @@ export class ImportService {
     onStep?.("Fetching WordPress post…");
     const wpPost = await wp.getPost(wpPostId);
     const title = this.decodeHtmlEntities(wpPost.title.rendered);
-    logger.info({ tenantId, wpPostId, slug: wpPost.slug, metaKeys: Object.keys(wpPost.meta || {}) }, "WP post meta fields");
 
     // 4. Resolve category/tag names
     onStep?.("Resolving categories and tags…");
@@ -85,11 +85,18 @@ export class ImportService {
 
     // 5. Extract SEO keyword from WP post meta (Rank Math, Yoast, SEOPress)
     const meta = wpPost.meta as Record<string, unknown> | undefined;
-    const seoKeyword = (
+    let seoKeyword = (
       meta?.rank_math_focus_keyword ||
       meta?.["_yoast_wpseo_focuskw"] ||
       meta?.["_seopress_analysis_target_kw"]
     ) as string | undefined || undefined;
+
+    // If meta didn't have the keyword (context=edit may have fallen back), try plugin-specific API
+    if (!seoKeyword && tenant.wpSeoPlugin === "rankmath") {
+      seoKeyword = await wp.getRankMathFocusKeyword(wpPostId);
+    }
+
+    logger.info({ tenantId, wpPostId, slug: wpPost.slug, metaKeys: Object.keys(meta || {}), seoKeyword }, "WP post SEO fields");
 
     // 6. Convert HTML to markdown
     onStep?.("Converting content to markdown…");
