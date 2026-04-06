@@ -82,7 +82,15 @@ export class ImportService {
       .map((id: number) => tagMap![id])
       .filter(Boolean) as string[];
 
-    // 5. Convert HTML to markdown
+    // 5. Extract SEO keyword from WP post meta (Rank Math, Yoast, SEOPress)
+    const meta = wpPost.meta as Record<string, unknown> | undefined;
+    const seoKeyword = (
+      meta?.rank_math_focus_keyword ||
+      meta?.["_yoast_wpseo_focuskw"] ||
+      meta?.["_seopress_analysis_target_kw"]
+    ) as string | undefined || undefined;
+
+    // 6. Convert HTML to markdown
     onStep?.("Converting content to markdown…");
     const markdown = convertGutenbergToMarkdown(wpPost.content.rendered);
 
@@ -113,6 +121,7 @@ export class ImportService {
         status: notionStatus,
         category: categoryName,
         tags: tagNames,
+        seoKeyword,
         body: markdown,
       });
     } else {
@@ -122,6 +131,7 @@ export class ImportService {
         status: notionStatus,
         category: categoryName,
         tags: tagNames,
+        seoKeyword,
         body: markdown,
       });
     }

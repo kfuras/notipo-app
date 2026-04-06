@@ -63,6 +63,7 @@ export default function ImportPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [overwrite, setOverwrite] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importingAll, setImportingAll] = useState(false);
   const [liveJobs, setLiveJobs] = useState<Map<string, LiveJob>>(new Map());
 
   const { data: billing } = useApi<BillingData>("/api/billing");
@@ -158,6 +159,23 @@ export default function ImportPage() {
     }
   }
 
+  async function importAll() {
+    setImportingAll(true);
+    try {
+      const result = await call("/api/import/posts/all", {
+        method: "POST",
+        body: { status: statusFilter, overwrite },
+      });
+      const count = (result as { data?: { count?: number } })?.data?.count ?? 0;
+      capture("import_started", { count, overwrite, all: true });
+      toast.success(`${count} import job${count === 1 ? "" : "s"} queued`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start import");
+    } finally {
+      setImportingAll(false);
+    }
+  }
+
   async function importSingle(wpPostId: number) {
     try {
       await call("/api/import/posts", {
@@ -196,16 +214,28 @@ export default function ImportPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Import from WordPress</h1>
-        {selected.size > 0 && (
-          <Button onClick={importSelected} disabled={importing} size="sm">
-            {importing ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-1" />
-            ) : (
-              <Download className="w-4 h-4 mr-1" />
-            )}
-            Import {selected.size} post{selected.size === 1 ? "" : "s"}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {selected.size > 0 && (
+            <Button onClick={importSelected} disabled={importing} size="sm">
+              {importing ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <Download className="w-4 h-4 mr-1" />
+              )}
+              Import {selected.size} post{selected.size === 1 ? "" : "s"}
+            </Button>
+          )}
+          {data && data.total > 0 && (
+            <Button onClick={importAll} disabled={importingAll} size="sm" variant="outline">
+              {importingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <Download className="w-4 h-4 mr-1" />
+              )}
+              Import All ({data.total})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Controls */}
