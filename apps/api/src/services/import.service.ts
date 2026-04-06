@@ -96,7 +96,15 @@ export class ImportService {
       seoKeyword = await wp.getRankMathFocusKeyword(wpPostId);
     }
 
-    logger.info({ tenantId, wpPostId, slug: wpPost.slug, metaKeys: Object.keys(meta || {}), seoKeyword, wpPostKeys: Object.keys(wpPost) }, "WP post SEO fields");
+    logger.info({
+      tenantId, wpPostId, slug: wpPost.slug, seoKeyword,
+      hasRankMath: "rank_math" in wpPost,
+      hasRankMathHead: "rank_math_head" in wpPost,
+      hasYoastHeadJson: "yoast_head_json" in wpPost,
+      rankMath: wpPost.rank_math,
+      rankMathHeadSnippet: typeof wpPost.rank_math_head === "string" ? wpPost.rank_math_head.slice(0, 300) : undefined,
+      metaKeys: Object.keys(meta || {}),
+    }, "WP post SEO fields");
 
     // 6. Convert HTML to markdown
     onStep?.("Converting content to markdown…");
@@ -145,7 +153,6 @@ export class ImportService {
     // Set SEO Keyword and Slug separately so failures don't break the import
     await notion.updatePageSeoFields(notionPageId, {
       seoKeyword: seoKeyword || undefined,
-      slug: wpPost.slug || undefined,
     }).catch((err: unknown) => {
       logger.warn({ tenantId, wpPostId, notionPageId, err: err instanceof Error ? err.message : String(err) }, "Could not set SEO/Slug fields on Notion page");
     });
