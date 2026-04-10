@@ -49,14 +49,17 @@ function parseInlineMarkdown(text: string): unknown[] {
 /** Map common language aliases to Notion-supported code block languages. */
 function normalizeCodeLang(lang: string): string {
   const map: Record<string, string> = {
-    js: "javascript", ts: "typescript", py: "python", rb: "ruby",
-    sh: "bash", shell: "bash", zsh: "bash", yml: "yaml",
+    js: "javascript", javascript: "javascript", ts: "typescript", typescript: "typescript",
+    py: "python", python: "python", rb: "ruby", ruby: "ruby",
+    sh: "bash", shell: "bash", bash: "bash", zsh: "bash", yml: "yaml", yaml: "yaml",
     html: "html", css: "css", sql: "sql", json: "json",
     xml: "xml", php: "php", java: "java", go: "go",
     rust: "rust", cpp: "c++", "c++": "c++", c: "c",
     cs: "c#", csharp: "c#", swift: "swift", kotlin: "kotlin",
     scala: "scala", r: "r", dockerfile: "dockerfile", diff: "diff",
     markdown: "markdown", md: "markdown", graphql: "graphql",
+    toml: "toml", lua: "lua", perl: "perl", haskell: "haskell",
+    elixir: "elixir", erlang: "erlang", clojure: "clojure", dart: "dart",
   };
   return map[lang.toLowerCase()] ?? "plain text";
 }
