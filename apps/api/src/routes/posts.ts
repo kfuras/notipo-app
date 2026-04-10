@@ -29,6 +29,16 @@ const createPostSchema = z.object({
   images: z.array(imageSchema).optional(),
 });
 
+const updatePostSchema = z.object({
+  title: z.string().min(1).optional(),
+  body: z.string().optional(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  seoKeyword: z.string().optional(),
+  slug: z.string().optional(),
+  publish: z.boolean().optional(),
+});
+
 const publishParamsSchema = z.object({
   id: z.string().min(1),
 });
@@ -52,6 +62,51 @@ export async function postRoutes(app: FastifyInstance) {
     });
     if (!post) return reply.notFound("Post not found");
     return { data: post };
+  });
+
+  // Update post: update Notion page, then trigger re-sync to WordPress
+  app.patch<{ Params: { id: string } }>("/api/posts/:id", async (request, reply) => {
+    const body = updatePostSchema.parse(request.body);
+    const tenantId = request.tenant.id;
+
+    const post = await app.prisma.post.findFirst({
+      where: { id: request.params.id, tenantId },
+    });
+    if (!post) return reply.notFound("Post not found");
+    if (!post.notionPageId) return reply.code(400).send({ error: "Post has no linked Notion page" });
+
+    const credService = new CredentialService(app.prisma);
+    const notionCreds = await credService.getNotionCredentials(tenantId);
+    if (!notionCreds) return reply.code(400).send({ error: "Notion is not configured" });
+
+    const notion = new NotionService(notionCreds.accessToken);
+
+    // Update Notion page content if body provided
+    if (body.body !== undefined) {
+      await notion.replacePageContent(post.notionPageId, body.body);
+    }
+
+    // Update Notion page properties if any provided
+    if (body.title || body.category || body.tags || body.seoKeyword) {
+      await notion.updatePageProperties(post.notionPageId, {
+        title: body.title,
+        category: body.category,
+        tags: body.tags,
+        seoKeyword: body.seoKeyword,
+      });
+    }
+
+    // Trigger re-sync to WordPress
+    const jobId = await app.boss.send("sync-post", {
+      tenantId,
+      notionPageId: post.notionPageId,
+      ...(body.publish && { thenPublish: true, forcePublish: true }),
+      ...(body.slug && { wpSlug: body.slug }),
+    });
+
+    return reply.code(202).send({
+      data: { jobId, postId: post.id, message: "Post updated. Sync job queued." },
+    });
   });
 
   // Create a new post in Notion and trigger sync

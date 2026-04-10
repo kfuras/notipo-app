@@ -297,6 +297,42 @@ export class NotionService {
     return page.id;
   }
 
+  /** Replace all content blocks on a Notion page with new markdown content. */
+  async replacePageContent(pageId: string, markdown: string) {
+    // 1. Delete all existing blocks
+    const existing = await this.getPageBlocks(pageId);
+    for (const block of existing) {
+      const id = (block as { id: string }).id;
+      await this.client.blocks.delete({ block_id: id });
+    }
+
+    // 2. Append new blocks in chunks of 100
+    const children = markdownToNotionBlocks(markdown);
+    for (let i = 0; i < children.length; i += 100) {
+      const chunk = children.slice(i, i + 100);
+      await this.client.blocks.children.append({
+        block_id: pageId,
+        children: chunk as Parameters<typeof this.client.blocks.children.append>[0]["children"],
+      });
+    }
+  }
+
+  /** Update a Notion page's properties (title, category, tags). */
+  async updatePageProperties(pageId: string, params: {
+    title?: string;
+    category?: string;
+    tags?: string[];
+    seoKeyword?: string;
+  }) {
+    const properties: Record<string, unknown> = {};
+    if (params.title) properties["Name"] = { title: [{ text: { content: params.title } }] };
+    if (params.category) properties["Category"] = { select: { name: params.category } };
+    if (params.tags?.length) properties["Tags"] = { multi_select: params.tags.map((t) => ({ name: t })) };
+    if (params.seoKeyword) properties["SEO Keyword"] = { rich_text: [{ text: { content: params.seoKeyword.slice(0, 2000) } }] };
+    if (Object.keys(properties).length === 0) return;
+    await this.client.pages.update({ page_id: pageId, properties: properties as Parameters<typeof this.client.pages.update>[0]["properties"] });
+  }
+
   /** Get a page's Status select value (returns null if not set). */
   async getPageStatus(pageId: string): Promise<string | null> {
     const page = await this.getPageProperties(pageId);

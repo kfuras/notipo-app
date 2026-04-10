@@ -163,6 +163,7 @@ In the frontend, clicking "View" on the Tenants page stores `{ tenantId, tenantN
 | POST | `/api/posts/create` | Create Notion page + trigger sync. Accepts title, body (markdown), category, tags, seoKeyword, imageTitle, slug, publish, images (inline Unsplash, Pro only) |
 | POST | `/api/posts/sync` | Trigger sync from existing Notion page |
 | POST | `/api/posts/:id/publish` | Trigger publish to WordPress |
+| PATCH | `/api/posts/:id` | Update post (Notion content + properties) and trigger re-sync to WP |
 | DELETE | `/api/posts/:id` | Delete post + clean up WP resources + reset Notion |
 | GET | `/api/categories` | List categories |
 | GET | `/api/tags` | List tags |
