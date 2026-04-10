@@ -108,6 +108,17 @@ curl -X POST $NOTIPO_URL/api/posts/create \
   }'
 ```
 
+### Update a post (fix content, change metadata, re-sync to WordPress)
+
+```bash
+notipo posts update POST_ID \
+  --body "## Introduction\n\nUpdated content without the H1." \
+  --seo-keyword "updated focus keyword" \
+  --wait
+```
+
+Updates the Notion page content and/or properties, then triggers a re-sync to WordPress. Only the provided fields are updated — omitted fields stay unchanged. This is the correct way to fix post content after creation.
+
 ### Check job status
 
 ```bash
@@ -195,6 +206,7 @@ curl -X POST $NOTIPO_URL/api/posts/create \
 | `notipo sync` | Trigger an immediate Notion poll |
 | `notipo posts` | List all posts |
 | `notipo posts create` | Create a post in Notion and sync to WordPress |
+| `notipo posts update <id>` | Update post content/properties and re-sync to WordPress |
 | `notipo posts delete <id>` | Delete a post (cleans up WordPress + Notion) |
 | `notipo jobs` | List recent sync and publish jobs |
 | `notipo help` | Show usage and examples |
@@ -213,7 +225,36 @@ curl -X POST $NOTIPO_URL/api/posts/create \
 | `--publish` | Publish immediately (default: draft) |
 | `--wait` | Wait for job completion and return result |
 
+### posts update flags
+
+| Flag | Description |
+|------|-------------|
+| `--title <title>` | New post title |
+| `--body <markdown>` | New markdown content (replaces all existing content) |
+| `--category <name>` | New category name |
+| `--tags <a,b,c>` | New comma-separated tag names |
+| `--seo-keyword <kw>` | New focus keyword for Rank Math / SEOPress |
+| `--slug <slug>` | New URL slug |
+| `--publish` | Publish after syncing (default: keep current status) |
+| `--wait` | Wait for job completion and return result |
+
 ## API Request Body Reference
+
+### PATCH /api/posts/:id (update)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| **title** | string | No | New post title |
+| **body** | string | No | New markdown content (replaces all existing content on the Notion page) |
+| **category** | string | No | New category name |
+| **tags** | string[] | No | New tag names |
+| **seoKeyword** | string | No | New focus keyword |
+| **slug** | string | No | New URL slug |
+| **publish** | boolean | No | Publish after syncing |
+
+Returns `{ jobId, postId, message }`. The update writes to Notion first, then triggers a sync job to push changes to WordPress.
+
+### POST /api/posts/create
 
 For curl/HTTP usage, `POST /api/posts/create` accepts:
 
@@ -242,7 +283,8 @@ For curl/HTTP usage, `POST /api/posts/create` accepts:
 
 ## Common Gotchas
 
-1. **Include all fields for best results** — only `title` is technically required, but AI agents should always generate body, category, tags, seoKeyword, imageTitle, and slug for a complete post.
+1. **Use `posts update` to fix content** — don't delete and recreate. `notipo posts update <id> --body "..."` updates the Notion page and re-syncs to WordPress in one call.
+2. **Include all fields for best results** — only `title` is technically required, but AI agents should always generate body, category, tags, seoKeyword, imageTitle, and slug for a complete post.
 2. **Category must exist** — the category name must match an existing WordPress category. Fetch valid options first.
 3. **`--publish` runs two jobs** — first SYNC_POST (creates draft), then PUBLISH_POST (makes it live). Use `--wait` to block until both complete.
 4. **Images require Pro plan** — the `images` array and featured image generation are Pro features. On Free plan, these fields are silently ignored.

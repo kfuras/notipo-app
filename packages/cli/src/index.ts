@@ -138,6 +138,59 @@ async function cmdPostsCreate(config: Config, args: string[]) {
   }
 }
 
+async function cmdPostsUpdate(config: Config, args: string[]) {
+  const id = args[0];
+  if (!id || id.startsWith("--")) err("Missing post ID. Usage: notipo posts update <id> [--title \"...\"] [--body \"...\"] [options]");
+
+  const flagArgs = args.slice(1);
+  const get = (flag: string) => {
+    const i = flagArgs.indexOf(flag);
+    return i !== -1 ? flagArgs[i + 1] : undefined;
+  };
+  const has = (flag: string) => flagArgs.includes(flag);
+
+  const body: Record<string, unknown> = {};
+  const title = get("--title"); if (title) body.title = title;
+  const bodyText = get("--body"); if (bodyText) body.body = bodyText;
+  const category = get("--category"); if (category) body.category = category;
+  const tags = get("--tags"); if (tags) body.tags = (tags as string).split(",").map((t) => t.trim());
+  const seoKeyword = get("--seo-keyword"); if (seoKeyword) body.seoKeyword = seoKeyword;
+  const slug = get("--slug"); if (slug) body.slug = slug;
+  if (has("--publish")) body.publish = true;
+
+  if (Object.keys(body).length === 0) err("Nothing to update. Pass at least one flag (--title, --body, --category, etc.)");
+
+  const result = await api<{ jobId: string; postId: string; message: string }>(
+    config, `/api/posts/${id}`, "PATCH", body
+  );
+  out(result);
+
+  if (has("--wait")) {
+    process.stderr.write("Waiting for sync to complete...\n");
+    type Job = { id: string; type: string; pgBossJobId?: string; postId?: string; status: string; result?: unknown; error?: string };
+
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const jobs = await api<Job[]>(config, "/api/jobs");
+      const job = jobs.find((j) => j.pgBossJobId === result.jobId);
+      if (job?.status === "FAILED") { out(job); return; }
+      if (job?.status === "COMPLETED") {
+        if (!has("--publish")) { out(job); return; }
+        // Wait for PUBLISH_POST
+        process.stderr.write("Waiting for publish to complete...\n");
+        for (let k = 0; k < 30; k++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const pJobs = await api<Job[]>(config, "/api/jobs");
+          const pJob = pJobs.find((j) => j.type === "PUBLISH_POST" && j.postId === result.postId);
+          if (pJob?.status === "COMPLETED" || pJob?.status === "FAILED") { out(pJob); return; }
+        }
+        break;
+      }
+    }
+    err("Timed out waiting for job. Run `notipo jobs` to check status.");
+  }
+}
+
 async function cmdPostsDelete(config: Config, id: string) {
   if (!id) err("Missing post ID. Usage: notipo posts delete <id>");
   await api(config, `/api/posts/${id}`, "DELETE");
@@ -153,6 +206,8 @@ function cmdHelp() {
       posts: "List all posts",
       "posts create": "Create a post in Notion and sync to WordPress",
       "posts create --title <title> [--body <text>] [--category <cat>] [--tags <a,b>] [--seo-keyword <kw>] [--image-title <title>] [--publish] [--wait]": "",
+      "posts update <id>": "Update a post's content/properties and re-sync to WordPress",
+      "posts update <id> [--title <title>] [--body <text>] [--category <cat>] [--tags <a,b>] [--seo-keyword <kw>] [--slug <slug>] [--publish] [--wait]": "",
       "posts delete <id>": "Delete a post (cleans up WordPress + Notion)",
       jobs: "List recent sync and publish jobs",
     },
@@ -187,6 +242,8 @@ try {
     await cmdSync(config);
   } else if (cmd === "posts" && sub === "create") {
     await cmdPostsCreate(config, rest);
+  } else if (cmd === "posts" && sub === "update") {
+    await cmdPostsUpdate(config, rest);
   } else if (cmd === "posts" && sub === "delete") {
     await cmdPostsDelete(config, rest[0]);
   } else if (cmd === "posts") {
