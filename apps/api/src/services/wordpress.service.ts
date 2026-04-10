@@ -110,13 +110,28 @@ export class WordPressService {
 
   /** Fetch Rank Math focus keyword for a post via Rank Math REST API. */
   async getRankMathFocusKeyword(wpPostId: number): Promise<string | undefined> {
+    // Try the updateMeta GET endpoint (Rank Math ≥ 1.0.80)
     try {
-      const { data } = await this.rawClient.get(`/rankmath/v1/posts/${wpPostId}`);
-      return (data?.focusKeyword || data?.focus_keyword || data?.rankMathFocusKeyword) as string | undefined;
+      const { data } = await this.rawClient.get("/rankmath/v1/updateMeta", {
+        params: { objectID: wpPostId, objectType: "post" },
+      });
+      const kw = data?.rank_math_focus_keyword || data?.focusKeyword || data?.focus_keyword;
+      if (typeof kw === "string" && kw) return kw;
     } catch {
-      // Rank Math endpoint may not exist or post may have no focus keyword
-      return undefined;
+      // Endpoint may not support GET
     }
+    // Fallback: fetch post with context=edit specifically for meta (may fail without edit caps)
+    try {
+      const { data } = await this.client.get(`/posts/${wpPostId}`, {
+        params: { context: "edit", _fields: "meta" },
+      });
+      const meta = data?.meta as Record<string, unknown> | undefined;
+      const kw = meta?.rank_math_focus_keyword;
+      if (typeof kw === "string" && kw) return kw;
+    } catch {
+      // context=edit may not be available
+    }
+    return undefined;
   }
 
   /** Upload media to WordPress media library. */

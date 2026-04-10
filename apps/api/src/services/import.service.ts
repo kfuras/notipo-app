@@ -91,8 +91,21 @@ export class ImportService {
       meta?.["_seopress_analysis_target_kw"]
     ) as string | undefined || undefined;
 
-    // If meta didn't have the keyword (context=edit may have fallen back), try plugin-specific API
-    if (!seoKeyword && tenant.wpSeoPlugin === "rankmath") {
+    // Fallback: extract from top-level Rank Math field (available without context=edit)
+    if (!seoKeyword && wpPost.rank_math) {
+      const rm = wpPost.rank_math as Record<string, unknown>;
+      if (typeof rm.focusKeyword === "string") seoKeyword = rm.focusKeyword;
+      else if (typeof rm.focus_keyword === "string") seoKeyword = rm.focus_keyword;
+    }
+
+    // Fallback: parse focus keyword from Yoast head JSON (available without context=edit)
+    if (!seoKeyword && wpPost.yoast_head_json) {
+      const yoast = wpPost.yoast_head_json as Record<string, unknown>;
+      if (typeof yoast.focuskw === "string") seoKeyword = yoast.focuskw;
+    }
+
+    // Fallback: try Rank Math REST API (works even when wpSeoPlugin detection missed it)
+    if (!seoKeyword) {
       seoKeyword = await wp.getRankMathFocusKeyword(wpPostId);
     }
 
@@ -179,6 +192,7 @@ export class ImportService {
     const postData = {
       title,
       slug: wpPost.slug || undefined,
+      seoKeyword: seoKeyword || null,
       markdownContent: markdown,
       wpContent: wpPost.content.rendered,
       notionPageId,
