@@ -233,13 +233,13 @@ export class NotionService {
     const existingTags = new Set((props.Tags?.multi_select?.options ?? []).map((o) => o.name));
 
     // Start with all existing options, then add any new ones
-    const catOptions = [...(props.Category?.select?.options ?? []).map((o) => ({ name: o.name }))];
+    const catOptions: Array<{ name: string; color?: string }> = [...(props.Category?.select?.options ?? []).map((o) => ({ name: o.name }))];
     for (const name of categories) {
       if (!existingCategories.has(name)) {
         catOptions.push({ name, color: COLORS[catOptions.length % COLORS.length] });
       }
     }
-    const tagOptions = [...(props.Tags?.multi_select?.options ?? []).map((o) => ({ name: o.name }))];
+    const tagOptions: Array<{ name: string; color?: string }> = [...(props.Tags?.multi_select?.options ?? []).map((o) => ({ name: o.name }))];
     for (const name of tags) {
       if (!existingTags.has(name)) {
         tagOptions.push({ name, color: COLORS[tagOptions.length % COLORS.length] });
