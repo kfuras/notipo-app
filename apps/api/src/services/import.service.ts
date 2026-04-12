@@ -111,13 +111,11 @@ export class ImportService {
 
     logger.info({
       tenantId, wpPostId, slug: wpPost.slug, seoKeyword,
-      hasRankMath: "rank_math" in wpPost,
-      hasRankMathHead: "rank_math_head" in wpPost,
-      hasYoastHeadJson: "yoast_head_json" in wpPost,
-      rankMath: wpPost.rank_math,
-      rankMathHeadSnippet: typeof wpPost.rank_math_head === "string" ? wpPost.rank_math_head.slice(0, 300) : undefined,
-      metaKeys: Object.keys(meta || {}),
-    }, "WP post SEO fields");
+      categoryName, tagNames,
+      wpCategories: wpPost.categories,
+      wpTags: wpPost.tags,
+      catMapKeys: Object.keys(catMap || {}),
+    }, "WP post import fields");
 
     // 6. Convert HTML to markdown
     onStep?.("Converting content to markdown…");
