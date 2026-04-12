@@ -110,11 +110,7 @@ export class ImportService {
     }
 
     logger.info({
-      tenantId, wpPostId, slug: wpPost.slug, seoKeyword,
-      categoryName, tagNames,
-      wpCategories: wpPost.categories,
-      wpTags: wpPost.tags,
-      catMapKeys: Object.keys(catMap || {}),
+      tenantId, wpPostId, slug: wpPost.slug, seoKeyword, categoryName, tagNames,
     }, "WP post import fields");
 
     // 6. Convert HTML to markdown

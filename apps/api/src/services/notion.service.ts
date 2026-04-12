@@ -232,20 +232,30 @@ export class NotionService {
     const existingCategories = new Set((props.Category?.select?.options ?? []).map((o) => o.name));
     const existingTags = new Set((props.Tags?.multi_select?.options ?? []).map((o) => o.name));
 
-    const catOptions = categories.map((name, i) =>
-      existingCategories.has(name) ? { name } : { name, color: COLORS[i % COLORS.length] },
-    );
-    const tagOptions = tags.map((name, i) =>
-      existingTags.has(name) ? { name } : { name, color: COLORS[i % COLORS.length] },
-    );
+    // Start with all existing options, then add any new ones
+    const catOptions = [...(props.Category?.select?.options ?? []).map((o) => ({ name: o.name }))];
+    for (const name of categories) {
+      if (!existingCategories.has(name)) {
+        catOptions.push({ name, color: COLORS[catOptions.length % COLORS.length] });
+      }
+    }
+    const tagOptions = [...(props.Tags?.multi_select?.options ?? []).map((o) => ({ name: o.name }))];
+    for (const name of tags) {
+      if (!existingTags.has(name)) {
+        tagOptions.push({ name, color: COLORS[tagOptions.length % COLORS.length] });
+      }
+    }
 
-    await this.client.databases.update({
-      database_id: databaseId,
-      properties: {
-        Category: { select: { options: catOptions } },
-        Tags: { multi_select: { options: tagOptions } },
-      },
-    });
+    // Only update if there are new options to add
+    if (catOptions.length > existingCategories.size || tagOptions.length > existingTags.size) {
+      await this.client.databases.update({
+        database_id: databaseId,
+        properties: {
+          Category: { select: { options: catOptions } },
+          Tags: { multi_select: { options: tagOptions } },
+        },
+      });
+    }
   }
 
   /** Set SEO Keyword and Slug on an existing Notion page (separate call so failures don't break import). */
