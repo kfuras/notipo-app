@@ -115,7 +115,11 @@ export class ImportService {
 
     // 6. Convert HTML to markdown
     onStep?.("Converting content to markdown…");
-    const markdown = convertGutenbergToMarkdown(wpPost.content.rendered);
+    let markdown = convertGutenbergToMarkdown(wpPost.content.rendered);
+
+    // Resolve relative URLs to absolute (Notion rejects non-absolute URLs)
+    const siteOrigin = new URL(wpCreds.siteUrl).origin;
+    markdown = markdown.replace(/\]\(\/([^)]*)\)/g, `](${siteOrigin}/$1)`);
 
     // 6. Sync Notion database options for category/tags
     if (categoryName || tagNames.length) {
