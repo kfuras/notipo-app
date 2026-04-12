@@ -108,29 +108,94 @@ export class WordPressService {
     }
   }
 
-  /** Fetch Rank Math focus keyword for a post via Rank Math REST API. */
-  async getRankMathFocusKeyword(wpPostId: number): Promise<string | undefined> {
-    // Try the updateMeta GET endpoint (Rank Math ≥ 1.0.80)
+  /** Fetch SEO focus keyword for a post via plugin-specific REST APIs. */
+  async getSeoFocusKeyword(wpPostId: number): Promise<string | undefined> {
+    // 1. Rank Math: POST to updateMeta with empty meta to get current values
+    try {
+      const { data } = await this.rawClient.post("/rankmath/v1/updateMeta", {
+        objectID: wpPostId,
+        objectType: "post",
+        meta: {},
+      });
+      const kw = data?.rank_math_focus_keyword || data?.focusKeyword || data?.focus_keyword;
+      if (typeof kw === "string" && kw) {
+        logger.debug({ wpPostId, source: "rankmath-updateMeta-POST" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // Rank Math not installed or endpoint not available
+    }
+
+    // 2. Rank Math: GET updateMeta (older versions)
     try {
       const { data } = await this.rawClient.get("/rankmath/v1/updateMeta", {
         params: { objectID: wpPostId, objectType: "post" },
       });
       const kw = data?.rank_math_focus_keyword || data?.focusKeyword || data?.focus_keyword;
-      if (typeof kw === "string" && kw) return kw;
+      if (typeof kw === "string" && kw) {
+        logger.debug({ wpPostId, source: "rankmath-updateMeta-GET" }, "SEO keyword found");
+        return kw;
+      }
     } catch {
       // Endpoint may not support GET
     }
-    // Fallback: fetch post with context=edit specifically for meta (may fail without edit caps)
+
+    // 3. Yoast: getHead endpoint returns JSON with focus keyword
+    try {
+      const { data } = await this.rawClient.get("/yoast/v1/get_head", {
+        params: { url: `/?p=${wpPostId}` },
+      });
+      const json = typeof data?.json === "object" ? data.json : data;
+      const kw = json?.focuskw;
+      if (typeof kw === "string" && kw) {
+        logger.debug({ wpPostId, source: "yoast-getHead" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // Yoast not installed
+    }
+
+    // 4. AIOSEO: post meta endpoint
+    try {
+      const { data } = await this.rawClient.get(`/aioseo/v1/post`, {
+        params: { id: wpPostId },
+      });
+      const kw = data?.keyphrases?.focus?.keyphrase || data?.focus_keyphrase;
+      if (typeof kw === "string" && kw) {
+        logger.debug({ wpPostId, source: "aioseo" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // AIOSEO not installed
+    }
+
+    // 5. SEOPress: target keywords endpoint
+    try {
+      const { data } = await this.rawClient.get(`/seopress/v1/posts/${wpPostId}/target-keywords`);
+      const kw = data?._seopress_analysis_target_kw;
+      if (typeof kw === "string" && kw) {
+        logger.debug({ wpPostId, source: "seopress" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // SEOPress not installed
+    }
+
+    // 6. Fallback: fetch post with context=edit for meta field
     try {
       const { data } = await this.client.get(`/posts/${wpPostId}`, {
         params: { context: "edit", _fields: "meta" },
       });
       const meta = data?.meta as Record<string, unknown> | undefined;
-      const kw = meta?.rank_math_focus_keyword;
-      if (typeof kw === "string" && kw) return kw;
+      const kw = meta?.rank_math_focus_keyword || meta?.["_yoast_wpseo_focuskw"] || meta?.["_seopress_analysis_target_kw"] || meta?.["_aioseo_keywords"];
+      if (typeof kw === "string" && kw) {
+        logger.debug({ wpPostId, source: "post-meta" }, "SEO keyword found");
+        return kw;
+      }
     } catch {
       // context=edit may not be available
     }
+
     return undefined;
   }
 

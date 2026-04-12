@@ -104,9 +104,9 @@ export class ImportService {
       if (typeof yoast.focuskw === "string") seoKeyword = yoast.focuskw;
     }
 
-    // Fallback: try Rank Math REST API (works even when wpSeoPlugin detection missed it)
+    // Fallback: try SEO plugin REST APIs (Rank Math, Yoast, AIOSEO, SEOPress)
     if (!seoKeyword) {
-      seoKeyword = await wp.getRankMathFocusKeyword(wpPostId);
+      seoKeyword = await wp.getSeoFocusKeyword(wpPostId);
     }
 
     logger.info({
@@ -150,6 +150,7 @@ export class ImportService {
         status: notionStatus,
         category: categoryName,
         tags: tagNames,
+        seoKeyword: seoKeyword || undefined,
         body: markdown,
       });
     } else {
@@ -159,6 +160,7 @@ export class ImportService {
         status: notionStatus,
         category: categoryName,
         tags: tagNames,
+        seoKeyword: seoKeyword || undefined,
         body: markdown,
       });
     }
