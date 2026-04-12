@@ -109,79 +109,64 @@ export class WordPressService {
   }
 
   /** Fetch SEO focus keyword for a post via plugin-specific REST APIs. */
-  async getSeoFocusKeyword(wpPostId: number): Promise<string | undefined> {
-    // 1. Rank Math: POST to updateMeta with empty meta to get current values
-    try {
-      const { data } = await this.rawClient.post("/rankmath/v1/updateMeta", {
-        objectID: wpPostId,
-        objectType: "post",
-        meta: {},
-      });
-      const kw = data?.rank_math_focus_keyword || data?.focusKeyword || data?.focus_keyword;
-      if (typeof kw === "string" && kw) {
-        logger.debug({ wpPostId, source: "rankmath-updateMeta-POST" }, "SEO keyword found");
-        return kw;
+  async getSeoFocusKeyword(wpPostId: number, postUrl?: string): Promise<string | undefined> {
+    // 1. Rank Math: getHead endpoint — parse keyword from JSON-LD BlogPosting.keywords
+    if (postUrl) {
+      try {
+        const { data } = await this.rawClient.get("/rankmath/v1/getHead", {
+          params: { url: postUrl },
+        });
+        const head = data?.head as string | undefined;
+        if (head) {
+          const ldMatch = head.match(/<script[^>]*class="rank-math-schema"[^>]*>([\s\S]*?)<\/script>/);
+          if (ldMatch) {
+            const ld = JSON.parse(ldMatch[1]);
+            const graph = ld?.["@graph"] || [];
+            for (const node of graph) {
+              const types = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
+              if (types.some((t: string) => ["BlogPosting", "Article", "NewsArticle", "WebPage"].includes(t))) {
+                if (typeof node.keywords === "string" && node.keywords) {
+                  logger.info({ wpPostId, source: "rankmath-getHead" }, "SEO keyword found");
+                  return node.keywords;
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Rank Math getHead not available
       }
-    } catch {
-      // Rank Math not installed or endpoint not available
     }
 
-    // 2. Rank Math: GET updateMeta (older versions)
-    try {
-      const { data } = await this.rawClient.get("/rankmath/v1/updateMeta", {
-        params: { objectID: wpPostId, objectType: "post" },
-      });
-      const kw = data?.rank_math_focus_keyword || data?.focusKeyword || data?.focus_keyword;
-      if (typeof kw === "string" && kw) {
-        logger.debug({ wpPostId, source: "rankmath-updateMeta-GET" }, "SEO keyword found");
-        return kw;
+    // 2. Rank Math: getHead with shortlink fallback (when postUrl not available)
+    if (!postUrl) {
+      try {
+        const { data } = await this.rawClient.get("/rankmath/v1/getHead", {
+          params: { url: `/?p=${wpPostId}` },
+        });
+        const head = data?.head as string | undefined;
+        if (head) {
+          const ldMatch = head.match(/<script[^>]*class="rank-math-schema"[^>]*>([\s\S]*?)<\/script>/);
+          if (ldMatch) {
+            const ld = JSON.parse(ldMatch[1]);
+            const graph = ld?.["@graph"] || [];
+            for (const node of graph) {
+              const types = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
+              if (types.some((t: string) => ["BlogPosting", "Article", "NewsArticle", "WebPage"].includes(t))) {
+                if (typeof node.keywords === "string" && node.keywords) {
+                  logger.info({ wpPostId, source: "rankmath-getHead-shortlink" }, "SEO keyword found");
+                  return node.keywords;
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Rank Math getHead not available
       }
-    } catch {
-      // Endpoint may not support GET
     }
 
-    // 3. Yoast: getHead endpoint returns JSON with focus keyword
-    try {
-      const { data } = await this.rawClient.get("/yoast/v1/get_head", {
-        params: { url: `/?p=${wpPostId}` },
-      });
-      const json = typeof data?.json === "object" ? data.json : data;
-      const kw = json?.focuskw;
-      if (typeof kw === "string" && kw) {
-        logger.debug({ wpPostId, source: "yoast-getHead" }, "SEO keyword found");
-        return kw;
-      }
-    } catch {
-      // Yoast not installed
-    }
-
-    // 4. AIOSEO: post meta endpoint
-    try {
-      const { data } = await this.rawClient.get(`/aioseo/v1/post`, {
-        params: { id: wpPostId },
-      });
-      const kw = data?.keyphrases?.focus?.keyphrase || data?.focus_keyphrase;
-      if (typeof kw === "string" && kw) {
-        logger.debug({ wpPostId, source: "aioseo" }, "SEO keyword found");
-        return kw;
-      }
-    } catch {
-      // AIOSEO not installed
-    }
-
-    // 5. SEOPress: target keywords endpoint
-    try {
-      const { data } = await this.rawClient.get(`/seopress/v1/posts/${wpPostId}/target-keywords`);
-      const kw = data?._seopress_analysis_target_kw;
-      if (typeof kw === "string" && kw) {
-        logger.debug({ wpPostId, source: "seopress" }, "SEO keyword found");
-        return kw;
-      }
-    } catch {
-      // SEOPress not installed
-    }
-
-    // 6. Fallback: fetch post with context=edit for meta field
+    // 3. Post meta: context=edit exposes registered meta fields
     try {
       const { data } = await this.client.get(`/posts/${wpPostId}`, {
         params: { context: "edit", _fields: "meta" },
@@ -189,11 +174,52 @@ export class WordPressService {
       const meta = data?.meta as Record<string, unknown> | undefined;
       const kw = meta?.rank_math_focus_keyword || meta?.["_yoast_wpseo_focuskw"] || meta?.["_seopress_analysis_target_kw"] || meta?.["_aioseo_keywords"];
       if (typeof kw === "string" && kw) {
-        logger.debug({ wpPostId, source: "post-meta" }, "SEO keyword found");
+        logger.info({ wpPostId, source: "post-meta" }, "SEO keyword found");
         return kw;
       }
     } catch {
       // context=edit may not be available
+    }
+
+    // 4. Yoast: getHead endpoint
+    try {
+      const { data } = await this.rawClient.get("/yoast/v1/get_head", {
+        params: { url: postUrl || `/?p=${wpPostId}` },
+      });
+      const json = typeof data?.json === "object" ? data.json : data;
+      const kw = json?.focuskw;
+      if (typeof kw === "string" && kw) {
+        logger.info({ wpPostId, source: "yoast-getHead" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // Yoast not installed
+    }
+
+    // 5. AIOSEO: post meta endpoint
+    try {
+      const { data } = await this.rawClient.get(`/aioseo/v1/post`, {
+        params: { id: wpPostId },
+      });
+      const kw = data?.keyphrases?.focus?.keyphrase || data?.focus_keyphrase;
+      if (typeof kw === "string" && kw) {
+        logger.info({ wpPostId, source: "aioseo" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // AIOSEO not installed
+    }
+
+    // 6. SEOPress: target keywords endpoint
+    try {
+      const { data } = await this.rawClient.get(`/seopress/v1/posts/${wpPostId}/target-keywords`);
+      const kw = data?._seopress_analysis_target_kw;
+      if (typeof kw === "string" && kw) {
+        logger.info({ wpPostId, source: "seopress" }, "SEO keyword found");
+        return kw;
+      }
+    } catch {
+      // SEOPress not installed
     }
 
     return undefined;

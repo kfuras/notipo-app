@@ -106,7 +106,7 @@ export class ImportService {
 
     // Fallback: try SEO plugin REST APIs (Rank Math, Yoast, AIOSEO, SEOPress)
     if (!seoKeyword) {
-      seoKeyword = await wp.getSeoFocusKeyword(wpPostId);
+      seoKeyword = await wp.getSeoFocusKeyword(wpPostId, wpPost.link);
     }
 
     logger.info({
