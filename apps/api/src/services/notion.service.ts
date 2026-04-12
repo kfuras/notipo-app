@@ -224,7 +224,8 @@ export class NotionService {
 
   /** Update a Notion database's Category select and Tags multi-select options. */
   async syncDatabaseOptions(databaseId: string, categories: string[], tags: string[]) {
-    const COLORS = ["blue", "green", "orange", "red", "purple", "pink", "yellow", "brown", "gray"] as const;
+    type SelectColor = "blue" | "green" | "orange" | "red" | "purple" | "pink" | "yellow" | "brown" | "gray";
+    const COLORS: SelectColor[] = ["blue", "green", "orange", "red", "purple", "pink", "yellow", "brown", "gray"];
 
     // Fetch existing options so we don't try to change their colors (Notion API rejects that)
     const db = await this.client.databases.retrieve({ database_id: databaseId });
@@ -233,13 +234,13 @@ export class NotionService {
     const existingTags = new Set((props.Tags?.multi_select?.options ?? []).map((o) => o.name));
 
     // Start with all existing options, then add any new ones
-    const catOptions: Array<{ name: string; color?: string }> = [...(props.Category?.select?.options ?? []).map((o) => ({ name: o.name }))];
+    const catOptions: Array<{ name: string; color?: SelectColor }> = [...(props.Category?.select?.options ?? []).map((o) => ({ name: o.name }))];
     for (const name of categories) {
       if (!existingCategories.has(name)) {
         catOptions.push({ name, color: COLORS[catOptions.length % COLORS.length] });
       }
     }
-    const tagOptions: Array<{ name: string; color?: string }> = [...(props.Tags?.multi_select?.options ?? []).map((o) => ({ name: o.name }))];
+    const tagOptions: Array<{ name: string; color?: SelectColor }> = [...(props.Tags?.multi_select?.options ?? []).map((o) => ({ name: o.name }))];
     for (const name of tags) {
       if (!existingTags.has(name)) {
         tagOptions.push({ name, color: COLORS[tagOptions.length % COLORS.length] });
