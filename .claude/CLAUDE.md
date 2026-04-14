@@ -152,6 +152,7 @@ In the frontend, clicking "View" on the Tenants page stores `{ tenantId, tenantN
 |--------|------|-------------|
 | GET | `/health` | Health check |
 | GET | `/api/settings` | Tenant config overview (no secrets) |
+| GET | `/api/settings/wordpress-credentials` | Decrypted WP credentials for authenticated tenant |
 | PUT | `/api/settings/notion` | Set Notion credentials + trigger statuses |
 | DELETE | `/api/settings/notion` | Disconnect Notion |
 | PUT | `/api/settings/wordpress` | Set WordPress credentials (validates connection first) |

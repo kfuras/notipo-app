@@ -86,6 +86,16 @@ export async function settingsRoutes(app: FastifyInstance) {
     };
   });
 
+  /** GET /api/settings/wordpress-credentials — return decrypted WP credentials for authenticated tenant */
+  app.get("/api/settings/wordpress-credentials", async (request, reply) => {
+    const credService = new CredentialService(app.prisma);
+    const creds = await credService.getWordPressCredentials(request.tenant.id);
+    if (!creds) {
+      return reply.code(404).send({ error: "WordPress not connected" });
+    }
+    return { data: creds };
+  });
+
   /** PUT /api/settings/notion — set Notion credentials + optional DB config */
   app.put("/api/settings/notion", async (request, reply) => {
     const body = notionSettingsSchema.parse(request.body);
