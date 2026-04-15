@@ -202,6 +202,32 @@ In the frontend, clicking "View" on the Tenants page stores `{ tenantId, tenantN
 | POST | `/api/import/posts` | Import single WP post to Notion `{ wpPostId, overwrite? }` (Pro only) |
 | POST | `/api/import/posts/bulk` | Import multiple WP posts `{ wpPostIds[], overwrite? }` (Pro only) |
 | GET | `/api/admin/tenants/:id/wordpress-credentials` | Return decrypted WP credentials (admin only) |
+| POST | `/mcp` | MCP (Model Context Protocol) server — Streamable HTTP, stateless |
+
+## MCP Server
+
+Exposes Notipo as an MCP tool server at `POST /mcp`. AI agents (Claude Desktop, Cursor, custom agents) can connect and manage posts.
+
+**Auth:** Same API key as REST API, via `x-api-key` header or `Authorization: Bearer <key>`.
+
+**Tools:** `list_posts`, `get_post`, `create_post`, `update_post`, `publish_post`, `delete_post`, `list_categories`, `list_tags`, `get_job`, `list_jobs`, `get_settings`, `sync_now`.
+
+**Transport:** Stateless Streamable HTTP (one McpServer per request, no sessions). The `/mcp` path is excluded from the global auth plugin — auth is handled inside the route.
+
+**Claude Desktop config example:**
+```json
+{
+  "mcpServers": {
+    "notipo": {
+      "type": "streamable-http",
+      "url": "https://your-notipo-instance.com/mcp",
+      "headers": { "x-api-key": "your-api-key" }
+    }
+  }
+}
+```
+
+Write-operation tools (`create_post`, `update_post`, `publish_post`, `delete_post`, `sync_now`) delegate to the REST API via `app.inject()` so all existing validation, plan checks, and job queuing logic is reused. Read-only tools query Prisma directly.
 
 ## Key Services
 

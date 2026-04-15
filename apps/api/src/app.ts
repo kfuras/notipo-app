@@ -26,6 +26,7 @@ import { syncRoutes } from "./routes/sync.js";
 import { billingRoutes } from "./routes/billing.js";
 import { accountRoutes } from "./routes/account.js";
 import { importRoutes } from "./routes/import.js";
+import { mcpRoutes } from "./routes/mcp.js";
 import { registerAllJobs } from "./jobs/index.js";
 
 export async function buildApp() {
@@ -113,6 +114,7 @@ export async function buildApp() {
   await app.register(billingRoutes);
   await app.register(accountRoutes);
   await app.register(importRoutes);
+  await app.register(mcpRoutes);
 
   return app;
 }
