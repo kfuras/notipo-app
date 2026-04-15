@@ -23,6 +23,7 @@ const createPostSchema = z.object({
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   seoKeyword: z.string().optional(),
+  seoDescription: z.string().max(160).optional(),
   imageTitle: z.string().optional(),
   slug: z.string().optional(),
   publish: z.boolean().optional().default(false),
@@ -35,6 +36,7 @@ const updatePostSchema = z.object({
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   seoKeyword: z.string().optional(),
+  seoDescription: z.string().max(160).optional(),
   slug: z.string().optional(),
   publish: z.boolean().optional(),
 });
@@ -87,12 +89,13 @@ export async function postRoutes(app: FastifyInstance) {
     }
 
     // Update Notion page properties if any provided
-    if (body.title || body.category || body.tags || body.seoKeyword) {
+    if (body.title || body.category || body.tags || body.seoKeyword || body.seoDescription) {
       await notion.updatePageProperties(post.notionPageId, {
         title: body.title,
         category: body.category,
         tags: body.tags,
         seoKeyword: body.seoKeyword,
+        seoDescription: body.seoDescription,
       });
     }
 
@@ -176,6 +179,7 @@ export async function postRoutes(app: FastifyInstance) {
       category: body.category,
       tags: body.tags,
       seoKeyword: body.seoKeyword,
+      seoDescription: body.seoDescription,
       imageTitle: body.imageTitle,
       status,
     });

@@ -275,6 +275,7 @@ export class NotionService {
     category?: string;
     tags?: string[];
     seoKeyword?: string;
+    seoDescription?: string;
     imageTitle?: string;
     body?: string;
   }): Promise<string> {
@@ -284,6 +285,7 @@ export class NotionService {
       ...(params.category && { Category: { select: { name: params.category } } }),
       ...(params.tags?.length && { Tags: { multi_select: params.tags.map((t) => ({ name: t })) } }),
       ...(params.seoKeyword && { "SEO Keyword": { rich_text: [{ text: { content: params.seoKeyword.slice(0, 2000) } }] } }),
+      ...(params.seoDescription && { "SEO Description": { rich_text: [{ text: { content: params.seoDescription.slice(0, 2000) } }] } }),
       ...(params.imageTitle && { "Featured Image Title": { rich_text: [{ text: { content: params.imageTitle } }] } }),
     };
 
@@ -337,12 +339,14 @@ export class NotionService {
     category?: string;
     tags?: string[];
     seoKeyword?: string;
+    seoDescription?: string;
   }) {
     const properties: Record<string, unknown> = {};
     if (params.title) properties["Name"] = { title: [{ text: { content: params.title } }] };
     if (params.category) properties["Category"] = { select: { name: params.category } };
     if (params.tags?.length) properties["Tags"] = { multi_select: params.tags.map((t) => ({ name: t })) };
     if (params.seoKeyword) properties["SEO Keyword"] = { rich_text: [{ text: { content: params.seoKeyword.slice(0, 2000) } }] };
+    if (params.seoDescription) properties["SEO Description"] = { rich_text: [{ text: { content: params.seoDescription.slice(0, 2000) } }] };
     if (Object.keys(properties).length === 0) return;
     await this.client.pages.update({ page_id: pageId, properties: properties as Parameters<typeof this.client.pages.update>[0]["properties"] });
   }

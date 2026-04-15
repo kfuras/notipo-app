@@ -34,6 +34,7 @@ interface NotionPageProperties {
   Tags?: { multi_select?: Array<{ name?: string }> };
   "Featured Image Title"?: { rich_text?: Array<{ plain_text?: string }> };
   "SEO Keyword"?: { rich_text?: Array<{ plain_text?: string }> };
+  "SEO Description"?: { rich_text?: Array<{ plain_text?: string }> };
   Slug?: { rich_text?: Array<{ plain_text?: string }> };
   Status?: { select?: { name?: string } };
 }
@@ -74,6 +75,7 @@ export function convertNotionBlocksToMarkdown(
   const featuredImageTitle =
     joinText(pageProperties["Featured Image Title"]?.rich_text) ?? title;
   const seoKeyword = joinText(pageProperties["SEO Keyword"]?.rich_text);
+  const seoDescription = joinText(pageProperties["SEO Description"]?.rich_text);
   const slug = joinText(pageProperties.Slug?.rich_text);
 
   let markdown = "";
@@ -163,6 +165,7 @@ export function convertNotionBlocksToMarkdown(
       featuredImageTitle,
       notionId: notionPageId,
       seoKeyword,
+      seoDescription,
       slug,
       tags: tags.length > 0 ? tags : undefined,
     },
