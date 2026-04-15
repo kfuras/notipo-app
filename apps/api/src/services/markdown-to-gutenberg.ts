@@ -98,6 +98,10 @@ function separatorBlock(): string {
   return `<!-- wp:separator -->\n<hr class="wp-block-separator"/>\n<!-- /wp:separator -->`;
 }
 
+function detailsBlock(summary: string, content: string): string {
+  return `<!-- wp:details -->\n<details class="wp-block-details"><summary>${escHtml(summary)}</summary><!-- wp:paragraph -->\n<p>${inlineMdToHtml(content)}</p>\n<!-- /wp:paragraph --></details>\n<!-- /wp:details -->`;
+}
+
 function codeBlock(lang: string, code: string, highlighter: CodeHighlighter): string {
   const safeLang = normalizeLang(lang);
   const safeCode = escHtml(code || "");
@@ -184,6 +188,7 @@ export function convertMarkdownToGutenberg(
   let fenceLen = 0;
   let codeLang = "text";
   let codeLines: string[] = [];
+  let inFaq = false;
 
   function flushPara() {
     const t = para.join("\n").trim();
@@ -279,8 +284,35 @@ export function convertMarkdownToGutenberg(
     const hm = line.match(/^(#{1,6})\s+(.*)$/);
     if (hm) {
       flushAllTextish();
-      blocks.push(headingBlock(hm[1].length, hm[2].trim()));
+      const headingText = hm[2].trim();
+      blocks.push(headingBlock(hm[1].length, headingText));
+      // Track FAQ section for accordion conversion
+      inFaq = /^faq$/i.test(headingText) || /^frequently asked/i.test(headingText);
       continue;
+    }
+
+    // --- FAQ accordion: bold question followed by answer paragraph ---
+    if (inFaq) {
+      const boldQ = line.match(/^\*\*(.+?)\*\*\s*$/);
+      if (boldQ) {
+        flushAllTextish();
+        const question = boldQ[1];
+        // Collect answer lines until next bold question, heading, or separator
+        const answerLines: string[] = [];
+        while (
+          i + 1 < lines.length &&
+          !lines[i + 1].match(/^\*\*(.+?)\*\*\s*$/) &&
+          !lines[i + 1].match(/^#{1,6}\s/) &&
+          !lines[i + 1].match(/^\s*([-*_])\1\1+\s*$/)
+        ) {
+          i++;
+          if (lines[i].trim()) answerLines.push(lines[i]);
+        }
+        if (answerLines.length) {
+          blocks.push(detailsBlock(question, answerLines.join(" ")));
+        }
+        continue;
+      }
     }
 
     // --- tables (header row + divider row) ---
