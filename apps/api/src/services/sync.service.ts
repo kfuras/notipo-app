@@ -368,7 +368,7 @@ export class SyncService {
     // Derive slug
     const slug = input.slug
       || (input.seoKeyword ? input.seoKeyword.toLowerCase().replace(/[^a-z0-9]+/g, "-") : undefined);
-    const featuredImageTitle = input.featuredImageTitle || input.title;
+    const featuredImageTitle = input.featuredImageTitle;
 
     // Resolve category
     const category = input.category
