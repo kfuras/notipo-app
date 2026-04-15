@@ -10,18 +10,35 @@
 import type { PrismaClient } from "@prisma/client";
 import type { WordPressService } from "./wordpress.service.js";
 import type { ImageRef, ProcessedImages } from "../types/index.js";
+import { createHash } from "node:crypto";
 import axios from "axios";
 import { logger } from "../lib/logger.js";
 
 /** Strip query parameters from a URL for cache lookup. */
 function baseUrl(url: string): string {
+  if (url.startsWith("data:")) return dataUriCacheKey(url);
   return url.split("?")[0];
+}
+
+/** Generate a stable cache key for data URIs (too large to store as-is). */
+function dataUriCacheKey(dataUri: string): string {
+  const hash = createHash("sha256").update(dataUri.slice(0, 2000)).digest("hex").slice(0, 32);
+  return `data:hash:${hash}`;
+}
+
+/** Extract MIME extension from a data URI or URL. */
+function extractExtension(url: string): string {
+  if (url.startsWith("data:")) {
+    const mime = url.match(/^data:image\/(\w+)/)?.[1] ?? "png";
+    return mime === "jpeg" ? "jpg" : mime;
+  }
+  return baseUrl(url).split(".").pop() || "png";
 }
 
 /** Generate a filename from post slug and index. */
 function generateFilename(slug: string, index: number, url: string): string {
   const safe = slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").substring(0, 60);
-  const ext = baseUrl(url).split(".").pop() || "png";
+  const ext = extractExtension(url);
   return `${safe}-${String(index + 1).padStart(2, "0")}.${ext}`;
 }
 
@@ -56,9 +73,16 @@ export class ImagePipelineService {
         urlMap[base] = cached.wpImageUrl;
         mappingIds.push(cached.id);
       } else {
-        // Download from Notion
-        const response = await axios.get(img.url, { responseType: "arraybuffer" });
-        const buffer = Buffer.from(response.data);
+        // Download image (supports HTTP URLs and base64 data URIs)
+        let buffer: Buffer;
+        if (img.url.startsWith("data:")) {
+          const base64Data = img.url.split(",")[1];
+          if (!base64Data) throw new Error(`Invalid data URI for image ${i}`);
+          buffer = Buffer.from(base64Data, "base64");
+        } else {
+          const response = await axios.get(img.url, { responseType: "arraybuffer" });
+          buffer = Buffer.from(response.data);
+        }
 
         // Upload to WordPress
         const media = await this.wp.uploadMedia(buffer, filename);
@@ -80,12 +104,20 @@ export class ImagePipelineService {
       }
     }
 
-    // Replace all Notion URLs with WordPress URLs in content
+    // Replace all source image URLs with WordPress URLs in content.
+    // For data URIs, replace the full match (regex on base64 is impractical).
+    // For HTTP URLs, replace base URL + optional query params.
     let processedContent = originalContent;
-    for (const [notionUrl, wpUrl] of Object.entries(urlMap)) {
-      const escapedBase = notionUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(escapedBase + "(\\?[^)\\s]*)?", "g");
-      processedContent = processedContent.replace(regex, wpUrl);
+    for (const img of images) {
+      const wpUrl = urlMap[baseUrl(img.url)];
+      if (!wpUrl) continue;
+      if (img.url.startsWith("data:")) {
+        processedContent = processedContent.replace(img.fullMatch, `![${img.alt}](${wpUrl})`);
+      } else {
+        const escapedBase = baseUrl(img.url).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(escapedBase + "(\\?[^)\\s]*)?", "g");
+        processedContent = processedContent.replace(regex, wpUrl);
+      }
     }
 
     return { urlMap, mappingIds, processedContent };

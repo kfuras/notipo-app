@@ -12,7 +12,19 @@ import { CredentialService } from "./credential.service.js";
 import { convertMarkdownToGutenberg } from "./markdown-to-gutenberg.js";
 import { FeaturedImageService } from "./featured-image.service.js";
 import { canGenerateFeaturedImage } from "../lib/plan-limits.js";
+import { extractImageRefs } from "../lib/extract-images.js";
 import { logger } from "../lib/logger.js";
+
+export interface DirectPublishInput {
+  title: string;
+  markdown: string;
+  category?: string;
+  tags?: string[];
+  seoKeyword?: string;
+  seoDescription?: string;
+  featuredImageTitle?: string;
+  slug?: string;
+}
 
 export class SyncService {
   constructor(private prisma: PrismaClient) {}
@@ -341,6 +353,155 @@ export class SyncService {
 
     logger.info({ tenantId, notionPageId, postId }, "Post synced successfully");
     return { postId, wpStatus, wasPublished };
+  }
+
+  /** Direct publish: markdown → WordPress, skipping Notion entirely. */
+  async syncDirect(tenantId: string, input: DirectPublishInput, onStep?: (step: string) => void): Promise<{ postId: string }> {
+    const credService = new CredentialService(this.prisma);
+    const wpCreds = await credService.getWordPressCredentials(tenantId);
+    if (!wpCreds) throw new Error("WordPress credentials not configured");
+
+    const wp = new WordPressService(wpCreds);
+
+    logger.info({ tenantId, title: input.title }, "Direct publish starting");
+
+    // Derive slug
+    const slug = input.slug
+      || (input.seoKeyword ? input.seoKeyword.toLowerCase().replace(/[^a-z0-9]+/g, "-") : undefined);
+    const featuredImageTitle = input.featuredImageTitle || input.title;
+
+    // Resolve category
+    const category = input.category
+      ? await this.prisma.category.findUnique({
+          where: { tenantId_name: { tenantId, name: input.category } },
+        })
+      : null;
+
+    // Extract image refs from markdown
+    const images = extractImageRefs(input.markdown, wpCreds.siteUrl);
+
+    // Create Post record
+    const tags = input.tags ?? [];
+    const post = await this.prisma.post.create({
+      data: {
+        tenantId,
+        title: input.title,
+        slug,
+        markdownContent: input.markdown,
+        seoKeyword: input.seoKeyword,
+        seoDescription: input.seoDescription,
+        featuredImageTitle,
+        categoryId: category?.id ?? undefined,
+        tags,
+        status: images.length > 0 ? "IMAGES_PROCESSING" : "SYNCED",
+        syncedAt: new Date(),
+      },
+    });
+    const postId = post.id;
+
+    // Process images
+    let finalMarkdown = input.markdown;
+    if (images.length > 0) {
+      onStep?.(`Processing ${images.length} image${images.length === 1 ? "" : "s"}…`);
+      const pipeline = new ImagePipelineService(this.prisma, wp);
+      const imageResult = await pipeline.processImages(
+        tenantId, postId, images, input.markdown, slug || input.title,
+      );
+      finalMarkdown = imageResult.processedContent;
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: { markdownContent: finalMarkdown, status: "SYNCED" },
+      });
+    }
+
+    // Tenant settings
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { codeHighlighter: true, plan: true, trialEndsAt: true, wpSeoPlugin: true, featuredImageMode: true, aiImageStyle: true },
+    });
+    const highlighter = tenant!.codeHighlighter;
+    const featuredImagesAllowed = canGenerateFeaturedImage(tenant!.plan, tenant!.trialEndsAt);
+
+    // Convert markdown to Gutenberg
+    onStep?.("Creating WP draft…");
+    let wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter });
+
+    // Resolve tag IDs
+    let tagIds: number[] = [];
+    try {
+      tagIds = tags.length > 0
+        ? await wp.resolveTagIds(tags)
+        : (category?.wpTagIds ?? []);
+    } catch (err) {
+      logger.warn({ err }, "Failed to resolve tag IDs — skipping tags");
+    }
+
+    // Generate featured image
+    let wpFeaturedMediaId: number | undefined;
+    if (featuredImagesAllowed && featuredImageTitle) {
+      onStep?.("Generating featured image…");
+      const imgService = new FeaturedImageService();
+      const safeSlug = (slug || input.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").substring(0, 60);
+      const { buffer: imageBuffer, unsplashAttribution } = await imgService.generate({
+        title: featuredImageTitle,
+        category: category?.name || input.category || "Blog",
+        backgroundImageUrl: category?.backgroundImage || undefined,
+        mode: tenant!.featuredImageMode,
+        aiImageStyle: tenant!.aiImageStyle ?? undefined,
+        tags: input.tags,
+      });
+      const media = await wp.uploadMedia(imageBuffer, `${safeSlug}-featured.png`);
+      await wp.updateMediaMeta(media.id, {
+        alt_text: featuredImageTitle,
+        title: featuredImageTitle,
+      });
+      wpFeaturedMediaId = media.id;
+
+      if (unsplashAttribution) {
+        const { photographerName, photographerUrl } = unsplashAttribution;
+        wpContent += `\n\n<!-- wp:paragraph {"className":"unsplash-credit","style":{"typography":{"fontSize":"14px"}}} -->\n<p class="unsplash-credit" style="font-size:14px">Photo by <a href="${photographerUrl}?utm_source=notipo&amp;utm_medium=referral">${photographerName}</a> on <a href="https://unsplash.com?utm_source=notipo&amp;utm_medium=referral">Unsplash</a></p>\n<!-- /wp:paragraph -->`;
+      }
+    }
+
+    // Create WP draft
+    const wpPost = await wp.createDraft({
+      title: input.title,
+      content: wpContent,
+      status: "draft",
+      slug: slug ?? undefined,
+      categories: category?.wpCategoryId ? [category.wpCategoryId] : undefined,
+      tags: tagIds.length ? tagIds : undefined,
+      featured_media: wpFeaturedMediaId,
+    });
+    const wpUrl = `${wpCreds.siteUrl}/wp-admin/post.php?post=${wpPost.id}&action=edit`;
+    await this.prisma.post.update({
+      where: { id: postId },
+      data: {
+        wpPostId: wpPost.id,
+        wpFeaturedMediaId: wpFeaturedMediaId ?? null,
+        wpUrl,
+        wpContent,
+      },
+    });
+    logger.info({ wpPostId: wpPost.id, wpUrl }, "WP draft created (direct publish)");
+
+    // Apply SEO metadata
+    if (input.seoKeyword) {
+      onStep?.("Setting SEO metadata…");
+      const seoDescription = input.seoDescription || this.deriveDescription(finalMarkdown, input.seoKeyword);
+      await wp.updateSeo(wpPost.id, {
+        keyword: input.seoKeyword,
+        title: input.title,
+        description: seoDescription,
+      }, tenant!.wpSeoPlugin);
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: { seoDescription },
+      });
+    }
+
+    logger.info({ tenantId, postId }, "Direct publish sync complete");
+    return { postId };
   }
 
   /** Strip markdown syntax and truncate to ~160 chars for SEO description.

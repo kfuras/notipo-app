@@ -41,6 +41,18 @@ const updatePostSchema = z.object({
   publish: z.boolean().optional(),
 });
 
+const directPublishSchema = z.object({
+  title: z.string().min(1),
+  body: z.string().min(1),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  seoKeyword: z.string().optional(),
+  seoDescription: z.string().max(160).optional(),
+  imageTitle: z.string().optional(),
+  slug: z.string().optional(),
+  publish: z.boolean().optional().default(false),
+});
+
 const publishParamsSchema = z.object({
   id: z.string().min(1),
 });
@@ -75,7 +87,30 @@ export async function postRoutes(app: FastifyInstance) {
       where: { id: request.params.id, tenantId },
     });
     if (!post) return reply.notFound("Post not found");
-    if (!post.notionPageId) return reply.code(400).send({ error: "Post has no linked Notion page" });
+
+    // Direct-publish posts: re-run direct pipeline
+    if (!post.notionPageId) {
+      const markdown = body.body ?? post.markdownContent;
+      if (!markdown) return reply.code(400).send({ error: "Body is required when updating a direct-publish post" });
+
+      const jobId = await app.boss.send("direct-publish", {
+        tenantId,
+        title: body.title ?? post.title,
+        markdown,
+        category: body.category,
+        tags: body.tags,
+        seoKeyword: body.seoKeyword ?? post.seoKeyword,
+        seoDescription: body.seoDescription ?? post.seoDescription,
+        slug: body.slug ?? post.slug,
+        publish: body.publish,
+      });
+
+      // Delete old post record so direct-publish creates a fresh one
+      // (keeps the same WP post via slug matching)
+      return reply.code(202).send({
+        data: { jobId, postId: post.id, message: "Post update queued (direct publish)." },
+      });
+    }
 
     const credService = new CredentialService(app.prisma);
     const notionCreds = await credService.getNotionCredentials(tenantId);
@@ -193,6 +228,36 @@ export async function postRoutes(app: FastifyInstance) {
 
     return reply.code(202).send({
       data: { jobId, notionPageId, message: "Post created. Run `notipo jobs` to monitor progress." },
+    });
+  });
+
+  // Direct publish: markdown → WordPress, no Notion
+  app.post("/api/posts/direct", async (request, reply) => {
+    const body = directPublishSchema.parse(request.body);
+    const tenantId = request.tenant.id;
+
+    // Only WordPress credentials are required — Notion is optional
+    const credService = new CredentialService(app.prisma);
+    const wpCreds = await credService.getWordPressCredentials(tenantId);
+    if (!wpCreds) {
+      return reply.code(400).send({ error: "WordPress is not connected. Connect WordPress in Settings first." });
+    }
+
+    const jobId = await app.boss.send("direct-publish", {
+      tenantId,
+      title: body.title,
+      markdown: body.body,
+      category: body.category,
+      tags: body.tags,
+      seoKeyword: body.seoKeyword,
+      seoDescription: body.seoDescription,
+      featuredImageTitle: body.imageTitle,
+      slug: body.slug,
+      publish: body.publish,
+    });
+
+    return reply.code(202).send({
+      data: { jobId, message: "Direct publish queued. Use `get /api/jobs` to monitor progress." },
     });
   });
 

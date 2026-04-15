@@ -18,6 +18,7 @@ export const JobType = {
   PUBLISH_POST: "PUBLISH_POST",
   UPDATE_POST: "UPDATE_POST",
   IMPORT_POST: "IMPORT_POST",
+  DIRECT_PUBLISH: "DIRECT_PUBLISH",
 } as const;
 export type JobType = (typeof JobType)[keyof typeof JobType];
 

@@ -128,6 +128,39 @@ export async function mcpRoutes(app: FastifyInstance) {
       };
     });
 
+    // ── direct_publish ──────────────────────────────────────────────────
+    mcp.registerTool("direct_publish", {
+      title: "Direct Publish",
+      description:
+        "Publish a blog post directly to WordPress without Notion. " +
+        "Handles image uploads, Gutenberg conversion, featured image generation, and SEO metadata. " +
+        "Body must be markdown. Set publish=true to go live, false for draft. " +
+        "Use this instead of create_post when you don't need Notion.",
+      inputSchema: z.object({
+        title: z.string().describe("Post title"),
+        body: z.string().describe("Post content in markdown (required)"),
+        category: z.string().optional().describe("Category name"),
+        tags: z.array(z.string()).optional().describe("Tag names"),
+        seoKeyword: z.string().optional().describe("SEO focus keyword"),
+        seoDescription: z.string().max(160).optional().describe("Custom meta description for SEO (max 160 chars)"),
+        imageTitle: z.string().optional().describe("Featured image title/text overlay"),
+        slug: z.string().optional().describe("Custom URL slug"),
+        publish: z.boolean().optional().default(false).describe("Publish immediately (true) or create as draft (false)"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    }, async (args) => {
+      const { statusCode, body } = await callApi("POST", "/api/posts/direct", args);
+      if (statusCode >= 400) {
+        return { content: [{ type: "text" as const, text: `Error: ${body.error || body.message}` }], isError: true };
+      }
+      return {
+        content: [{
+          type: "text" as const,
+          text: `Direct publish queued. Job ID: ${body.data.jobId}. Use get_job to monitor progress.`,
+        }],
+      };
+    });
+
     // ── update_post ─────────────────────────────────────────────────────
     mcp.registerTool("update_post", {
       title: "Update Post",

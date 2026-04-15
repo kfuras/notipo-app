@@ -161,7 +161,8 @@ In the frontend, clicking "View" on the Tenants page stores `{ tenantId, tenantN
 | POST | `/api/settings/test-webhook` | Send `@channel` test message to saved webhook URL |
 | GET | `/api/posts` | List posts |
 | GET | `/api/posts/:id` | Get post |
-| POST | `/api/posts/create` | Create Notion page + trigger sync. Accepts title, body (markdown), category, tags, seoKeyword, imageTitle, slug, publish, images (inline Unsplash, Pro only) |
+| POST | `/api/posts/create` | Create Notion page + trigger sync. Accepts title, body (markdown), category, tags, seoKeyword, seoDescription, imageTitle, slug, publish, images (inline Unsplash, Pro only) |
+| POST | `/api/posts/direct` | Direct publish to WordPress (no Notion). Accepts title, body (required), category, tags, seoKeyword, seoDescription, imageTitle, slug, publish |
 | POST | `/api/posts/sync` | Trigger sync from existing Notion page |
 | POST | `/api/posts/:id/publish` | Trigger publish to WordPress |
 | PATCH | `/api/posts/:id` | Update post (Notion content + properties) and trigger re-sync to WP |
@@ -210,7 +211,7 @@ Exposes Notipo as an MCP tool server at `POST /api/mcp`. AI agents (Claude Deskt
 
 **Auth:** Same API key as REST API, via `x-api-key` header or `Authorization: Bearer <key>`.
 
-**Tools:** `list_posts`, `get_post`, `create_post`, `update_post`, `publish_post`, `delete_post`, `list_categories`, `list_tags`, `get_job`, `list_jobs`, `get_settings`, `sync_now`.
+**Tools:** `list_posts`, `get_post`, `create_post`, `direct_publish`, `update_post`, `publish_post`, `delete_post`, `list_categories`, `list_tags`, `get_job`, `list_jobs`, `get_settings`, `sync_now`.
 
 **Transport:** Stateless Streamable HTTP (one McpServer per request, no sessions). The `/api/mcp` path is excluded from the global auth plugin — auth is handled inside the route.
 

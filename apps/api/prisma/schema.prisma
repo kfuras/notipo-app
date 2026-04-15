@@ -243,6 +243,7 @@ enum JobType {
   PUBLISH_POST
   UPDATE_POST
   IMPORT_POST
+  DIRECT_PUBLISH
 }
 
 enum JobStatus {
