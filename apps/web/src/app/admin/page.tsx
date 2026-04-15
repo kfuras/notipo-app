@@ -609,7 +609,7 @@ function TemplateTip({ done, onDone }: { done: boolean; onDone: () => void }) {
         </svg>
         <div className="space-y-2 flex-1">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Notipo uses a Notion database with specific properties (Status, Category, Tags, SEO Keyword, etc.).{" "}
+            Notipo uses a Notion database with specific properties (Status, Category, Tags, SEO Keyword, SEO Description, etc.).{" "}
             <a
               href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6"
               target="_blank"
