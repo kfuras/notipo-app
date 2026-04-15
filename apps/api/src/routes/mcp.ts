@@ -342,7 +342,7 @@ export async function mcpRoutes(app: FastifyInstance) {
 
   // ── POST /mcp ───────────────────────────────────────────────────────
   // Stateless: one McpServer + transport per request, auth checked before handling.
-  app.post("/mcp", async (request, reply) => {
+  app.post("/api/mcp", async (request, reply) => {
     const apiKey =
       (request.headers["x-api-key"] as string | undefined) ||
       (request.headers["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
@@ -372,12 +372,12 @@ export async function mcpRoutes(app: FastifyInstance) {
   });
 
   // GET /mcp — SSE streaming not supported in stateless mode
-  app.get("/mcp", async (_request, reply) => {
+  app.get("/api/mcp", async (_request, reply) => {
     reply.code(405).send({ error: "SSE not supported in stateless mode. Use POST /mcp." });
   });
 
   // DELETE /mcp — session termination not needed in stateless mode
-  app.delete("/mcp", async (_request, reply) => {
+  app.delete("/api/mcp", async (_request, reply) => {
     reply.code(405).send({ error: "Session management not supported in stateless mode." });
   });
 
