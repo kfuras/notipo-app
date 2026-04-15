@@ -177,7 +177,7 @@ export class SyncService {
         // Apply/refresh SEO meta on the existing WP post
         if (result.metadata.seoKeyword && !wpPostGone) {
           onStep?.("Setting SEO metadata…");
-          const seoDescription = this.deriveDescription(finalMarkdown, result.metadata.seoKeyword);
+          const seoDescription = result.metadata.seoDescription || this.deriveDescription(finalMarkdown, result.metadata.seoKeyword);
           await wp.updateSeo(existing!.wpPostId!, {
             keyword: result.metadata.seoKeyword,
             title: result.metadata.title,
@@ -316,7 +316,7 @@ export class SyncService {
       // Apply SEO meta on the draft so it's visible during review
       if (result.metadata.seoKeyword) {
         onStep?.("Setting SEO metadata…");
-        const seoDescription = this.deriveDescription(finalMarkdown, result.metadata.seoKeyword);
+        const seoDescription = result.metadata.seoDescription || this.deriveDescription(finalMarkdown, result.metadata.seoKeyword);
         await wp.updateSeo(wpPost.id, {
           keyword: result.metadata.seoKeyword,
           title: result.metadata.title,

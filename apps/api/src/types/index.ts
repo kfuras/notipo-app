@@ -9,6 +9,7 @@ export interface NotionConversionResult {
     featuredImageTitle: string;
     notionId: string;
     seoKeyword?: string;
+    seoDescription?: string;
     slug?: string;
     tags?: string[];
   };
