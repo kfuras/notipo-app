@@ -161,7 +161,7 @@ export class SyncService {
     let wpStatus: string | null = null;
     let wpUrl: string | undefined;
     if (isUpdate) {
-      const wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter });
+      const wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter, seoPlugin: tenant!.wpSeoPlugin });
       let wpPostGone = false;
       try {
         // Fetch current WP status before editing. Use our DB as source of truth:
@@ -255,7 +255,7 @@ export class SyncService {
       }
 
       // Re-convert markdown → Gutenberg using the (possibly refreshed) finalMarkdown
-      let wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter });
+      let wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter, seoPlugin: tenant!.wpSeoPlugin });
 
       // Resolve tag IDs (post tags take priority over category defaults)
       // Best-effort: some WP sites have /tags endpoint disabled (404)
@@ -424,7 +424,7 @@ export class SyncService {
 
     // Convert markdown to Gutenberg
     onStep?.("Creating WP draft…");
-    let wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter });
+    let wpContent = convertMarkdownToGutenberg(finalMarkdown, { highlighter, seoPlugin: tenant!.wpSeoPlugin });
 
     // Resolve tag IDs
     let tagIds: number[] = [];

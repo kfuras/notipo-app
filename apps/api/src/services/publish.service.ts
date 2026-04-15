@@ -127,6 +127,7 @@ export class PublishService {
       onStep?.("Converting to Gutenberg…");
       let wpContent = convertMarkdownToGutenberg(post.markdownContent, {
         highlighter: post.tenant.codeHighlighter,
+        seoPlugin: post.tenant.wpSeoPlugin,
       });
 
       // Generate featured image if needed

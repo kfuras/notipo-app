@@ -86,4 +86,5 @@ export interface FeaturedImageResult {
 // Gutenberg conversion
 export interface GutenbergOptions {
   highlighter: CodeHighlighter;
+  seoPlugin?: string | null;
 }

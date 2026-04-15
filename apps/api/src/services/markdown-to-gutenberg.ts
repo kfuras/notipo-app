@@ -98,8 +98,52 @@ function separatorBlock(): string {
   return `<!-- wp:separator -->\n<hr class="wp-block-separator"/>\n<!-- /wp:separator -->`;
 }
 
-function detailsBlock(summary: string, content: string): string {
-  return `<!-- wp:details -->\n<details class="wp-block-details"><summary>${escHtml(summary)}</summary><!-- wp:paragraph -->\n<p>${inlineMdToHtml(content)}</p>\n<!-- /wp:paragraph --></details>\n<!-- /wp:details -->`;
+interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+function faqBlock(items: FaqItem[], seoPlugin?: string | null): string {
+  if (seoPlugin === "rankmath") {
+    const questions = items.map((item, i) => ({
+      id: `faq-q${i + 1}`,
+      title: item.question,
+      content: item.answer,
+      visible: true,
+    }));
+    const attrs = JSON.stringify({ questions });
+    const inner = items
+      .map(
+        (item) =>
+          `<div class="rank-math-faq-item"><h3 class="rank-math-question">${escHtml(item.question)}</h3><div class="rank-math-answer">${inlineMdToHtml(item.answer)}</div></div>`,
+      )
+      .join("");
+    return `<!-- wp:rank-math/faq-block ${attrs} -->\n<div class="wp-block-rank-math-faq-block">${inner}</div>\n<!-- /wp:rank-math/faq-block -->`;
+  }
+
+  if (seoPlugin === "yoast") {
+    const questions = items.map((item, i) => ({
+      id: `faq-q${i + 1}`,
+      jsonQuestion: item.question,
+      jsonAnswer: item.answer,
+    }));
+    const attrs = JSON.stringify({ questions });
+    const inner = items
+      .map(
+        (item) =>
+          `<div class="schema-faq-section"><strong class="schema-faq-question">${escHtml(item.question)}</strong><p class="schema-faq-answer">${inlineMdToHtml(item.answer)}</p></div>`,
+      )
+      .join("");
+    return `<!-- wp:yoast-seo/faq-block ${attrs} -->\n<div class="schema-faq wp-block-yoast-faq-block">${inner}</div>\n<!-- /wp:yoast-seo/faq-block -->`;
+  }
+
+  // No SEO plugin: plain bold questions + paragraph answers
+  return items
+    .map(
+      (item) =>
+        `<!-- wp:paragraph -->\n<p><strong>${escHtml(item.question)}</strong></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>${inlineMdToHtml(item.answer)}</p>\n<!-- /wp:paragraph -->`,
+    )
+    .join("\n\n");
 }
 
 function codeBlock(lang: string, code: string, highlighter: CodeHighlighter): string {
@@ -189,6 +233,7 @@ export function convertMarkdownToGutenberg(
   let codeLang = "text";
   let codeLines: string[] = [];
   let inFaq = false;
+  let faqItems: FaqItem[] = [];
 
   function flushPara() {
     const t = para.join("\n").trim();
@@ -265,6 +310,12 @@ export function convertMarkdownToGutenberg(
     // --- horizontal rule ---
     if (/^\s*([-*_])\1\1+\s*$/.test(line)) {
       flushAllTextish();
+      // Flush FAQ items before separator (FAQ section ends here)
+      if (inFaq && faqItems.length) {
+        blocks.push(faqBlock(faqItems, options.seoPlugin));
+        faqItems = [];
+        inFaq = false;
+      }
       blocks.push(separatorBlock());
       continue;
     }
@@ -283,15 +334,24 @@ export function convertMarkdownToGutenberg(
     // --- headings ---
     const hm = line.match(/^(#{1,6})\s+(.*)$/);
     if (hm) {
+      // Flush any collected FAQ items before leaving the FAQ section
+      if (inFaq && faqItems.length && !(/^faq$/i.test(hm[2].trim()) || /^frequently asked/i.test(hm[2].trim()))) {
+        blocks.push(faqBlock(faqItems, options.seoPlugin));
+        faqItems = [];
+        inFaq = false;
+      }
       flushAllTextish();
       const headingText = hm[2].trim();
       blocks.push(headingBlock(hm[1].length, headingText));
-      // Track FAQ section for accordion conversion
-      inFaq = /^faq$/i.test(headingText) || /^frequently asked/i.test(headingText);
+      // Track FAQ section for structured FAQ block conversion
+      if (/^faq$/i.test(headingText) || /^frequently asked/i.test(headingText)) {
+        inFaq = true;
+        faqItems = [];
+      }
       continue;
     }
 
-    // --- FAQ accordion: bold question followed by answer paragraph ---
+    // --- FAQ: bold question followed by answer paragraph ---
     if (inFaq) {
       const boldQ = line.match(/^\*\*(.+?)\*\*\s*$/);
       if (boldQ) {
@@ -309,7 +369,7 @@ export function convertMarkdownToGutenberg(
           if (lines[i].trim()) answerLines.push(lines[i]);
         }
         if (answerLines.length) {
-          blocks.push(detailsBlock(question, answerLines.join(" ")));
+          faqItems.push({ question, answer: answerLines.join(" ") });
         }
         continue;
       }
@@ -375,6 +435,11 @@ export function convertMarkdownToGutenberg(
   }
 
   flushAllTextish();
+
+  // Flush any remaining FAQ items at end of file
+  if (faqItems.length) {
+    blocks.push(faqBlock(faqItems, options.seoPlugin));
+  }
 
   return blocks.join("\n\n");
 }
