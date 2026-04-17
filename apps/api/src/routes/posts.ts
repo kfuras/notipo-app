@@ -103,10 +103,9 @@ export async function postRoutes(app: FastifyInstance) {
         seoDescription: body.seoDescription ?? post.seoDescription,
         slug: body.slug ?? post.slug,
         publish: body.publish,
+        existingPostId: post.id,
       });
 
-      // Delete old post record so direct-publish creates a fresh one
-      // (keeps the same WP post via slug matching)
       return reply.code(202).send({
         data: { jobId, postId: post.id, message: "Post update queued (direct publish)." },
       });

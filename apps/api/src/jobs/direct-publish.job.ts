@@ -17,13 +17,14 @@ interface DirectPublishPayload {
   featuredImageTitle?: string;
   slug?: string;
   publish?: boolean;
+  existingPostId?: string;
 }
 
 export async function registerDirectPublishJob(boss: PgBoss, prisma: PrismaClient, eventBus: EventEmitter) {
   await boss.createQueue("direct-publish");
   await boss.work<DirectPublishPayload>("direct-publish", { batchSize: 1 }, async (jobs) => {
     const job = jobs[0];
-    const { tenantId, publish, ...input } = job.data;
+    const { tenantId, publish, existingPostId, ...input } = job.data;
     const log = logger.child({ jobId: job.id, tenantId, title: input.title });
 
     log.info("Starting direct publish");
@@ -62,7 +63,7 @@ export async function registerDirectPublishJob(boss: PgBoss, prisma: PrismaClien
         eventBus.emit("job:update", { tenantId, jobId: dbJob.id, type: "DIRECT_PUBLISH", status: "RUNNING", step });
       };
 
-      const { postId } = await syncService.syncDirect(tenantId, input, onStep);
+      const { postId } = await syncService.syncDirect(tenantId, input, onStep, existingPostId);
 
       // Build result summary
       const post = await prisma.post.findFirst({
