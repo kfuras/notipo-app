@@ -1,6 +1,6 @@
 # Notipo
 
-SaaS for publishing blog posts from Notion to WordPress with automated image handling, code syntax highlighting, and SEO optimization.
+SaaS for writing and publishing blog posts to WordPress. Features a built-in markdown editor with one-click publish, plus optional Notion sync for power users. Includes automated featured images, code syntax highlighting, and SEO optimization.
 
 ## Monorepo Structure
 
@@ -35,6 +35,26 @@ packages/shared/   — Shared TypeScript types and enums
 
 Marketing site (landing page, blog, docs) lives in a separate repo: `notipo-site`.
 
+### In-App Write Page (`/admin/write`)
+
+Markdown editor for writing and publishing posts directly to WordPress — no Notion required. This is the primary content creation path.
+
+**Features:**
+- Borderless title + body (Notion/Gutenberg style)
+- Markdown formatting toolbar (bold, italic, strikethrough, headings, link, image, code, code block, lists, quote, table, divider)
+- Slash commands: type `/` at start of a line for a block menu
+- List continuation on Enter (numbered, bullet, task, blockquote) + empty item exits list
+- Tab/Shift+Tab indentation
+- Image paste from clipboard + drag-and-drop → uploads to WordPress media library via `POST /api/uploads/image`
+- Keyboard shortcuts: Cmd/Ctrl+B (bold), I (italic), K (link)
+- Auto-save to localStorage (debounced 1s), draft restore on page load with dismiss option
+- `beforeunload` guard when editor has content
+- WordPress connection warning banner when WP not connected
+- Collapsible "Post settings" panel: category, tags, featured image title, slug, SEO keyword, SEO description
+- Edit mode: `/admin/write?id=<postId>` loads existing post data, uses `PATCH /api/posts/:id`
+
+**Onboarding:** Only WordPress connection is required (one step). Notion is optional, available in Settings.
+
 ### packages/cli/ (Notipo CLI)
 
 Published as `notipo` on npm. Zero dependencies, uses native `fetch`. Auth via `NOTIPO_URL` + `NOTIPO_API_KEY` env vars (or `~/.notipo/config.json`).
@@ -66,6 +86,9 @@ All events use the `capture()` helper from `src/lib/posthog.tsx`. No-ops if Post
 | `wordpress_disconnected` | — | admin/settings/page.tsx |
 | `account_deleted` | — | admin/account/page.tsx |
 | `import_started` | `count`, `overwrite` | admin/import/page.tsx |
+| `write_page_viewed` | — | admin/write/page.tsx |
+| `post_created_from_editor` | `publish` | admin/write/page.tsx |
+| `post_updated_from_editor` | `publish` | admin/write/page.tsx |
 
 Mobile: bottom nav bar on phones (<768px), sidebar on desktop. Admin tables switch to card layouts on mobile via `md:hidden`/`hidden md:block` pattern. Dark theme-color meta tag set dynamically for phone safe areas.
 
@@ -210,6 +233,7 @@ In the frontend, clicking "View" on the Tenants page stores `{ tenantId, tenantN
 | POST | `/api/import/posts` | Import single WP post to Notion `{ wpPostId, overwrite? }` (Pro only) |
 | POST | `/api/import/posts/bulk` | Import multiple WP posts `{ wpPostIds[], overwrite? }` (Pro only) |
 | GET | `/api/admin/tenants/:id/wordpress-credentials` | Return decrypted WP credentials (admin only) |
+| POST | `/api/uploads/image` | Upload image to WordPress media library (multipart, max 10MB) |
 | POST | `/api/mcp` | MCP (Model Context Protocol) server — Streamable HTTP, stateless |
 
 ## MCP Server
