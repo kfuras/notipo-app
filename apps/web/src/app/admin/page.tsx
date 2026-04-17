@@ -128,9 +128,10 @@ export default function DashboardPage() {
     failed: posts.filter((p) => p.status === "FAILED").length,
   };
 
-  const servicesConnected = !!notion?.configured && !!wordpress?.configured;
-  const needsSetup = settings && !servicesConnected;
-  const allSetUp = servicesConnected;
+  const wpConnected = !!wordpress?.configured;
+  const notionConnected = !!notion?.configured;
+  const needsSetup = settings && !wpConnected;
+  const allSetUp = wpConnected;
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -177,8 +178,8 @@ export default function DashboardPage() {
       {needsSetup && settings && (
         <SetupCard settings={settings} onUpdate={refetchSettings} apiKey={apiKey} />
       )}
-      {allSetUp && canSyncNow && (
-        <SetupCompleteCard onSyncNow={handleSyncNow} syncing={syncing || hasRunningJobs} apiKey={apiKey} />
+      {allSetUp && (
+        <SetupCompleteCard onSyncNow={handleSyncNow} syncing={syncing || hasRunningJobs} apiKey={apiKey} notionConnected={notionConnected} />
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -503,55 +504,30 @@ function WPAuthHandler({ onSettingsUpdate }: { onSettingsUpdate: () => void }) {
 function SetupCard({
   settings,
   onUpdate,
-  apiKey,
 }: {
   settings: SettingsData;
   onUpdate: () => void;
   apiKey: string | null;
 }) {
-  const notion = settings.data.notion;
   const wordpress = settings.data.wordpress;
-  const [templateDone, setTemplateDone] = useState(
-    () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_template_done") === shortHash(apiKey),
-  );
-
-  function markTemplateDone() {
-    if (apiKey) localStorage.setItem("notipo_template_done", shortHash(apiKey));
-    setTemplateDone(true);
-    capture("onboarding_step_completed", { step: "template" });
-  }
-
-  const activeStep = !notion.configured ? 1 : !wordpress.configured ? 2 : 0;
-
-  const steps = [
-    { n: 1, done: notion.configured },
-    { n: 2, done: wordpress.configured },
-  ];
 
   return (
     <Card className="border-dashed">
       <CardHeader>
         <CardTitle className="text-base">Get Started</CardTitle>
         <CardDescription>
-          Connect your services to start publishing from Notion to WordPress.
+          Connect WordPress to start writing and publishing posts.
         </CardDescription>
         <div className="flex gap-1 mt-2">
-          {steps.map(({ n, done }) => (
-            <div
-              key={n}
-              className={`h-1 flex-1 rounded-full transition-colors ${
-                done ? "bg-primary" : n === activeStep ? "bg-primary/40" : "bg-muted"
-              }`}
-            />
-          ))}
+          <div
+            className={`h-1 flex-1 rounded-full transition-colors ${
+              wordpress.configured ? "bg-primary" : "bg-primary/40"
+            }`}
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {!notion.oauthAvailable && <TemplateTip done={templateDone} onDone={markTemplateDone} />}
-        <SetupStepRow number={1} title="Connect Notion" done={notion.configured} active={activeStep === 1}>
-          <NotionStepContent cfg={notion} onDone={onUpdate} />
-        </SetupStepRow>
-        <SetupStepRow number={2} title="Connect WordPress" done={wordpress.configured} active={activeStep === 2}>
+        <SetupStepRow number={1} title="Connect WordPress" done={wordpress.configured} active={!wordpress.configured}>
           <WordPressStepContent onDone={onUpdate} />
         </SetupStepRow>
       </CardContent>
@@ -596,128 +572,6 @@ function SetupStepRow({
         )}
       </div>
       {active && <div className="mt-3 ml-9">{children}</div>}
-    </div>
-  );
-}
-
-function TemplateTip({ done, onDone }: { done: boolean; onDone: () => void }) {
-  return (
-    <div className="rounded-lg border border-dashed border-muted-foreground/25 bg-muted/30 p-3 mb-2">
-      <div className="flex items-start gap-2.5">
-        <svg className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-        </svg>
-        <div className="space-y-2 flex-1">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Notipo uses a Notion database with specific properties (Status, Category, Tags, SEO Keyword, SEO Description, etc.).{" "}
-            <a
-              href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              Duplicate our template
-            </a>{" "}
-            into your workspace to get started.
-          </p>
-          {!done && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onDone}>
-              I&apos;ve duplicated it
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NotionStepContent({
-  cfg,
-  onDone,
-}: {
-  cfg: SettingsData["data"]["notion"];
-  onDone: () => void;
-}) {
-  const { call } = useApiCall();
-  const [showManual, setShowManual] = useState(!cfg.oauthAvailable);
-  const [token, setToken] = useState("");
-  const [dbId, setDbId] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function connectOAuth() {
-    const res = await call<{ data: { url: string } }>("/api/notion/oauth/authorize");
-    window.location.href = res.data.url;
-  }
-
-  async function saveManual(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await call("/api/settings/notion", {
-        method: "PUT",
-        body: { accessToken: token, databaseId: dbId || undefined },
-      });
-      capture("onboarding_step_completed", { step: "notion", method: "manual" });
-      capture("notion_connected", { method: "manual" });
-      onDone();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      {cfg.oauthAvailable && (
-        <>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            When prompted, select the database you just duplicated to grant Notipo access.
-          </p>
-          <Button size="sm" onClick={connectOAuth}>
-            Connect to Notion
-          </Button>
-        </>
-      )}
-      {cfg.oauthAvailable && (
-        <button
-          type="button"
-          className="block text-xs text-muted-foreground underline-offset-2 hover:underline"
-          onClick={() => setShowManual((v) => !v)}
-        >
-          {showManual ? "Hide manual entry" : "Use manual token instead"}
-        </button>
-      )}
-      {showManual && (
-        <form onSubmit={saveManual} className="space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Integration Token</Label>
-            <Input
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              required
-              placeholder="secret_..."
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              Database ID
-            </Label>
-            <Input
-              value={dbId}
-              onChange={(e) => setDbId(e.target.value)}
-              placeholder="32-character Notion page ID"
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button type="submit" size="sm" disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </form>
-      )}
     </div>
   );
 }
@@ -833,10 +687,12 @@ function SetupCompleteCard({
   onSyncNow,
   syncing,
   apiKey,
+  notionConnected,
 }: {
   onSyncNow: () => void;
   syncing: boolean;
   apiKey: string | null;
+  notionConnected: boolean;
 }) {
   const [dismissed, setDismissed] = useState(
     () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_setup_dismissed") === shortHash(apiKey),
@@ -862,18 +718,25 @@ function SetupCompleteCard({
         <div>
           <p className="text-sm font-medium">You&apos;re all set!</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Change a post status in Notion to sync it, or press Sync Now.
+            {notionConnected
+              ? "Write a post from the editor, or sync from Notion."
+              : "Write your first post, or connect Notion for two-way sync."}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            size="sm"
-            className="bg-violet-600 hover:bg-violet-700 text-white"
-            disabled={syncing}
-            onClick={onSyncNow}
-          >
-            Sync Now
+          <Button size="sm" asChild className="bg-violet-600 hover:bg-violet-700 text-white">
+            <Link href="/admin/write">Write a Post</Link>
           </Button>
+          {notionConnected && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={syncing}
+              onClick={onSyncNow}
+            >
+              Sync Now
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={dismiss} className="text-muted-foreground">
             Dismiss
           </Button>
