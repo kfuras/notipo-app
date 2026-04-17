@@ -207,8 +207,7 @@ export default function WritePage() {
         toast.success("Image uploaded");
       } catch (err) {
         setBody((current) => current.replace(placeholder, ""));
-        const msg = err instanceof ApiError ? err.message : "Image upload failed — is WordPress connected?";
-        toast.error(msg);
+        toast.error(err instanceof ApiError ? err.message : "Image upload failed");
       } finally {
         setUploading(false);
       }

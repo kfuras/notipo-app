@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { WordPressService } from "../services/wordpress.service.js";
 import { CredentialService } from "../services/credential.service.js";
+import { logger } from "../lib/logger.js";
 
 export async function uploadRoutes(app: FastifyInstance) {
   /**
@@ -13,7 +14,7 @@ export async function uploadRoutes(app: FastifyInstance) {
     const credService = new CredentialService(app.prisma);
     const wpCreds = await credService.getWordPressCredentials(tenantId);
     if (!wpCreds) {
-      return reply.code(400).send({ error: "WordPress is not connected" });
+      return reply.code(400).send({ error: "WordPress is not connected. Connect WordPress in Settings first." });
     }
 
     const file = await request.file();
@@ -27,10 +28,21 @@ export async function uploadRoutes(app: FastifyInstance) {
       return reply.badRequest("Image must be under 10MB");
     }
 
-    const wp = new WordPressService(wpCreds);
-    const filename = file.filename || `paste-${Date.now()}.png`;
-    const media = await wp.uploadMedia(buffer, filename, file.mimetype);
+    try {
+      const wp = new WordPressService(wpCreds);
+      const filename = file.filename || `paste-${Date.now()}.png`;
+      const media = await wp.uploadMedia(buffer, filename, file.mimetype);
 
-    return { data: { url: media.source_url, mediaId: media.id } };
+      if (!media?.source_url) {
+        logger.error({ tenantId, media }, "WordPress media upload returned unexpected response");
+        return reply.code(502).send({ error: "WordPress did not return a valid image URL" });
+      }
+
+      return { data: { url: media.source_url, mediaId: media.id } };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error({ tenantId, error: message }, "Image upload to WordPress failed");
+      return reply.code(502).send({ error: `WordPress upload failed: ${message}` });
+    }
   });
 }
