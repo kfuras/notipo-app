@@ -119,11 +119,9 @@ export default function PostsPage() {
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{post.category?.name ?? "No category"}</span>
                 <div className="flex items-center gap-3">
-                  {!post.notionPageId && (
-                    <Link href={`/admin/write?id=${post.id}`} className="text-violet-400 hover:underline">
-                      Edit
-                    </Link>
-                  )}
+                  <Link href={`/admin/write?id=${post.id}`} className="text-violet-400 hover:underline">
+                    Edit
+                  </Link>
                   {post.wpUrl && (
                     <a href={post.wpUrl} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline">
                       View on WP
@@ -202,14 +200,12 @@ export default function PostsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right space-x-3">
-                    {!post.notionPageId && (
-                      <Link
-                        href={`/admin/write?id=${post.id}`}
-                        className="text-sm text-violet-400 hover:underline"
-                      >
-                        Edit
-                      </Link>
-                    )}
+                    <Link
+                      href={`/admin/write?id=${post.id}`}
+                      className="text-sm text-violet-400 hover:underline"
+                    >
+                      Edit
+                    </Link>
                     <button
                       onClick={() => setDeleteTarget(post)}
                       className="text-sm text-red-400 hover:text-red-300"
