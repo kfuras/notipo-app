@@ -9,6 +9,7 @@ Turborepo + npm workspaces monorepo:
 ```
 apps/api/          — Fastify backend (TypeScript), Prisma + PostgreSQL, pg-boss job queue
 apps/web/          — Next.js frontend (admin UI only, auth + dashboard)
+packages/cli/      — `notipo` CLI (npm package, zero deps)
 packages/shared/   — Shared TypeScript types and enums
 ```
 
@@ -33,6 +34,12 @@ packages/shared/   — Shared TypeScript types and enums
 - `src/lib/` — API client, auth context, PostHog analytics (`posthog.tsx`: `capture()`, `identifyUser()`, `resetUser()`)
 
 Marketing site (landing page, blog, docs) lives in a separate repo: `notipo-site`.
+
+### packages/cli/ (Notipo CLI)
+
+Published as `notipo` on npm. Zero dependencies, uses native `fetch`. Auth via `NOTIPO_URL` + `NOTIPO_API_KEY` env vars (or `~/.notipo/config.json`).
+
+Commands: `status`, `sync`, `posts`, `posts create`, `posts update <id>`, `posts delete <id>`, `jobs`. Supports `--wait` flag to poll until job completes, `--publish` to auto-publish after sync. JSON output only (machine-readable).
 
 ### PostHog Event Tracking
 
@@ -124,7 +131,7 @@ Three Notion status values drive the pipeline (all configurable per tenant):
 
 **WordPress Link in Notion:** Drafts get the wp-admin edit URL (`/wp-admin/post.php?post=X&action=edit`). Published posts get the live frontend URL.
 
-**SEO metadata:** Rank Math SEO (focus keyword, title, description) is applied during sync — not just at publish time. The description is derived from the markdown content (~160 chars). The publish step refreshes it with the WP-generated excerpt.
+**SEO metadata:** Focus keyword, title, and description are applied during sync via the detected SEO plugin's native API. The description is derived from the markdown content (~160 chars). The publish step refreshes it with the WP-generated excerpt. See "SEO Plugin Support" below for plugin details.
 
 Trigger detection: Notion webhooks (configured on the public integration, delivered automatically for OAuth users) are the primary trigger via `POST /api/notion/webhook`. A safety-net poll runs every 5 minutes by default (`POLL_INTERVAL_SECONDS` env var) to catch missed events. The dashboard has a "Sync Now" button for instant manual polling.
 
@@ -238,18 +245,24 @@ Orchestrates `Post to Wordpress` trigger. Notion → markdown → images → Gut
 ### `publish.service.ts`
 Orchestrates `Publish` trigger. Draft → live, refreshes SEO meta with WP excerpt, updates Notion status.
 
+### Direct Publish (`POST /api/posts/direct`)
+Publishes a post directly to WordPress without creating a Notion page. Accepts markdown body, converts to Gutenberg blocks, optionally generates a featured image (only when `imageTitle` is provided), creates/publishes the WP post, and applies SEO metadata. Useful for API/CLI/MCP workflows that don't need Notion as the source.
+
 ### `import.service.ts`
 Orchestrates WordPress → Notion import (reverse of sync). Fetches WP post → converts Gutenberg HTML to markdown → creates Notion page with properties (category, tags, status) → upserts Post record. Duplicate detection via `wpPostId`, optional overwrite. Pro-only feature.
 
+### `markdown-to-gutenberg.ts`
+Converts Markdown to WordPress Gutenberg blocks. Handles paragraphs, headings, lists, code blocks (with syntax highlighting via `CodeHighlighter`), images, quotes, tables, embeds, and separators. FAQ sections (H2/H3 "FAQ" or "Frequently Asked Questions" followed by Q&A pairs) are converted to SEO-aware FAQ blocks — Rank Math `faq-block`, Yoast `faq-block`, or plain `<details>` accordion — based on the tenant's `wpSeoPlugin`. Receives `{ highlighter, seoPlugin }` options.
+
 ### `gutenberg-to-markdown.ts`
-Converts WordPress Gutenberg block HTML (or classic editor HTML) to Markdown. Two-pass: if `<!-- wp: -->` markers found, splits into blocks and converts each; otherwise falls back to classic HTML tag parsing. Handles paragraphs, headings, lists, code blocks, images, quotes, tables, embeds, separators, and inline formatting.
+Converts WordPress Gutenberg block HTML (or classic editor HTML) to Markdown (used by WP→Notion import). Two-pass: if `<!-- wp: -->` markers found, splits into blocks and converts each; otherwise falls back to classic HTML tag parsing. Handles paragraphs, headings, lists, code blocks, images, quotes, tables, embeds, separators, and inline formatting.
 
 ### `poll-tenant.ts` (lib)
 Per-tenant Notion poll logic, shared by the poll-notion job and `POST /api/sync-now` endpoint.
 
 ### `featured-image.service.ts`
 Generates 1200x628 PNG featured images. Two modes controlled by tenant `featuredImageMode`:
-- **STANDARD** (default): sharp + @napi-rs/canvas with text overlay. Background priority: uploaded image (`gcs:{tenantId/filename}` stored in GCS, served via signed URLs), HTTPS URL, bundled default (`public/category-images/`), Unsplash, gradient fallback. Unsplash searches by category name (30 results cached in-memory), picks photo deterministically by hashing post title. Returns `FeaturedImageResult` with optional `UnsplashAttribution`. Requires `UNSPLASH_ACCESS_KEY`; falls back to gradient without it.
+- **STANDARD** (default): sharp-based compositing (no text overlay). Background priority: uploaded image (`gcs:{tenantId/filename}` stored in GCS, served via signed URLs), HTTPS URL, bundled default (`public/category-images/`), Unsplash, gradient fallback. Unsplash searches by category name (30 results cached in-memory), picks photo deterministically by hashing post title. Returns `FeaturedImageResult` with optional `UnsplashAttribution`. Requires `UNSPLASH_ACCESS_KEY`; falls back to gradient without it.
 - **AI_GENERATED**: Delegates to `gemini-image.service.ts` which calls the Gemini REST API to generate an illustration from the post title, category, tags, and tenant's `aiImageStyle` (e.g. "comic book", "watercolor"). Requires `GEMINI_API_KEY` env var. Output is resized to 1200x628 via sharp.
 
 Photographer attribution (Unsplash only) is appended as a Gutenberg paragraph block in sync/publish services.
@@ -277,6 +290,32 @@ On startup: marks all RUNNING jobs as FAILED ("Interrupted by server restart"). 
 
 ### Job step tracking
 Both sync and publish jobs persist a `steps` array in the job `result` JSON field. Steps are accumulated during execution (deduplicated with `includes()` check) and stored on completion. Each job only tracks its own steps — the sync job shows sync steps, and the publish job shows only publish-specific steps. The Jobs page UI shows steps collapsible for completed/failed jobs and always-expanded for running jobs.
+
+### SEO Plugin Support
+
+SEO metadata is applied via the tenant's detected WordPress SEO plugin (`Tenant.wpSeoPlugin`, detected during WordPress connection):
+- **Rank Math**: Native REST API (`/rankmath/v1/updateMeta`) — no extra plugin needed
+- **SEOPress**: Native REST API (`/seopress/v1/posts/{id}/*`) — no extra plugin needed
+- **Yoast / AIOSEO**: Requires the `notipo-seo` WordPress plugin (in `plugins/notipo-seo/`) to expose meta fields via REST API
+- **None detected**: Falls back to writing `_yoast_wpseo_*` post meta directly
+
+FAQ blocks in markdown-to-gutenberg also use `wpSeoPlugin` to output the correct structured data format.
+
+### Email Notifications
+
+Transactional emails via Resend (`src/lib/email.ts`):
+- **Verification email**: Sent on registration, contains verification link
+- **Welcome email**: Sent after email verification, includes setup steps and feature overview
+- **Onboarding reminder**: Background job (`send-onboarding-email.job.ts`) sends reminder if setup incomplete
+- **Trial expiry**: Background job (`send-trial-expiry-email.job.ts`) notifies when 7-day trial is about to expire
+- **Password reset**: Sent on forgot-password request
+- **Admin notification**: Optional email to `ADMIN_NOTIFY_EMAIL` when new users sign up
+
+### Notion API Limits
+
+Two important Notion API limits are handled automatically:
+- **100-block limit**: `children` arrays are chunked into batches of 100 when appending blocks to a page
+- **2000-char limit**: `rich_text` content is split into chunks of ≤2000 characters per rich text object
 
 ### Publish trigger: `forcePublish`
 The "Publish" Notion trigger passes `forcePublish: true` in the sync-post payload, ensuring the post is published even when the WP post is currently a draft (two-step flow: Post to WordPress → Publish). The "Update WordPress" trigger does NOT set `forcePublish`, so it only auto-publishes if the WP post is already live.
