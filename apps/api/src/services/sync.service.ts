@@ -356,7 +356,7 @@ export class SyncService {
   }
 
   /** Direct publish: markdown → WordPress, skipping Notion entirely. */
-  async syncDirect(tenantId: string, input: DirectPublishInput, onStep?: (step: string) => void): Promise<{ postId: string }> {
+  async syncDirect(tenantId: string, input: DirectPublishInput, onStep?: (step: string) => void, existingPostId?: string): Promise<{ postId: string }> {
     const credService = new CredentialService(this.prisma);
     const wpCreds = await credService.getWordPressCredentials(tenantId);
     if (!wpCreds) throw new Error("WordPress credentials not configured");
@@ -380,23 +380,30 @@ export class SyncService {
     // Extract image refs from markdown
     const images = extractImageRefs(input.markdown, wpCreds.siteUrl);
 
-    // Create Post record
+    // Create or update Post record
     const tags = input.tags ?? [];
-    const post = await this.prisma.post.create({
-      data: {
-        tenantId,
-        title: input.title,
-        slug,
-        markdownContent: input.markdown,
-        seoKeyword: input.seoKeyword,
-        seoDescription: input.seoDescription,
-        featuredImageTitle,
-        categoryId: category?.id ?? undefined,
-        tags,
-        status: images.length > 0 ? "IMAGES_PROCESSING" : "SYNCED",
-        syncedAt: new Date(),
-      },
-    });
+    const postData = {
+      tenantId,
+      title: input.title,
+      slug,
+      markdownContent: input.markdown,
+      seoKeyword: input.seoKeyword,
+      seoDescription: input.seoDescription,
+      featuredImageTitle,
+      categoryId: category?.id ?? null,
+      tags,
+      status: images.length > 0 ? "IMAGES_PROCESSING" as const : "SYNCED" as const,
+      syncedAt: new Date(),
+    };
+
+    let existingWpPostId: number | null = null;
+    const post = existingPostId
+      ? await (async () => {
+          const existing = await this.prisma.post.findFirst({ where: { id: existingPostId, tenantId } });
+          existingWpPostId = existing?.wpPostId ?? null;
+          return this.prisma.post.update({ where: { id: existingPostId }, data: postData });
+        })()
+      : await this.prisma.post.create({ data: postData });
     const postId = post.id;
 
     // Process images
@@ -463,17 +470,29 @@ export class SyncService {
       }
     }
 
-    // Create WP draft
-    const wpPost = await wp.createDraft({
+    // Create or update WP post
+    const wpPayload = {
       title: input.title,
       content: wpContent,
-      status: "draft",
       slug: slug ?? undefined,
       categories: category?.wpCategoryId ? [category.wpCategoryId] : undefined,
       tags: tagIds.length ? tagIds : undefined,
       featured_media: wpFeaturedMediaId,
-    });
-    const wpUrl = `${wpCreds.siteUrl}/wp-admin/post.php?post=${wpPost.id}&action=edit`;
+    };
+
+    let wpPost: { id: number };
+    if (existingWpPostId) {
+      onStep?.("Updating WP post…");
+      wpPost = await wp.editPost(existingWpPostId, wpPayload);
+      logger.info({ wpPostId: wpPost.id }, "WP post updated (direct publish)");
+    } else {
+      const draft = await wp.createDraft({ ...wpPayload, status: "draft" });
+      wpPost = draft;
+      logger.info({ wpPostId: wpPost.id }, "WP draft created (direct publish)");
+    }
+    const wpUrl = existingWpPostId
+      ? post.wpUrl || `${wpCreds.siteUrl}/wp-admin/post.php?post=${wpPost.id}&action=edit`
+      : `${wpCreds.siteUrl}/wp-admin/post.php?post=${wpPost.id}&action=edit`;
     await this.prisma.post.update({
       where: { id: postId },
       data: {
@@ -483,7 +502,6 @@ export class SyncService {
         wpContent,
       },
     });
-    logger.info({ wpPostId: wpPost.id, wpUrl }, "WP draft created (direct publish)");
 
     // Apply SEO metadata
     if (input.seoKeyword) {
