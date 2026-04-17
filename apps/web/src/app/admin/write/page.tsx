@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApi, useApiCall } from "@/hooks/use-api";
 import { ApiError } from "@/lib/api-client";
 import { capture } from "@/lib/posthog";
@@ -63,8 +63,18 @@ const listPatterns: Array<{ regex: RegExp; next: (m: RegExpMatchArray) => string
 // Platform-aware modifier key label
 const modKey = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent) ? "Cmd" : "Ctrl";
 
-export default function WritePage() {
+export default function WritePageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <WritePage />
+    </Suspense>
+  );
+}
+
+function WritePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
   const { call, upload } = useApiCall();
   const { data: settings, loading: settingsLoading } = useApi<SettingsData>("/api/settings");
   const { data: categoriesData } = useApi<ApiListResponse<ApiCategory>>("/api/categories");
@@ -83,6 +93,8 @@ export default function WritePage() {
   const [uploading, setUploading] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [editLoading, setEditLoading] = useState(!!editId);
+  const [editLoaded, setEditLoaded] = useState(false);
 
   // Slash command state
   const [slashOpen, setSlashOpen] = useState(false);
@@ -98,13 +110,36 @@ export default function WritePage() {
   const submitted = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- Restore draft from localStorage on mount ---
+  // --- Load post data in edit mode ---
   useEffect(() => {
+    if (!editId) return;
+    setEditLoading(true);
+    call<{ data: { title: string; markdownContent: string | null; slug: string | null; seoKeyword: string | null; seoDescription: string | null; featuredImageTitle: string | null; category: { name: string } | null; notionPageId: string | null } }>(`/api/posts/${editId}`)
+      .then((res) => {
+        const p = res.data;
+        setTitle(p.title || "");
+        setBody(p.markdownContent || "");
+        setSlug(p.slug || "");
+        setSeoKeyword(p.seoKeyword || "");
+        setSeoDescription(p.seoDescription || "");
+        setImageTitle(p.featuredImageTitle || "");
+        if (p.category?.name) setCategory(p.category.name);
+        setEditLoaded(true);
+      })
+      .catch(() => {
+        toast.error("Failed to load post");
+        router.push("/admin/posts");
+      })
+      .finally(() => setEditLoading(false));
+  }, [editId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Restore draft from localStorage on mount (skip in edit mode) ---
+  useEffect(() => {
+    if (editId) return;
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const draft: DraftData = JSON.parse(raw);
-      // Only restore if saved within the last 7 days and has content
       if (Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
         localStorage.removeItem(DRAFT_KEY);
         return;
@@ -122,10 +157,11 @@ export default function WritePage() {
     } catch {
       // Ignore parse errors
     }
-  }, []);
+  }, [editId]);
 
-  // --- Auto-save to localStorage (debounced) ---
+  // --- Auto-save to localStorage (debounced, skip in edit mode) ---
   useEffect(() => {
+    if (editId) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       if (!title && !body) {
@@ -139,7 +175,7 @@ export default function WritePage() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 1000);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [title, body, category, tags, slug, seoKeyword, seoDescription, imageTitle]);
+  }, [editId, title, body, category, tags, slug, seoKeyword, seoDescription, imageTitle]);
 
   // --- beforeunload guard ---
   useEffect(() => {
@@ -603,34 +639,39 @@ export default function WritePage() {
     try {
       const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
 
-      await call("/api/posts/direct", {
-        method: "POST",
-        body: {
-          title: title.trim(),
-          body: body.trim(),
-          ...(category && { category }),
-          ...(tagList.length > 0 && { tags: tagList }),
-          ...(slug.trim() && { slug: slug.trim() }),
-          ...(seoKeyword.trim() && { seoKeyword: seoKeyword.trim() }),
-          ...(seoDescription.trim() && { seoDescription: seoDescription.trim() }),
-          ...(imageTitle.trim() && { imageTitle: imageTitle.trim() }),
-          publish,
-        },
-      });
+      const payload = {
+        title: title.trim(),
+        body: body.trim(),
+        ...(category && { category }),
+        ...(tagList.length > 0 && { tags: tagList }),
+        ...(slug.trim() && { slug: slug.trim() }),
+        ...(seoKeyword.trim() && { seoKeyword: seoKeyword.trim() }),
+        ...(seoDescription.trim() && { seoDescription: seoDescription.trim() }),
+        ...(imageTitle.trim() && { imageTitle: imageTitle.trim() }),
+        publish,
+      };
 
-      capture("post_created_from_editor", { publish });
+      if (editId) {
+        await call(`/api/posts/${editId}`, { method: "PATCH", body: payload });
+        capture("post_updated_from_editor", { publish });
+        toast.success(publish ? "Post update queued for publishing" : "Post update queued");
+      } else {
+        await call("/api/posts/direct", { method: "POST", body: payload });
+        capture("post_created_from_editor", { publish });
+        toast.success(publish ? "Post queued for publishing" : "Draft queued for sync");
+      }
+
       submitted.current = true;
       clearDraft();
-      toast.success(publish ? "Post queued for publishing" : "Draft queued for sync");
       router.push("/admin/posts");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to create post");
+      toast.error(err instanceof ApiError ? err.message : "Failed to save post");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (settingsLoading) return null;
+  if (settingsLoading || editLoading) return null;
 
   return (
     <div
@@ -815,10 +856,10 @@ export default function WritePage() {
       {/* Action bar */}
       <div className="fixed bottom-14 left-0 right-0 md:static md:bottom-auto border-t md:border-0 bg-background/95 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none p-3 md:p-0 md:mt-6 flex gap-2 justify-end z-40">
         <Button variant="outline" disabled={submitting || uploading} onClick={() => handleSubmit(false)}>
-          {submitting ? "Saving..." : "Save as Draft"}
+          {submitting ? "Saving..." : editId ? "Update Draft" : "Save as Draft"}
         </Button>
         <Button disabled={submitting || uploading} onClick={() => handleSubmit(true)} className="bg-violet-600 hover:bg-violet-700 text-white">
-          {submitting ? "Publishing..." : "Publish"}
+          {submitting ? "Publishing..." : editId ? "Update & Publish" : "Publish"}
         </Button>
       </div>
     </div>
