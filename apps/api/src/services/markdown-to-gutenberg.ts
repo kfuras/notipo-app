@@ -105,33 +105,37 @@ interface FaqItem {
 
 function faqBlock(items: FaqItem[], seoPlugin?: string | null): string {
   if (seoPlugin === "rankmath") {
+    // RichText.Content renders the title/content values as raw HTML,
+    // so the JSON attributes must contain the same HTML as the inner markup.
     const questions = items.map((item, i) => ({
       id: `faq-q${i + 1}`,
-      title: item.question,
-      content: item.answer,
+      title: escHtml(item.question),
+      content: inlineMdToHtml(item.answer),
       visible: true,
     }));
     const attrs = JSON.stringify({ questions });
-    const inner = items
+    const inner = questions
       .map(
-        (item) =>
-          `<div class="rank-math-faq-item"><h3 class="rank-math-question">${escHtml(item.question)}</h3><div class="rank-math-answer">${inlineMdToHtml(item.answer)}</div></div>`,
+        (q) =>
+          `<div class="rank-math-faq-item"><h3 class="rank-math-question">${q.title}</h3><div class="rank-math-answer">${q.content}</div></div>`,
       )
       .join("");
     return `<!-- wp:rank-math/faq-block ${attrs} -->\n<div class="wp-block-rank-math-faq-block">${inner}</div>\n<!-- /wp:rank-math/faq-block -->`;
   }
 
   if (seoPlugin === "yoast") {
+    // Same principle as Rank Math: Yoast's save() renders jsonQuestion/jsonAnswer
+    // as raw HTML, so the JSON attributes must match the inner markup exactly.
     const questions = items.map((item, i) => ({
       id: `faq-q${i + 1}`,
-      jsonQuestion: item.question,
-      jsonAnswer: item.answer,
+      jsonQuestion: escHtml(item.question),
+      jsonAnswer: inlineMdToHtml(item.answer),
     }));
     const attrs = JSON.stringify({ questions });
-    const inner = items
+    const inner = questions
       .map(
-        (item) =>
-          `<div class="schema-faq-section"><strong class="schema-faq-question">${escHtml(item.question)}</strong><p class="schema-faq-answer">${inlineMdToHtml(item.answer)}</p></div>`,
+        (q) =>
+          `<div class="schema-faq-section"><strong class="schema-faq-question">${q.jsonQuestion}</strong><p class="schema-faq-answer">${q.jsonAnswer}</p></div>`,
       )
       .join("");
     return `<!-- wp:yoast-seo/faq-block ${attrs} -->\n<div class="schema-faq wp-block-yoast-faq-block">${inner}</div>\n<!-- /wp:yoast-seo/faq-block -->`;
