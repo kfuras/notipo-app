@@ -98,6 +98,11 @@ async function cmdPostsCreate(config: Config, args: string[]) {
   const seoKeyword = get("--seo-keyword"); if (seoKeyword) body.seoKeyword = seoKeyword;
   const imageTitle = get("--image-title"); if (imageTitle) body.imageTitle = imageTitle;
   const slug = get("--slug"); if (slug) body.slug = slug;
+  const excerpt = get("--excerpt"); if (excerpt) body.excerpt = excerpt;
+  const scheduledAt = get("--schedule"); if (scheduledAt) body.scheduledAt = new Date(scheduledAt).toISOString();
+  if (has("--sticky")) body.sticky = true;
+  if (has("--no-comments")) body.commentStatus = "closed";
+  if (has("--no-pingbacks")) body.pingStatus = "closed";
   if (has("--publish")) body.publish = true;
 
   const result = await api<{ jobId: string; notionPageId: string; message: string }>(
@@ -156,6 +161,11 @@ async function cmdPostsUpdate(config: Config, args: string[]) {
   const tags = get("--tags"); if (tags) body.tags = (tags as string).split(",").map((t) => t.trim());
   const seoKeyword = get("--seo-keyword"); if (seoKeyword) body.seoKeyword = seoKeyword;
   const slug = get("--slug"); if (slug) body.slug = slug;
+  const excerpt = get("--excerpt"); if (excerpt) body.excerpt = excerpt;
+  const scheduledAt = get("--schedule"); if (scheduledAt) body.scheduledAt = new Date(scheduledAt).toISOString();
+  if (has("--sticky")) body.sticky = true;
+  if (has("--no-comments")) body.commentStatus = "closed";
+  if (has("--no-pingbacks")) body.pingStatus = "closed";
   if (has("--publish")) body.publish = true;
 
   if (Object.keys(body).length === 0) err("Nothing to update. Pass at least one flag (--title, --body, --category, etc.)");

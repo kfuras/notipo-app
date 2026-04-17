@@ -141,13 +141,30 @@ function faqBlock(items: FaqItem[], seoPlugin?: string | null): string {
     return `<!-- wp:yoast-seo/faq-block ${attrs} -->\n<div class="schema-faq wp-block-yoast-faq-block">${inner}</div>\n<!-- /wp:yoast-seo/faq-block -->`;
   }
 
-  // No SEO plugin: plain bold questions + paragraph answers
-  return items
+  // No SEO plugin: core/details blocks for visual accordion + JSON-LD FAQPage schema for Google
+  const detailsBlocks = items
     .map(
       (item) =>
-        `<!-- wp:paragraph -->\n<p><strong>${escHtml(item.question)}</strong></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>${inlineMdToHtml(item.answer)}</p>\n<!-- /wp:paragraph -->`,
+        `<!-- wp:details -->\n<details class="wp-block-details"><summary>${escHtml(item.question)}</summary><!-- wp:paragraph -->\n<p>${inlineMdToHtml(item.answer)}</p>\n<!-- /wp:paragraph --></details>\n<!-- /wp:details -->`,
     )
     .join("\n\n");
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+
+  const schemaBlock = `<!-- wp:html -->\n<script type="application/ld+json">${JSON.stringify(faqSchema)}</script>\n<!-- /wp:html -->`;
+
+  return detailsBlocks + "\n\n" + schemaBlock;
 }
 
 function codeBlock(lang: string, code: string, highlighter: CodeHighlighter): string {

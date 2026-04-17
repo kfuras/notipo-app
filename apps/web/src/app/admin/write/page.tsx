@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApi, useApiCall } from "@/hooks/use-api";
 import { ApiError } from "@/lib/api-client";
@@ -14,9 +14,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Bold, Italic, Strikethrough, Heading2, Heading3, Link as LinkIcon, Image, Code, SquareCode,
   List, ListOrdered, CheckSquare, Quote, Table, Minus, ChevronDown, ChevronRight, AlertTriangle,
+  Eye, EyeOff, Clock, Copy, Pin, MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
-import type { ApiCategory, ApiTag, ApiListResponse } from "@notipo/shared";
+import type { ApiCategory, ApiTag, ApiPostTemplate, ApiListResponse } from "@notipo/shared";
 
 interface SettingsData {
   data: {
@@ -35,6 +36,11 @@ interface DraftData {
   seoKeyword: string;
   seoDescription: string;
   imageTitle: string;
+  excerpt: string;
+  scheduledAt: string;
+  sticky: boolean;
+  commentStatus: string;
+  pingStatus: string;
   savedAt: number;
 }
 
@@ -79,6 +85,7 @@ function WritePage() {
   const { data: settings, loading: settingsLoading } = useApi<SettingsData>("/api/settings");
   const { data: categoriesData } = useApi<ApiListResponse<ApiCategory>>("/api/categories");
   const { data: tagsData } = useApi<ApiListResponse<ApiTag>>("/api/tags");
+  const { data: templatesData, refetch: refetchTemplates } = useApi<ApiListResponse<ApiPostTemplate>>("/api/templates");
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -88,7 +95,13 @@ function WritePage() {
   const [seoKeyword, setSeoKeyword] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [imageTitle, setImageTitle] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [sticky, setSticky] = useState(false);
+  const [commentStatus, setCommentStatus] = useState("open");
+  const [pingStatus, setPingStatus] = useState("open");
   const [showSettings, setShowSettings] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
@@ -114,7 +127,7 @@ function WritePage() {
   useEffect(() => {
     if (!editId) return;
     setEditLoading(true);
-    call<{ data: { title: string; markdownContent: string | null; slug: string | null; seoKeyword: string | null; seoDescription: string | null; featuredImageTitle: string | null; category: { name: string } | null; notionPageId: string | null } }>(`/api/posts/${editId}`)
+    call<{ data: { title: string; markdownContent: string | null; slug: string | null; seoKeyword: string | null; seoDescription: string | null; featuredImageTitle: string | null; excerpt: string | null; scheduledAt: string | null; sticky: boolean; commentStatus: string; pingStatus: string; tags: string[]; category: { name: string } | null; notionPageId: string | null } }>(`/api/posts/${editId}`)
       .then((res) => {
         const p = res.data;
         setTitle(p.title || "");
@@ -123,6 +136,12 @@ function WritePage() {
         setSeoKeyword(p.seoKeyword || "");
         setSeoDescription(p.seoDescription || "");
         setImageTitle(p.featuredImageTitle || "");
+        setExcerpt(p.excerpt || "");
+        if (p.scheduledAt) setScheduledAt(p.scheduledAt.slice(0, 16)); // datetime-local format
+        setSticky(p.sticky ?? false);
+        setCommentStatus(p.commentStatus || "open");
+        setPingStatus(p.pingStatus || "open");
+        if (p.tags?.length) setTags(p.tags.join(", "));
         if (p.category?.name) setCategory(p.category.name);
         setEditLoaded(true);
       })
@@ -153,6 +172,11 @@ function WritePage() {
       setSeoKeyword(draft.seoKeyword || "");
       setSeoDescription(draft.seoDescription || "");
       setImageTitle(draft.imageTitle || "");
+      setExcerpt(draft.excerpt || "");
+      if (draft.scheduledAt) setScheduledAt(draft.scheduledAt);
+      if (draft.sticky) setSticky(draft.sticky);
+      if (draft.commentStatus) setCommentStatus(draft.commentStatus);
+      if (draft.pingStatus) setPingStatus(draft.pingStatus);
       setDraftRestored(true);
     } catch {
       // Ignore parse errors
@@ -170,12 +194,13 @@ function WritePage() {
       }
       const draft: DraftData = {
         title, body, category, tags, slug, seoKeyword, seoDescription, imageTitle,
+        excerpt, scheduledAt, sticky, commentStatus, pingStatus,
         savedAt: Date.now(),
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }, 1000);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [editId, title, body, category, tags, slug, seoKeyword, seoDescription, imageTitle]);
+  }, [editId, title, body, category, tags, slug, seoKeyword, seoDescription, imageTitle, excerpt, scheduledAt, sticky, commentStatus, pingStatus]);
 
   // --- beforeunload guard ---
   useEffect(() => {
@@ -616,6 +641,7 @@ function WritePage() {
 
   const categories = categoriesData?.data ?? [];
   const availableTags = tagsData?.data ?? [];
+  const templates = templatesData?.data ?? [];
   const wpConnected = settings?.data?.wordpress?.configured;
 
   function clearDraft() {
@@ -625,7 +651,8 @@ function WritePage() {
 
   function discardDraft() {
     setTitle(""); setBody(""); setCategory(""); setTags(""); setSlug("");
-    setSeoKeyword(""); setSeoDescription(""); setImageTitle("");
+    setSeoKeyword(""); setSeoDescription(""); setImageTitle(""); setExcerpt("");
+    setScheduledAt(""); setSticky(false); setCommentStatus("open"); setPingStatus("open");
     clearDraft();
     toast.success("Draft discarded");
   }
@@ -635,6 +662,7 @@ function WritePage() {
       toast.error("Title and body are required");
       return;
     }
+    const isScheduling = !publish && !!scheduledAt;
     setSubmitting(true);
     try {
       const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
@@ -648,6 +676,11 @@ function WritePage() {
         ...(seoKeyword.trim() && { seoKeyword: seoKeyword.trim() }),
         ...(seoDescription.trim() && { seoDescription: seoDescription.trim() }),
         ...(imageTitle.trim() && { imageTitle: imageTitle.trim() }),
+        ...(excerpt.trim() && { excerpt: excerpt.trim() }),
+        ...(scheduledAt && { scheduledAt: new Date(scheduledAt).toISOString() }),
+        ...(sticky && { sticky: true }),
+        ...(commentStatus !== "open" && { commentStatus: commentStatus as "open" | "closed" }),
+        ...(pingStatus !== "open" && { pingStatus: pingStatus as "open" | "closed" }),
         publish,
       };
 
@@ -658,7 +691,9 @@ function WritePage() {
       } else {
         await call("/api/posts/direct", { method: "POST", body: payload });
         capture("post_created_from_editor", { publish });
-        toast.success(publish ? "Post queued for publishing" : "Draft queued for sync");
+        toast.success(
+          isScheduling ? "Post scheduled" : publish ? "Post queued for publishing" : "Draft queued for sync",
+        );
       }
 
       submitted.current = true;
@@ -669,6 +704,34 @@ function WritePage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSaveTemplate() {
+    const name = prompt("Template name:");
+    if (!name?.trim()) return;
+    try {
+      const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      await call("/api/templates", {
+        method: "POST",
+        body: {
+          name: name.trim(),
+          body: body.trim(),
+          ...(category && { category }),
+          ...(tagList.length > 0 && { tags: tagList }),
+        },
+      });
+      toast.success("Template saved");
+      refetchTemplates();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to save template");
+    }
+  }
+
+  function applyTemplate(template: ApiPostTemplate) {
+    setBody(template.body);
+    if (template.category) setCategory(template.category);
+    if (template.tags?.length) setTags(template.tags.join(", "));
+    toast.success(`Template "${template.name}" applied`);
   }
 
   if (settingsLoading || editLoading) return null;
@@ -746,52 +809,99 @@ function WritePage() {
                 </Tooltip>
               ),
             )}
+            <div className="w-px h-5 bg-border mx-0.5 hidden sm:block" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(!showPreview)}
+                  aria-label={showPreview ? "Hide preview" : "Show preview"}
+                  className={`p-1.5 rounded transition-colors ${showPreview ? "bg-violet-500/20 text-violet-400" : "hover:bg-muted text-muted-foreground hover:text-foreground"}`}
+                >
+                  {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {showPreview ? "Hide preview" : "Preview"}
+              </TooltipContent>
+            </Tooltip>
             {uploading && (
               <span className="text-xs text-muted-foreground ml-2 animate-pulse">Uploading image...</span>
+            )}
+            {/* Template controls */}
+            {templates.length > 0 && (
+              <div className="ml-auto flex items-center gap-1">
+                <select
+                  onChange={(e) => {
+                    const t = templates.find((t) => t.id === e.target.value);
+                    if (t) applyTemplate(t);
+                    e.target.value = "";
+                  }}
+                  className="h-7 text-xs rounded border border-input bg-transparent px-2 text-muted-foreground"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Templates...</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
         </div>
       </TooltipProvider>
 
-      {/* Writing area */}
-      <div className="relative">
-        <textarea
-          ref={bodyRef}
-          placeholder="Start writing, or type / for commands..."
-          value={body}
-          onChange={handleBodyChange}
-          onKeyDown={handleBodyKeyDown}
-          onPaste={handlePaste}
-          className="w-full min-h-[400px] text-[15px] leading-relaxed bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground/40"
-        />
+      {/* Writing area + preview */}
+      <div className={`relative ${showPreview ? "grid grid-cols-1 md:grid-cols-2 gap-4" : ""}`}>
+        <div className="relative">
+          <textarea
+            ref={bodyRef}
+            placeholder="Start writing, or type / for commands..."
+            value={body}
+            onChange={handleBodyChange}
+            onKeyDown={handleBodyKeyDown}
+            onPaste={handlePaste}
+            className="w-full min-h-[400px] text-[15px] leading-relaxed bg-transparent border-0 outline-none resize-none placeholder:text-muted-foreground/40"
+          />
 
-        {/* Slash command menu */}
-        {slashOpen && filteredCommands.length > 0 && slashPos && (
-          <div
-            ref={slashMenuRef}
-            role="listbox"
-            className="fixed z-50 w-64 max-h-72 overflow-y-auto rounded-lg border bg-popover shadow-lg"
-            style={{ top: slashPos.top, left: slashPos.left }}
-          >
-            {filteredCommands.map((cmd, i) => (
-              <button
-                key={cmd.label}
-                type="button"
-                role="option"
-                aria-selected={i === slashIndex}
-                className={`flex items-center gap-3 w-full px-3 py-2 text-left text-sm transition-colors ${
-                  i === slashIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-                }`}
-                onMouseDown={(e) => { e.preventDefault(); applySlashCommand(cmd); }}
-                onMouseEnter={() => setSlashIndex(i)}
-              >
-                <cmd.icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="font-medium">{cmd.label}</div>
-                  <div className="text-xs text-muted-foreground">{cmd.description}</div>
-                </div>
-              </button>
-            ))}
+          {/* Slash command menu */}
+          {slashOpen && filteredCommands.length > 0 && slashPos && (
+            <div
+              ref={slashMenuRef}
+              role="listbox"
+              className="fixed z-50 w-64 max-h-72 overflow-y-auto rounded-lg border bg-popover shadow-lg"
+              style={{ top: slashPos.top, left: slashPos.left }}
+            >
+              {filteredCommands.map((cmd, i) => (
+                <button
+                  key={cmd.label}
+                  type="button"
+                  role="option"
+                  aria-selected={i === slashIndex}
+                  className={`flex items-center gap-3 w-full px-3 py-2 text-left text-sm transition-colors ${
+                    i === slashIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                  }`}
+                  onMouseDown={(e) => { e.preventDefault(); applySlashCommand(cmd); }}
+                  onMouseEnter={() => setSlashIndex(i)}
+                >
+                  <cmd.icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="font-medium">{cmd.label}</div>
+                    <div className="text-xs text-muted-foreground">{cmd.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Markdown preview */}
+        {showPreview && (
+          <div className="hidden md:block border-l pl-4 min-h-[400px] overflow-y-auto">
+            <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Preview</p>
+            <div className="prose prose-invert prose-sm max-w-none">
+              <MarkdownPreview content={body} />
+            </div>
           </div>
         )}
       </div>
@@ -839,6 +949,10 @@ function WritePage() {
                 <Input id="slug" placeholder="auto-generated-from-title" value={slug} onChange={(e) => setSlug(e.target.value)} />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="excerpt" className="text-xs text-muted-foreground">Custom excerpt</Label>
+              <Textarea id="excerpt" placeholder="Custom excerpt for search results (leave blank for auto-generated)" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} className="resize-none h-16" />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="seoKeyword" className="text-xs text-muted-foreground">Focus keyword</Label>
@@ -849,19 +963,121 @@ function WritePage() {
                 <Textarea id="seoDescription" placeholder="Brief description for search engines" value={seoDescription} onChange={(e) => setSeoDescription(e.target.value.slice(0, 160))} className="resize-none h-20" />
               </div>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="scheduledAt" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Schedule publish
+                </Label>
+                <Input
+                  id="scheduledAt"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="text-sm"
+                />
+                {scheduledAt && (
+                  <button type="button" onClick={() => setScheduledAt("")} className="text-xs text-muted-foreground hover:text-foreground">
+                    Clear schedule
+                  </button>
+                )}
+              </div>
+              <div className="space-y-3 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={sticky} onChange={(e) => setSticky(e.target.checked)} className="rounded border-input" />
+                  <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Pin className="w-3.5 h-3.5" /> Sticky post (pin to top)
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={commentStatus === "closed"} onChange={(e) => setCommentStatus(e.target.checked ? "closed" : "open")} className="rounded border-input" />
+                  <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" /> Disable comments
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={pingStatus === "closed"} onChange={(e) => setPingStatus(e.target.checked ? "closed" : "open")} className="rounded border-input" />
+                  <span className="text-xs text-muted-foreground">Disable pingbacks</span>
+                </label>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       {/* Action bar */}
       <div className="fixed bottom-14 left-0 right-0 md:static md:bottom-auto border-t md:border-0 bg-background/95 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none p-3 md:p-0 md:mt-6 flex gap-2 justify-end z-40">
+        {!editId && body.trim() && (
+          <Button variant="ghost" size="sm" disabled={submitting} onClick={handleSaveTemplate} className="mr-auto text-xs text-muted-foreground">
+            <Copy className="w-3.5 h-3.5 mr-1" /> Save as template
+          </Button>
+        )}
         <Button variant="outline" disabled={submitting || uploading} onClick={() => handleSubmit(false)}>
-          {submitting ? "Saving..." : editId ? "Update Draft" : "Save as Draft"}
+          {submitting ? "Saving..." : scheduledAt ? "Schedule" : editId ? "Update Draft" : "Save as Draft"}
         </Button>
-        <Button disabled={submitting || uploading} onClick={() => handleSubmit(true)} className="bg-violet-600 hover:bg-violet-700 text-white">
-          {submitting ? "Publishing..." : editId ? "Update & Publish" : "Publish"}
-        </Button>
+        {!scheduledAt && (
+          <Button disabled={submitting || uploading} onClick={() => handleSubmit(true)} className="bg-violet-600 hover:bg-violet-700 text-white">
+            {submitting ? "Publishing..." : editId ? "Update & Publish" : "Publish"}
+          </Button>
+        )}
       </div>
     </div>
   );
+}
+
+/** Simple client-side markdown to HTML renderer for preview.
+ *  Content is the user's own editor input — HTML-escaped before processing. */
+function MarkdownPreview({ content }: { content: string }) {
+  const html = useMemo(() => {
+    if (!content) return "";
+    let out = content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Code blocks (must be before inline processing)
+    out = out.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _lang, code) =>
+      `<pre class="bg-muted/50 rounded p-3 text-xs overflow-x-auto"><code>${code.trim()}</code></pre>`);
+
+    // Headings
+    out = out.replace(/^######\s+(.*)$/gm, "<h6>$1</h6>");
+    out = out.replace(/^#####\s+(.*)$/gm, "<h5>$1</h5>");
+    out = out.replace(/^####\s+(.*)$/gm, "<h4>$1</h4>");
+    out = out.replace(/^###\s+(.*)$/gm, "<h3>$1</h3>");
+    out = out.replace(/^##\s+(.*)$/gm, "<h2>$1</h2>");
+    out = out.replace(/^#\s+(.*)$/gm, "<h1>$1</h1>");
+
+    // Horizontal rules
+    out = out.replace(/^---$/gm, "<hr />");
+
+    // Images
+    out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="rounded max-w-full" />');
+
+    // Links
+    out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-violet-400 underline">$1</a>');
+
+    // Bold and italic
+    out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    out = out.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    out = out.replace(/~~(.+?)~~/g, "<del>$1</del>");
+    out = out.replace(/`([^`]+)`/g, '<code class="bg-muted/50 rounded px-1 text-xs">$1</code>');
+
+    // Lists
+    out = out.replace(/^\s*[-*+]\s+(.*)$/gm, "<li>$1</li>");
+    out = out.replace(/^\s*\d+\.\s+(.*)$/gm, "<li>$1</li>");
+
+    // Blockquotes
+    out = out.replace(/^&gt;\s?(.*)$/gm, '<blockquote class="border-l-2 border-muted-foreground/30 pl-3 italic">$1</blockquote>');
+
+    // Paragraphs — wrap non-tag lines
+    out = out.replace(/^(?!<[a-z/])(.+)$/gm, "<p>$1</p>");
+
+    // Clean up double line breaks
+    out = out.replace(/\n{2,}/g, "\n");
+
+    return out;
+  }, [content]);
+
+  // Content is user's own editor input, HTML-escaped above before any processing
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }

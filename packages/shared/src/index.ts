@@ -79,13 +79,33 @@ export interface ApiPost {
   notionPageId: string;
   title: string;
   slug: string | null;
+  markdownContent: string | null;
+  excerpt: string | null;
   status: PostStatus;
   wpPostId: number | null;
   wpUrl: string | null;
   wpFeaturedMediaId: number | null;
   featuredImageTitle: string | null;
+  seoKeyword: string | null;
+  seoDescription: string | null;
+  tags: string[];
   categoryId: string | null;
   category: ApiCategory | null;
+  scheduledAt: string | null;
+  sticky: boolean;
+  commentStatus: string;
+  pingStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiPostTemplate {
+  id: string;
+  tenantId: string;
+  name: string;
+  body: string;
+  category: string | null;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }

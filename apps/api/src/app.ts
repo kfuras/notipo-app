@@ -28,6 +28,7 @@ import { accountRoutes } from "./routes/account.js";
 import { importRoutes } from "./routes/import.js";
 import { mcpRoutes } from "./routes/mcp.js";
 import { uploadRoutes } from "./routes/uploads.js";
+import { templateRoutes } from "./routes/templates.js";
 import { registerAllJobs } from "./jobs/index.js";
 
 export async function buildApp() {
@@ -117,6 +118,7 @@ export async function buildApp() {
   await app.register(importRoutes);
   await app.register(mcpRoutes);
   await app.register(uploadRoutes);
+  await app.register(templateRoutes);
 
   return app;
 }

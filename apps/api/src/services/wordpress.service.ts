@@ -68,11 +68,11 @@ export class WordPressService {
     return null;
   }
 
-  /** Create a draft post. */
+  /** Create a draft (or scheduled) post. */
   async createDraft(payload: WPPostPayload) {
     const response = await this.client.post("/posts", {
       ...payload,
-      status: "draft",
+      status: payload.status || "draft",
     });
     logger.info({ wpStatus: response.status, wpPostId: response.data?.id, wpPostStatus: response.data?.status, wpLink: response.data?.link }, "WP createDraft response");
     return response.data;
@@ -359,6 +359,20 @@ export class WordPressService {
       total: Number(response.headers["x-wp-total"] || response.data.length),
       totalPages: Number(response.headers["x-wp-totalpages"] || 1),
     };
+  }
+
+  /** Introspect the current application password — returns name, last_used, last_ip. */
+  async introspectAppPassword(): Promise<{ name: string; last_used: string | null; last_ip: string | null } | null> {
+    try {
+      const { data } = await this.client.get("/users/me/application-passwords/introspect");
+      return {
+        name: data.name ?? "Unknown",
+        last_used: data.last_used ?? null,
+        last_ip: data.last_ip ?? null,
+      };
+    } catch {
+      return null;
+    }
   }
 
   /** Update SEO meta fields using the detected SEO plugin's native REST API. */

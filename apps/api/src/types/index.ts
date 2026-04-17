@@ -40,11 +40,16 @@ export interface ProcessedImages {
 export interface WPPostPayload {
   title: string;
   content: string;
-  status: "draft" | "publish";
+  status: "draft" | "publish" | "future";
   slug?: string;
   categories?: number[];
   tags?: number[];
   featured_media?: number;
+  date?: string;            // ISO 8601, for scheduling
+  excerpt?: string;         // Custom excerpt
+  sticky?: boolean;
+  comment_status?: "open" | "closed";
+  ping_status?: "open" | "closed";
 }
 
 export interface WPMediaUpload {

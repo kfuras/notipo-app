@@ -217,6 +217,32 @@ export async function settingsRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
+  /** GET /api/settings/wordpress-health — check WP connection health via app password introspection */
+  app.get("/api/settings/wordpress-health", async (request, reply) => {
+    const credService = new CredentialService(app.prisma);
+    const creds = await credService.getWordPressCredentials(request.tenant.id);
+    if (!creds) return reply.code(404).send({ error: "WordPress not connected" });
+
+    const wp = new WordPressService(creds);
+    try {
+      const user = await wp.testConnection();
+      const appPassword = await wp.introspectAppPassword();
+      return {
+        data: {
+          connected: true,
+          user: user.name,
+          appPassword: appPassword ? {
+            name: appPassword.name,
+            lastUsed: appPassword.last_used,
+            lastIp: appPassword.last_ip,
+          } : null,
+        },
+      };
+    } catch {
+      return { data: { connected: false, user: null, appPassword: null } };
+    }
+  });
+
   /** POST /api/settings/test-webhook — send a test message to the saved webhook URL */
   app.post("/api/settings/test-webhook", async (request, reply) => {
     const tenant = await app.prisma.tenant.findUniqueOrThrow({

@@ -49,6 +49,7 @@ model Tenant {
   tags       Tag[]
   imageCache ImageMapping[]
   jobs       Job[]
+  templates  PostTemplate[]
 
   @@index([notionWorkspaceId])
   @@map("tenants")
@@ -130,6 +131,14 @@ model Post {
   featuredImageTitle String?
   featuredImageUrl   String?
   wpFeaturedMediaId  Int?
+
+  // Scheduling
+  scheduledAt DateTime?
+
+  // WordPress post options
+  sticky        Boolean @default(false)
+  commentStatus String  @default("open")  // "open" | "closed"
+  pingStatus    String  @default("open")   // "open" | "closed"
 
   // Status tracking
   status      PostStatus @default(SYNCED)
@@ -252,4 +261,21 @@ enum JobStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+model PostTemplate {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name    String
+  body    String  @db.Text
+  category String?
+  tags     String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@map("post_templates")
 }

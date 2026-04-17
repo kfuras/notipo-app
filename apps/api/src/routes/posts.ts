@@ -26,6 +26,11 @@ const createPostSchema = z.object({
   seoDescription: z.string().max(160).optional(),
   imageTitle: z.string().optional(),
   slug: z.string().optional(),
+  excerpt: z.string().optional(),
+  scheduledAt: z.string().datetime().optional(),
+  sticky: z.boolean().optional(),
+  commentStatus: z.enum(["open", "closed"]).optional(),
+  pingStatus: z.enum(["open", "closed"]).optional(),
   publish: z.boolean().optional().default(false),
   images: z.array(imageSchema).optional(),
 });
@@ -38,6 +43,11 @@ const updatePostSchema = z.object({
   seoKeyword: z.string().optional(),
   seoDescription: z.string().max(160).optional(),
   slug: z.string().optional(),
+  excerpt: z.string().optional(),
+  scheduledAt: z.string().datetime().nullable().optional(),
+  sticky: z.boolean().optional(),
+  commentStatus: z.enum(["open", "closed"]).optional(),
+  pingStatus: z.enum(["open", "closed"]).optional(),
   publish: z.boolean().optional(),
 });
 
@@ -50,7 +60,16 @@ const directPublishSchema = z.object({
   seoDescription: z.string().max(160).optional(),
   imageTitle: z.string().optional(),
   slug: z.string().optional(),
+  excerpt: z.string().optional(),
+  scheduledAt: z.string().datetime().optional(),
+  sticky: z.boolean().optional(),
+  commentStatus: z.enum(["open", "closed"]).optional(),
+  pingStatus: z.enum(["open", "closed"]).optional(),
   publish: z.boolean().optional().default(false),
+});
+
+const bulkActionSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(50),
 });
 
 const publishParamsSchema = z.object({
@@ -102,6 +121,11 @@ export async function postRoutes(app: FastifyInstance) {
         seoKeyword: body.seoKeyword ?? post.seoKeyword,
         seoDescription: body.seoDescription ?? post.seoDescription,
         slug: body.slug ?? post.slug,
+        excerpt: body.excerpt ?? post.excerpt,
+        scheduledAt: body.scheduledAt !== undefined ? body.scheduledAt : post.scheduledAt?.toISOString(),
+        sticky: body.sticky ?? post.sticky,
+        commentStatus: body.commentStatus ?? post.commentStatus,
+        pingStatus: body.pingStatus ?? post.pingStatus,
         publish: body.publish,
         existingPostId: post.id,
       });
@@ -252,6 +276,11 @@ export async function postRoutes(app: FastifyInstance) {
       seoDescription: body.seoDescription,
       featuredImageTitle: body.imageTitle,
       slug: body.slug,
+      excerpt: body.excerpt,
+      scheduledAt: body.scheduledAt,
+      sticky: body.sticky,
+      commentStatus: body.commentStatus,
+      pingStatus: body.pingStatus,
       publish: body.publish,
     });
 
@@ -355,5 +384,86 @@ export async function postRoutes(app: FastifyInstance) {
 
     logger.info({ tenantId, postId, wpPostId: post.wpPostId }, "Post deleted with WP cleanup");
     return { data: { message: "Post deleted" } };
+  });
+
+  // Duplicate a post as a new draft
+  app.post<{ Params: { id: string } }>("/api/posts/:id/duplicate", async (request, reply) => {
+    const tenantId = request.tenant.id;
+    const post = await app.prisma.post.findFirst({
+      where: { id: request.params.id, tenantId },
+      include: { category: true },
+    });
+    if (!post) return reply.notFound("Post not found");
+
+    const duplicate = await app.prisma.post.create({
+      data: {
+        tenantId,
+        title: `${post.title} (copy)`,
+        slug: post.slug ? `${post.slug}-copy` : null,
+        markdownContent: post.markdownContent,
+        excerpt: post.excerpt,
+        seoKeyword: post.seoKeyword,
+        seoDescription: post.seoDescription,
+        featuredImageTitle: post.featuredImageTitle,
+        categoryId: post.categoryId,
+        tags: post.tags,
+        sticky: false,
+        commentStatus: post.commentStatus,
+        pingStatus: post.pingStatus,
+        status: "SYNCED",
+      },
+    });
+
+    return { data: duplicate };
+  });
+
+  // Bulk delete posts
+  app.post("/api/posts/bulk-delete", async (request, reply) => {
+    const { ids } = bulkActionSchema.parse(request.body);
+    const tenantId = request.tenant.id;
+
+    const posts = await app.prisma.post.findMany({
+      where: { id: { in: ids }, tenantId },
+      include: { imageMappings: true },
+    });
+
+    const credService = new CredentialService(app.prisma);
+    const wpCreds = await credService.getWordPressCredentials(tenantId);
+
+    for (const post of posts) {
+      if (wpCreds) {
+        const wp = new WordPressService(wpCreds);
+        if (post.wpPostId) wp.deletePost(post.wpPostId).catch(() => {});
+        if (post.wpFeaturedMediaId) wp.deleteMedia(post.wpFeaturedMediaId).catch(() => {});
+        for (const m of post.imageMappings) wp.deleteMedia(m.wpMediaId).catch(() => {});
+      }
+    }
+
+    const postIds = posts.map((p) => p.id);
+    await app.prisma.imageMapping.deleteMany({ where: { postId: { in: postIds }, tenantId } });
+    await app.prisma.job.deleteMany({ where: { postId: { in: postIds }, tenantId } });
+    await app.prisma.post.deleteMany({ where: { id: { in: postIds }, tenantId } });
+
+    return { data: { deleted: postIds.length } };
+  });
+
+  // Bulk publish posts
+  app.post("/api/posts/bulk-publish", async (request, reply) => {
+    const { ids } = bulkActionSchema.parse(request.body);
+    const tenantId = request.tenant.id;
+
+    const posts = await app.prisma.post.findMany({
+      where: { id: { in: ids }, tenantId },
+    });
+
+    const jobIds: string[] = [];
+    for (const post of posts) {
+      const jobId = await app.boss.send("publish-post", { tenantId, postId: post.id });
+      if (jobId) jobIds.push(jobId);
+    }
+
+    return reply.code(202).send({
+      data: { queued: jobIds.length, jobIds },
+    });
   });
 }

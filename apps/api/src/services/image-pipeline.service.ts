@@ -87,6 +87,13 @@ export class ImagePipelineService {
         // Upload to WordPress
         const media = await this.wp.uploadMedia(buffer, filename);
 
+        // Set alt text from markdown if available
+        if (img.alt) {
+          await this.wp.updateMediaMeta(media.id, { alt_text: img.alt }).catch((e) =>
+            logger.warn({ wpMediaId: media.id, err: e }, "Failed to set alt text on uploaded image"),
+          );
+        }
+
         // Store mapping
         const mapping = await this.prisma.imageMapping.create({
           data: {

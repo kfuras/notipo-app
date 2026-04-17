@@ -24,6 +24,11 @@ export interface DirectPublishInput {
   seoDescription?: string;
   featuredImageTitle?: string;
   slug?: string;
+  excerpt?: string;
+  scheduledAt?: string;
+  sticky?: boolean;
+  commentStatus?: string;
+  pingStatus?: string;
 }
 
 export class SyncService {
@@ -387,11 +392,16 @@ export class SyncService {
       title: input.title,
       slug,
       markdownContent: input.markdown,
+      excerpt: input.excerpt ?? null,
       seoKeyword: input.seoKeyword,
       seoDescription: input.seoDescription,
       featuredImageTitle,
       categoryId: category?.id ?? null,
       tags,
+      scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+      sticky: input.sticky ?? false,
+      commentStatus: input.commentStatus ?? "open",
+      pingStatus: input.pingStatus ?? "open",
       status: images.length > 0 ? "IMAGES_PROCESSING" as const : "SYNCED" as const,
       syncedAt: new Date(),
     };
@@ -471,6 +481,7 @@ export class SyncService {
     }
 
     // Create or update WP post
+    const isScheduled = !!input.scheduledAt;
     const wpPayload = {
       title: input.title,
       content: wpContent,
@@ -478,6 +489,11 @@ export class SyncService {
       categories: category?.wpCategoryId ? [category.wpCategoryId] : undefined,
       tags: tagIds.length ? tagIds : undefined,
       featured_media: wpFeaturedMediaId,
+      ...(input.excerpt && { excerpt: input.excerpt }),
+      ...(input.sticky && { sticky: true }),
+      comment_status: (input.commentStatus ?? "open") as "open" | "closed",
+      ping_status: (input.pingStatus ?? "open") as "open" | "closed",
+      ...(isScheduled && { date: input.scheduledAt }),
     };
 
     let wpPost: { id: number };
@@ -486,9 +502,10 @@ export class SyncService {
       wpPost = await wp.editPost(existingWpPostId, wpPayload);
       logger.info({ wpPostId: wpPost.id }, "WP post updated (direct publish)");
     } else {
-      const draft = await wp.createDraft({ ...wpPayload, status: "draft" });
+      const status = isScheduled ? "future" as const : "draft" as const;
+      const draft = await wp.createDraft({ ...wpPayload, status });
       wpPost = draft;
-      logger.info({ wpPostId: wpPost.id }, "WP draft created (direct publish)");
+      logger.info({ wpPostId: wpPost.id, scheduled: isScheduled }, "WP post created (direct publish)");
     }
     const wpUrl = existingWpPostId
       ? post.wpUrl || `${wpCreds.siteUrl}/wp-admin/post.php?post=${wpPost.id}&action=edit`
