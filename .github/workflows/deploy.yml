@@ -78,11 +78,12 @@ jobs:
         run: |
           gcloud builds submit \
             --config=cloudbuild-web.yaml \
-            --substitutions=_IMAGE=$REGISTRY/web,_POSTHOG_KEY=$POSTHOG_KEY,_META_PIXEL_ID=$META_PIXEL_ID \
+            --substitutions=_IMAGE=$REGISTRY/web,_POSTHOG_KEY=$POSTHOG_KEY,_META_PIXEL_ID=$META_PIXEL_ID,_SENTRY_DSN=$SENTRY_DSN \
             --region=$REGION .
         env:
           POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
           META_PIXEL_ID: ${{ secrets.NEXT_PUBLIC_META_PIXEL_ID }}
+          SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
 
       - name: Deploy Web
         run: |
