@@ -39,6 +39,7 @@ const envSchema = z.object({
   UNSPLASH_ACCESS_KEY: emptyToUndefined,
   GEMINI_API_KEY: emptyToUndefined,
   GCS_BUCKET: emptyToUndefined,
+  SENTRY_DSN: emptyToUndefinedUrl,
 });
 
 export type Config = z.infer<typeof envSchema>;
