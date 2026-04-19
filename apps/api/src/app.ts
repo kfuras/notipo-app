@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { Sentry } from "./sentry.js";
 import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
 import rateLimit from "@fastify/rate-limit";
@@ -50,6 +51,7 @@ export async function buildApp() {
         message: error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "),
       });
     }
+    Sentry.captureException(error);
     throw error; // let Fastify handle everything else
   });
 
