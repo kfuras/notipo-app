@@ -12,5 +12,7 @@ steps:
       - 'NEXT_PUBLIC_POSTHOG_HOST=/ingest'
       - '--build-arg'
       - 'NEXT_PUBLIC_META_PIXEL_ID=$_META_PIXEL_ID'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_SENTRY_DSN=$_SENTRY_DSN'
       - '.'
 images: ['$_IMAGE']
