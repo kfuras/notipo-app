@@ -253,8 +253,7 @@ function WritePage() {
   const uploadImage = useCallback(
     async (file: File) => {
       const el = bodyRef.current;
-      if (!el) return;
-      const pos = el.selectionStart;
+      const pos = el?.selectionStart ?? body.length;
 
       const id = Date.now();
       const placeholder = `![Uploading image...](uploading-${id})`;
@@ -273,7 +272,7 @@ function WritePage() {
         setUploading(false);
       }
     },
-    [upload],
+    [body.length, upload],
   );
 
   // --- Image paste handler ---
@@ -284,9 +283,10 @@ function WritePage() {
       if (!items) return;
       for (const item of items) {
         if (item.type.startsWith("image/")) {
-          e.preventDefault();
           const file = item.getAsFile();
-          if (file) uploadImage(file);
+          if (!file) return;
+          e.preventDefault();
+          uploadImage(file);
           return;
         }
       }
