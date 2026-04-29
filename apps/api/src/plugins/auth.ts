@@ -28,8 +28,8 @@ async function auth(app: FastifyInstance) {
   app.decorateRequest("isAdmin", false);
 
   app.addHook("onRequest", async (request: FastifyRequest, reply) => {
-    // Skip auth for health check, Notion webhook (uses HMAC signature), OAuth callback, auth routes, and static uploads
-    if (request.url === "/health" || request.url === "/favicon.ico" || request.url === "/api/notion/webhook" || request.url === "/api/billing/webhook" || request.url.startsWith("/api/notion/oauth/callback") || request.url.startsWith("/api/auth/") || request.url.startsWith("/api/uploads/") || request.url.startsWith("/api/default-category-images/") || request.url === "/api/mcp") return;
+    // Skip auth for health check, Notion webhook (uses HMAC signature), OAuth callback, auth routes, and public static assets
+    if (request.url === "/health" || request.url === "/favicon.ico" || request.url === "/api/notion/webhook" || request.url === "/api/billing/webhook" || request.url.startsWith("/api/notion/oauth/callback") || request.url.startsWith("/api/auth/") || request.url.startsWith("/api/default-category-images/") || request.url === "/api/mcp") return;
 
     // Accept x-api-key header or ?token= query param (needed for EventSource SSE)
     const apiKey =
