@@ -9,6 +9,7 @@ export async function uploadRoutes(app: FastifyInstance) {
    * Returns the WP-hosted URL so the editor can insert it as a markdown image.
    */
   app.post("/api/uploads/image", async (request, reply) => {
+    if (!request.tenant) return reply.unauthorized("Missing authentication");
     const tenantId = request.tenant.id;
 
     const credService = new CredentialService(app.prisma);

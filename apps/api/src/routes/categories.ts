@@ -89,6 +89,7 @@ export async function categoryRoutes(app: FastifyInstance) {
 
   /** Upload a background image for a category (multipart form-data). */
   app.post<{ Params: { id: string } }>("/api/categories/:id/background-image", async (request, reply) => {
+    if (!request.tenant) return reply.unauthorized("Missing authentication");
     const tenantId = request.tenant.id;
     const categoryId = request.params.id;
 
