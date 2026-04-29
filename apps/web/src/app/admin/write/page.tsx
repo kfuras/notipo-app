@@ -16,7 +16,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ApiCategory, ApiTag, ApiPostTemplate, ApiListResponse } from "@notipo/shared";
-import { BlockEditor } from "@/components/admin/block-editor";
+import dynamic from "next/dynamic";
+
+const BlockEditor = dynamic(
+  () => import("@/components/admin/block-editor").then((m) => m.BlockEditor),
+  { ssr: false },
+);
 
 interface SettingsData {
   data: {
