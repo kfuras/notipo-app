@@ -9,6 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@blocknote/core": "^0.49.0",
+    "@blocknote/mantine": "^0.49.0",
+    "@blocknote/react": "^0.49.0",
+    "@blocknote/shadcn": "^0.49.0",
     "@notipo/shared": "*",
     "@posthog/react": "^1.8.2",
     "@sentry/nextjs": "^10.49.0",
