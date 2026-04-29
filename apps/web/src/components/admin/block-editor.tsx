@@ -3,8 +3,43 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
+import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import { createCodeBlockSpec } from "@blocknote/core/blocks";
 import "@blocknote/core/style.css";
 import "@blocknote/shadcn/style.css";
+
+const codeBlock = createCodeBlockSpec({
+  supportedLanguages: {
+    text: { name: "Plain Text" },
+    javascript: { name: "JavaScript", aliases: ["js"] },
+    typescript: { name: "TypeScript", aliases: ["ts"] },
+    jsx: { name: "JSX" },
+    tsx: { name: "TSX" },
+    html: { name: "HTML" },
+    css: { name: "CSS" },
+    json: { name: "JSON" },
+    python: { name: "Python", aliases: ["py"] },
+    bash: { name: "Bash", aliases: ["sh", "shell"] },
+    sql: { name: "SQL" },
+    php: { name: "PHP" },
+    ruby: { name: "Ruby", aliases: ["rb"] },
+    go: { name: "Go" },
+    rust: { name: "Rust", aliases: ["rs"] },
+    java: { name: "Java" },
+    csharp: { name: "C#", aliases: ["cs"] },
+    yaml: { name: "YAML", aliases: ["yml"] },
+    markdown: { name: "Markdown", aliases: ["md"] },
+    xml: { name: "XML" },
+  },
+  defaultLanguage: "text",
+});
+
+const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    codeBlock,
+  },
+});
 
 interface BlockEditorProps {
   initialMarkdown?: string;
@@ -18,6 +53,7 @@ export function BlockEditor({ initialMarkdown, onChange, uploadFile }: BlockEdit
   onChangeRef.current = onChange;
 
   const editor = useCreateBlockNote({
+    schema,
     uploadFile: uploadFile
       ? async (file: File) => {
           const url = await uploadFile(file);
