@@ -378,9 +378,10 @@ function WritePage() {
           body.slice(end + 1, end + 1 + afterLine.length) === afterLine &&
           body[end] === "\n"
         ) {
-          const next = body.slice(0, outerStart) + selected + body.slice(outerEnd);
+          const keep = selected === placeholder ? "" : selected;
+          const next = body.slice(0, outerStart) + keep + body.slice(outerEnd);
           setBody(next);
-          requestAnimationFrame(() => { el.focus(); el.selectionStart = outerStart; el.selectionEnd = outerStart + selected.length; });
+          requestAnimationFrame(() => { el.focus(); el.selectionStart = outerStart; el.selectionEnd = outerStart + keep.length; });
           return;
         }
       }
