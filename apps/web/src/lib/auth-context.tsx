@@ -37,6 +37,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const IMPERSONATION_KEY = "notipo_impersonating";
 
+function clearStoredAuth() {
+  localStorage.removeItem("notipo_api_key");
+  localStorage.removeItem("notipo_email");
+  sessionStorage.removeItem(IMPERSONATION_KEY);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     apiKey: null,
@@ -61,13 +67,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email = localStorage.getItem("notipo_email");
     const imp = sessionStorage.getItem(IMPERSONATION_KEY);
     const impersonating = imp ? (JSON.parse(imp) as Impersonation) : null;
-    if (stored) {
-      detectAdmin(stored).then((isAdmin) => {
-        setState({ apiKey: stored, email, isAdmin, isLoading: false, impersonating });
-      });
-    } else {
+    if (!stored) {
       setState((s) => ({ ...s, isLoading: false }));
+      return;
     }
+
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const isAdmin = await detectAdmin(stored!);
+        if (!isAdmin) {
+          await api("/api/settings", { apiKey: stored!, timeoutMs: 10_000 });
+        }
+        if (!cancelled) {
+          setState({ apiKey: stored, email, isAdmin, isLoading: false, impersonating });
+        }
+      } catch {
+        clearStoredAuth();
+        if (!cancelled) {
+          setState({ apiKey: null, email: null, isAdmin: false, isLoading: false, impersonating: null });
+        }
+      }
+    }
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, [detectAdmin]);
 
   const setApiKey = useCallback(
@@ -130,9 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem("notipo_api_key");
-    localStorage.removeItem("notipo_email");
-    sessionStorage.removeItem(IMPERSONATION_KEY);
+    clearStoredAuth();
     setState({ apiKey: null, email: null, isAdmin: false, isLoading: false, impersonating: null });
     resetUser();
   }, []);
