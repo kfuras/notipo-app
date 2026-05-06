@@ -38,12 +38,16 @@ server {
 
     # --- Admin UI (local static files) ---
     location /admin {
-        add_header Cache-Control "no-cache";
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
         try_files $uri $uri.html $uri/ =404;
     }
 
     location /auth {
-        add_header Cache-Control "no-cache";
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
         try_files $uri $uri.html $uri/ =404;
     }
 
