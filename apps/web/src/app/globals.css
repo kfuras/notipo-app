@@ -9,8 +9,14 @@
   --color-bg-card: #1A1A1A;
   --color-bg-card-hover: #242323;
 
-  --color-accent-pink: #FF4CE2;
+  /* Single chromatic accent. accent-purple is THE brand action color —
+     used for CTAs, focus rings, brand mark, active states, eyebrows.
+     accent-pink and accent-blue are atmospheric-only: blur glow blobs
+     in section backgrounds, never on chrome. Don't introduce a second
+     accent in interactive surfaces. Don't hand-roll raw `violet-*`
+     Tailwind classes — they bypass this token. */
   --color-accent-purple: #A855F7;
+  --color-accent-pink: #FF4CE2;
   --color-accent-blue: #6366F1;
 
   --color-text-primary: #F5F5F5;

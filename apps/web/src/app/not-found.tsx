@@ -2,10 +2,10 @@ export default function NotFound() {
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center">
-        <p className="text-6xl font-bold bg-gradient-to-r from-accent-pink to-accent-purple bg-clip-text text-transparent mb-4">
+        <p className="text-6xl md:text-7xl font-semibold tracking-tight text-accent-purple mb-4 tabular-nums">
           404
         </p>
-        <h1 className="text-2xl font-bold text-text-primary mb-2">
+        <h1 className="text-2xl font-semibold text-text-primary mb-2">
           Page not found
         </h1>
         <p className="text-text-secondary text-base mb-8">
@@ -13,7 +13,7 @@ export default function NotFound() {
         </p>
         <a
           href="/auth/login"
-          className="bg-accent-purple text-white font-semibold rounded-full px-6 py-2.5 text-sm hover:bg-accent-pink transition-all duration-200"
+          className="bg-accent-purple text-white font-medium rounded-lg px-6 py-2.5 text-sm hover:bg-purple-600 transition-colors duration-200"
         >
           Go to login
         </a>

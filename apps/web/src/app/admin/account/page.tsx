@@ -98,7 +98,7 @@ export default function AccountPage() {
   if (loading || !a) {
     return (
       <div className="space-y-6 max-w-2xl">
-        <h1 className="text-2xl font-bold">Account</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
@@ -108,7 +108,7 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold">Account</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
 
       {/* Profile */}
       <Card>

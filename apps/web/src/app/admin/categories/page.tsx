@@ -170,7 +170,7 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Categories & Tags</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Categories & Tags</h1>
         <Button variant="outline" size="sm" onClick={syncFromWP} disabled={syncing}>
           {syncing ? "Syncing..." : "Sync from WordPress"}
         </Button>

@@ -152,7 +152,7 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Jobs</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Jobs</h1>
 
       <div className="flex gap-1 overflow-x-auto pb-1">
         {filters.map((f) => (
@@ -200,13 +200,13 @@ export default function JobsPage() {
                   <div className="flex items-center gap-2">
                     {job.status === "RUNNING" && (
                       <span className="relative flex h-2 w-2 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500" />
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-purple" />
                       </span>
                     )}
                     <span className="text-xs font-medium">{jobTypeLabel(job.type)}</span>
                   </div>
-                  <Badge variant={statusVariant[job.status] ?? "secondary"} className={`shrink-0 ${job.status === "RUNNING" ? "text-violet-400 border-violet-500/30" : ""}`}>
+                  <Badge variant={statusVariant[job.status] ?? "secondary"} className={`shrink-0 ${job.status === "RUNNING" ? "text-accent-purple border-accent-purple/30" : ""}`}>
                     {job.status}
                   </Badge>
                 </div>
@@ -218,7 +218,7 @@ export default function JobsPage() {
                     <div className="space-y-1 pt-1">
                       {steps.map((s, i) => (
                         <div key={i} className="flex items-center gap-1.5">
-                          <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg className="w-3 h-3 text-accent-purple shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
                           <span className="text-xs text-muted-foreground">{s}</span>
@@ -237,7 +237,7 @@ export default function JobsPage() {
                         <div className="space-y-1 mt-1">
                           {steps.map((s, i) => (
                             <div key={i} className="flex items-center gap-1.5">
-                              <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <svg className="w-3 h-3 text-accent-purple shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12"/>
                               </svg>
                               <span className="text-xs text-muted-foreground">{s}</span>
@@ -302,8 +302,8 @@ export default function JobsPage() {
                       <div className="flex items-center gap-2">
                         {job.status === "RUNNING" && (
                           <span className="relative flex h-2 w-2 shrink-0">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500" />
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-purple" />
                           </span>
                         )}
                         <span className="text-xs font-medium">{jobTypeLabel(job.type)}</span>
@@ -316,7 +316,7 @@ export default function JobsPage() {
                           <div className="space-y-0.5 mt-1">
                             {steps.map((s, i) => (
                               <div key={i} className="flex items-center gap-1.5">
-                                <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg className="w-3 h-3 text-accent-purple shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="20 6 9 17 4 12"/>
                                 </svg>
                                 <span className="text-xs text-muted-foreground">{s}</span>
@@ -335,7 +335,7 @@ export default function JobsPage() {
                               <div className="space-y-0.5 mt-1">
                                 {steps.map((s, i) => (
                                   <div key={i} className="flex items-center gap-1.5">
-                                    <svg className="w-3 h-3 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg className="w-3 h-3 text-accent-purple shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                       <polyline points="20 6 9 17 4 12"/>
                                     </svg>
                                     <span className="text-xs text-muted-foreground">{s}</span>
@@ -348,7 +348,7 @@ export default function JobsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant[job.status] ?? "secondary"} className={job.status === "RUNNING" ? "text-violet-400 border-violet-500/30" : ""}>
+                      <Badge variant={statusVariant[job.status] ?? "secondary"} className={job.status === "RUNNING" ? "text-accent-purple border-accent-purple/30" : ""}>
                         {job.status}
                       </Badge>
                     </TableCell>

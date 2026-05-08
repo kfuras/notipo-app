@@ -195,7 +195,7 @@ export default function ImportPage() {
   if (billing && !isPro) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Import from WordPress</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Import from WordPress</h1>
         <div className="rounded-md border p-8 text-center">
           <Download className="mx-auto h-10 w-10 text-muted-foreground/50 mb-4" />
           <p className="text-lg font-medium mb-2">Pro Feature</p>
@@ -213,7 +213,7 @@ export default function ImportPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Import from WordPress</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Import from WordPress</h1>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
             <Button onClick={importSelected} disabled={importing} size="sm">
@@ -271,9 +271,9 @@ export default function ImportPage() {
       {liveJobs.size > 0 && (
         <div className="space-y-2">
           {Array.from(liveJobs.values()).map((job) => (
-            <div key={job.jobId} className="rounded-md border border-violet-500/30 bg-violet-500/5 p-3">
+            <div key={job.jobId} className="rounded-md border border-accent-purple/30 bg-accent-purple/5 p-3">
               <div className="flex items-center gap-2 text-sm">
-                <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-accent-purple" />
                 <span className="font-medium">Importing…</span>
               </div>
               {job.steps.length > 0 && (
@@ -336,7 +336,7 @@ export default function ImportPage() {
                 {(!post.imported || overwrite) && (
                   <button
                     onClick={() => importSingle(post.id)}
-                    className="text-violet-400 hover:underline"
+                    className="text-accent-purple hover:underline"
                   >
                     Import
                   </button>
@@ -425,7 +425,7 @@ export default function ImportPage() {
                     {(!post.imported || overwrite) && (
                       <button
                         onClick={() => importSingle(post.id)}
-                        className="text-sm text-violet-400 hover:underline whitespace-nowrap"
+                        className="text-sm text-accent-purple hover:underline whitespace-nowrap"
                       >
                         Import
                       </button>

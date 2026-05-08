@@ -327,7 +327,7 @@ export default function CheckoutPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Billing
         </Link>
-        <h1 className="text-2xl font-bold mt-3">Upgrade to Pro</h1>
+        <h1 className="text-3xl font-semibold tracking-tight mt-3">Upgrade to Pro</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Unlimited posts, featured images, and webhook-triggered sync.
         </p>

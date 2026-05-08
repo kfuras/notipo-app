@@ -18,7 +18,7 @@ import { Mail } from "lucide-react";
 
 function SetDarkMeta() {
   useEffect(() => {
-    const bg = "#0a0a0a";
+    const bg = "#0C0B10";
     document.documentElement.classList.add("dark");
     document.documentElement.style.backgroundColor = bg;
     document.body.style.backgroundColor = bg;
