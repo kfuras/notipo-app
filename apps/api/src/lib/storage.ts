@@ -12,6 +12,18 @@ function useGcs(): boolean {
   return !!config.GCS_BUCKET;
 }
 
+/**
+ * Reject any path component that could escape the intended directory.
+ * tenantId is internally generated (cuid), but we still validate to make
+ * the constraint explicit and to harden against future code paths that
+ * might pass user-controlled values.
+ */
+function assertSafePathComponent(name: string, label: string): void {
+  if (!/^[A-Za-z0-9._-]+$/.test(name) || name === "." || name === "..") {
+    throw new Error(`Invalid ${label}: must match [A-Za-z0-9._-]+ and not be . or ..`);
+  }
+}
+
 // ── GCS helpers (lazy-loaded to avoid import error when not using GCS) ───────
 
 let gcsStorage: import("@google-cloud/storage").Storage | null = null;
@@ -37,6 +49,9 @@ export async function uploadFile(
   buffer: Buffer,
   contentType: string,
 ): Promise<string> {
+  assertSafePathComponent(tenantId, "tenantId");
+  assertSafePathComponent(filename, "filename");
+
   if (useGcs()) {
     const key = `${PREFIX}/${tenantId}/${filename}`;
     const bucket = await getBucket();
@@ -45,10 +60,16 @@ export async function uploadFile(
     return `gcs:${tenantId}/${filename}`;
   }
 
-  // Local filesystem fallback
+  // Local filesystem fallback. After validation above, path.join + a
+  // resolution-prefix check keeps us inside UPLOADS_DIR even if a future
+  // attacker bypasses the validator.
   const dir = path.join(UPLOADS_DIR, tenantId);
+  const target = path.join(dir, filename);
+  if (!path.resolve(target).startsWith(path.resolve(UPLOADS_DIR) + path.sep)) {
+    throw new Error("Resolved upload path escapes UPLOADS_DIR");
+  }
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, filename), buffer);
+  await fs.writeFile(target, buffer);
   log.info({ tenantId, filename }, "Uploaded file to local storage");
   return `upload:${tenantId}/${filename}`;
 }

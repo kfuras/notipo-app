@@ -26,9 +26,12 @@ function chunkPlainText(content: string, annotations?: Record<string, unknown>):
 /** Parse inline markdown into Notion rich_text objects, respecting the 2000-char limit. */
 function parseInlineMarkdown(text: string): unknown[] {
   if (!text) return [{ type: "text", text: { content: "" } }];
+  // `&amp;` is replaced last so `&amp;lt;` round-trips to `&lt;` rather than
+  // being double-decoded to `<`.
   const decoded = text
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#039;/g, "'");
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#039;/g, "'")
+    .replace(/&amp;/g, "&");
   const result: unknown[] = [];
   const pattern = /(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
   let last = 0;
