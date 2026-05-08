@@ -77,7 +77,11 @@ jobs:
           fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
+            # If the tag was previously deleted and re-pushed, GitHub demoted
+            # the release to draft. --draft=false un-drafts it so --latest is
+            # accepted on the same edit call.
             gh release edit "$TAG" \
+              --draft=false \
               --title "$TAG" \
               --notes-file "$NOTES_FILE" \
               "${flags[@]}"
