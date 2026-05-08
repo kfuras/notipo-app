@@ -52,18 +52,20 @@ export async function registerSendOnboardingEmailJob(boss: PgBoss, prisma: Prism
 
       const frontendUrl = config.FRONTEND_URL || "https://notipo.com";
       const dashboardUrl = `${frontendUrl}/admin`;
+      const supportEmail = config.SUPPORT_EMAIL || "support@notipo.com";
+      const brandName = config.BRAND_NAME || "Notipo";
       const ok = await sendEmail(
         owner.email,
-        "Finish setting up Notipo — you're almost there",
+        `Finish setting up ${brandName} — you're almost there`,
         `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;">
           <p>Hi there,</p>
-          <p>You signed up for Notipo but haven't finished setting up yet. You still need to <strong>${steps.join(" and ")}</strong> to start publishing from Notion to WordPress.</p>
+          <p>You signed up for ${brandName} but haven't finished setting up yet. You still need to <strong>${steps.join(" and ")}</strong> to start publishing from Notion to WordPress.</p>
           <p>It only takes a minute — WordPress connects with one click, and Notion is just a few steps.</p>
           <p style="margin:24px 0;">
             <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Finish Setup</a>
           </p>
-          <p style="color:#666;font-size:13px;">If you have any questions, reach out at <a href="mailto:support@notipo.com" style="color:#7c3aed;">support@notipo.com</a>.</p>
-          <p style="color:#888;font-size:12px;margin-top:32px;">— The Notipo Team</p>
+          <p style="color:#666;font-size:13px;">If you have any questions, reach out at <a href="mailto:${supportEmail}" style="color:#7c3aed;">${supportEmail}</a>.</p>
+          <p style="color:#888;font-size:12px;margin-top:32px;">— The ${brandName} Team</p>
         </div>`,
       );
 
