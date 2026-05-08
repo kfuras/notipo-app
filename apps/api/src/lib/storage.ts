@@ -60,12 +60,14 @@ export async function uploadFile(
     return `gcs:${tenantId}/${filename}`;
   }
 
-  // Local filesystem fallback. After validation above, path.join + a
-  // resolution-prefix check keeps us inside UPLOADS_DIR even if a future
-  // attacker bypasses the validator.
-  const dir = path.join(UPLOADS_DIR, tenantId);
-  const target = path.join(dir, filename);
-  if (!path.resolve(target).startsWith(path.resolve(UPLOADS_DIR) + path.sep)) {
+  // Local filesystem fallback. After validation above, the resolution
+  // prefix check keeps us inside UPLOADS_DIR even if a future attacker
+  // bypasses the validator. Use the resolved path for the actual
+  // write so the value being written equals the value we validated.
+  const baseDir = path.resolve(UPLOADS_DIR);
+  const dir = path.resolve(baseDir, tenantId);
+  const target = path.resolve(dir, filename);
+  if (!target.startsWith(baseDir + path.sep)) {
     throw new Error("Resolved upload path escapes UPLOADS_DIR");
   }
   await fs.mkdir(dir, { recursive: true });
