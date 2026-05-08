@@ -261,23 +261,25 @@ export async function authRoutes(app: FastifyInstance) {
     if (isStripeConfigured()) {
       const frontendUrl = config.FRONTEND_URL || "https://notipo.com";
       const dashboardUrl = `${frontendUrl}/admin`;
+      const supportEmail = config.SUPPORT_EMAIL || "support@notipo.com";
+      const brandName = config.BRAND_NAME || "Notipo";
       sendEmail(
         user.email,
-        "Welcome to Notipo — your 7-day Pro trial is active",
+        `Welcome to ${brandName} — your 7-day Pro trial is active`,
         `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e;">
           <p>Hi there,</p>
           <p>Your Pro trial is now active for 7 days. Here's how to publish your first post:</p>
           <ol style="padding-left:20px;">
             <li><strong>Connect WordPress</strong> — enter your site URL and approve with one click.</li>
-            <li><strong>Connect Notion</strong> — <a href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6" style="color:#7c3aed;">duplicate our template</a>, then connect it to Notipo.</li>
+            <li><strong>Connect Notion</strong> — <a href="https://free-dentist-6b2.notion.site/30d842af972f8091a104eb8773fbf390?v=30d842af972f803dab87000cdbd5d9b6" style="color:#7c3aed;">duplicate our template</a>, then connect it to ${brandName}.</li>
             <li><strong>Write and publish</strong> — add a page, write your content, and set the status to "Post to WordPress".</li>
           </ol>
-          <p>Notipo takes care of the rest.</p>
+          <p>${brandName} takes care of the rest.</p>
           <p style="margin:24px 0;">
             <a href="${dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Get Started</a>
           </p>
-          <p style="color:#666;font-size:13px;">Questions? <a href="mailto:support@notipo.com" style="color:#7c3aed;">support@notipo.com</a></p>
-          <p style="color:#888;font-size:12px;margin-top:32px;">— The Notipo Team</p>
+          <p style="color:#666;font-size:13px;">Questions? <a href="mailto:${supportEmail}" style="color:#7c3aed;">${supportEmail}</a></p>
+          <p style="color:#888;font-size:12px;margin-top:32px;">— The ${brandName} Team</p>
         </div>`,
       ).catch(() => {});
     }
