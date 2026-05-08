@@ -38,7 +38,7 @@
     "lucide-react": "^0.577.0",
     "pg": "^8.20.0",
     "pg-boss": "^12.18.2",
-    "pino": "^9.6.0",
+    "pino": "^10.3.1",
     "pino-pretty": "^13.0.0",
     "prisma": "^7.8.0",
     "resend": "^6.12.3",
@@ -48,7 +48,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^25.6.2",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3",
