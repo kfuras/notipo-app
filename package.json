@@ -2,7 +2,16 @@
   "name": "notipo",
   "version": "0.1.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-or-later",
+  "description": "Open-source WordPress publishing for writers, developers, and AI agents",
+  "homepage": "https://notipo.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kfuras/notipo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kfuras/notipo/issues"
+  },
   "packageManager": "npm@10.9.4",
   "workspaces": [
     "apps/*",
