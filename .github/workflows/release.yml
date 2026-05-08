@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          notes_file="${RUNNER_TEMP}/release-notes.md"
+
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md not found at repo root."
+            exit 1
+          fi
+
+          awk -v v="$version" '
+            $0 == "## v" v || $0 == "## " v { in_section = 1; next }
+            /^## / && in_section { exit }
+            in_section { print }
+          ' CHANGELOG.md > "$notes_file"
+
+          if [ ! -s "$notes_file" ]; then
+            echo "::error::CHANGELOG.md has no entry for $version. Add a '## v$version' section before tagging."
+            exit 1
+          fi
+
+          # Trim trailing blank lines
+          awk 'NF{p=1} p' "$notes_file" | awk '{lines[NR]=$0} END{for(i=NR;i>0&&lines[i]=="";i--); for(j=1;j<=i;j++) print lines[j]}' > "${notes_file}.trimmed"
+          mv "${notes_file}.trimmed" "$notes_file"
+
+          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release notes preview"
+            echo
+            cat "$notes_file"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Determine release flags
+        id: flags
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" == *"-alpha."* || "$TAG" == *"-beta."* || "$TAG" == *"-rc."* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          NOTES_FILE: ${{ steps.notes.outputs.notes_file }}
+          PRERELEASE: ${{ steps.flags.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          else
+            flags+=(--latest)
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "$TAG" \
+              --notes-file "$NOTES_FILE" \
+              "${flags[@]}"
+          else
+            gh release create "$TAG" \
+              --verify-tag \
+              --title "$TAG" \
+              --notes-file "$NOTES_FILE" \
+              "${flags[@]}"
+          fi
