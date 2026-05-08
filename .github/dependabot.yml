@@ -1,0 +1,62 @@
+version: 2
+updates:
+  # Root npm workspace + all apps/packages picked up via the workspace pattern
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    groups:
+      # Group minor + patch updates so we don't get flooded with PRs
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+      # Major updates stay separate so they're reviewed individually
+      typescript:
+        patterns:
+          - 'typescript'
+          - '@types/*'
+      prisma:
+        patterns:
+          - 'prisma'
+          - '@prisma/*'
+      next:
+        patterns:
+          - 'next'
+          - 'eslint-config-next'
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+      sentry:
+        patterns:
+          - '@sentry/*'
+
+  # GitHub Actions — pin and bump weekly so we get security patches
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 5
+
+  # Docker base images for the prod and dev images
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 3
