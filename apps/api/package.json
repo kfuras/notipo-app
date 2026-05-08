@@ -35,7 +35,7 @@
     "dotenv": "^16.6.1",
     "fastify": "^5.8.5",
     "fastify-plugin": "^5.0.1",
-    "lucide-react": "^0.575.0",
+    "lucide-react": "^0.577.0",
     "pg": "^8.20.0",
     "pg-boss": "^12.18.2",
     "pino": "^9.6.0",
