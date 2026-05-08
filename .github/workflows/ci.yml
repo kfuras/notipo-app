@@ -62,28 +62,28 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v3
 
-      - run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+      - run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
 
       - name: Build and push API image
         run: |
-          docker build -t $REGISTRY/api -f apps/api/Dockerfile .
-          docker push $REGISTRY/api
+          docker build -t "$REGISTRY/api" -f apps/api/Dockerfile .
+          docker push "$REGISTRY/api"
 
       - name: Run Prisma migrations
         run: |
           gcloud run jobs update notipo-migrate \
-            --region $REGION \
+            --region "$REGION" \
             --container migrate \
-            --image $REGISTRY/api
+            --image "$REGISTRY/api"
           gcloud run jobs execute notipo-migrate \
-            --region $REGION \
+            --region "$REGION" \
             --wait
 
       - name: Deploy API
         run: |
           gcloud run deploy notipo-api \
-            --image $REGISTRY/api \
-            --region $REGION
+            --image "$REGISTRY/api" \
+            --region "$REGION"
 
   deploy-web:
     name: Deploy Web
@@ -104,22 +104,22 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v3
 
-      - run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+      - run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
 
       - name: Build and push Web image
         run: |
           docker build \
-            -t $REGISTRY/web \
+            -t "$REGISTRY/web" \
             -f apps/web/Dockerfile \
             --build-arg NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }} \
             --build-arg NEXT_PUBLIC_POSTHOG_HOST=/ingest \
             --build-arg NEXT_PUBLIC_META_PIXEL_ID=${{ secrets.NEXT_PUBLIC_META_PIXEL_ID }} \
             --build-arg NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }} \
             .
-          docker push $REGISTRY/web
+          docker push "$REGISTRY/web"
 
       - name: Deploy Web
         run: |
           gcloud run deploy notipo-web \
-            --image $REGISTRY/web \
-            --region $REGION
+            --image "$REGISTRY/web" \
+            --region "$REGION"
