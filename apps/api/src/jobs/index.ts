@@ -2,7 +2,7 @@
  * Register all pg-boss job handlers and cron schedules.
  */
 
-import type PgBoss from "pg-boss";
+import type { PgBoss } from "pg-boss";
 import type { PrismaClient } from "@prisma/client";
 import type { EventEmitter } from "events";
 import { registerSyncPostJob } from "./sync-post.job.js";

@@ -1,4 +1,4 @@
-import type PgBoss from "pg-boss";
+import type { PgBoss } from "pg-boss";
 import type { PrismaClient } from "@prisma/client";
 import { sendEmail } from "../lib/email.js";
 import { config } from "../config.js";
