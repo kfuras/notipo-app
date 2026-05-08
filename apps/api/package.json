@@ -24,7 +24,7 @@
     "@fastify/static": "^9.1.1",
     "@google-cloud/storage": "^7.19.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@notionhq/client": "^2.3.0",
+    "@notionhq/client": "^5.20.0",
     "@notipo/shared": "*",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
