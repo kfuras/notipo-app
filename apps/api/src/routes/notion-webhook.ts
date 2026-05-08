@@ -41,8 +41,11 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
     if (body.verification_token && !body.type) {
       // Log the token so the operator can set NOTION_WEBHOOK_SECRET.
       // This is a one-time setup value, not a recurring secret.
+      // Structured fields keep the user-controlled token out of the log
+      // message template (prevents log forging via embedded newlines).
       log.info(
-        `Notion webhook verification token received: ${body.verification_token} — set NOTION_WEBHOOK_SECRET env var to this value`,
+        { verification_token: body.verification_token },
+        "Notion webhook verification token received — set NOTION_WEBHOOK_SECRET env var to this value",
       );
       return reply.code(200).send();
     }

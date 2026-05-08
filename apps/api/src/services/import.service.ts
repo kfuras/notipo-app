@@ -225,9 +225,10 @@ export class ImportService {
     return { postId: post.id, notionPageId, title };
   }
 
+  // `&amp;` is replaced last so `&amp;lt;` round-trips to `&lt;` rather than
+  // being double-decoded to `<`.
   private decodeHtmlEntities(s: string): string {
     return s
-      .replace(/&amp;/g, "&")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
@@ -239,6 +240,7 @@ export class ImportService {
       .replace(/&#8211;/g, "\u2013")
       .replace(/&#8212;/g, "\u2014")
       .replace(/&#8230;/g, "\u2026")
-      .replace(/&nbsp;/g, " ");
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&");
   }
 }

@@ -7,10 +7,13 @@
  * 2. If no markers (classic editor), parse raw HTML tags
  */
 
-/** Decode common HTML entities */
+/**
+ * Decode common HTML entities.
+ * `&amp;` is replaced last so `&amp;lt;` round-trips to `&lt;` rather than
+ * being double-decoded to `<`.
+ */
 function decodeEntities(s: string): string {
   return s
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -23,7 +26,8 @@ function decodeEntities(s: string): string {
     .replace(/&#8212;/g, "\u2014")
     .replace(/&#8230;/g, "\u2026")
     .replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(Number(code)));
+    .replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, "&");
 }
 
 /** Convert inline HTML tags to markdown equivalents */
@@ -51,9 +55,19 @@ function inlineHtmlToMd(s: string): string {
   return decodeEntities(out);
 }
 
-/** Strip all remaining HTML tags */
+/**
+ * Strip all remaining HTML tags. Loops until stable so nested patterns
+ * like `<scr<script>ipt>` (which a single pass would leave as `<script>`)
+ * are fully removed.
+ */
 function stripTags(s: string): string {
-  return s.replace(/<[^>]+>/g, "");
+  let prev: string;
+  let out = s;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]+>/g, "");
+  } while (out !== prev);
+  return out;
 }
 
 /** Extract text content from HTML, converting inline formatting */
@@ -129,8 +143,8 @@ function convertCode(inner: string): string {
     code = preMatch ? preMatch[1] : inner;
   }
 
-  // Decode entities but don't strip tags in code blocks
-  code = decodeEntities(code).replace(/<[^>]+>/g, "").trim();
+  // Decode entities and strip any remaining tags from code content.
+  code = stripTags(decodeEntities(code)).trim();
 
   return "```" + lang + "\n" + code + "\n```";
 }
