@@ -1,0 +1,43 @@
+name: Close inactive issues
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 03:00 UTC — frequent enough to be useful, infrequent enough to be cheap
+    - cron: '0 3 * * *'
+
+jobs:
+  stale:
+    if: github.repository == 'kfuras/notipo-app'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: 90
+          days-before-issue-close: 14
+          stale-issue-label: stale
+          stale-issue-message: |
+            This issue has been open for 90 days with no activity.
+            It will be closed in 14 days unless there's new activity.
+            If this is still relevant, leave a comment or add the `no-stale-bot` label.
+          close-issue-message: |
+            Closing this issue after 14 days of inactivity since being marked stale.
+            Feel free to reopen if you think this still needs attention.
+          exempt-issue-labels: 'no-stale-bot,pinned,security,enhancement'
+
+          days-before-pr-stale: 60
+          days-before-pr-close: 14
+          stale-pr-label: stale
+          stale-pr-message: |
+            This PR has been open for 60 days with no activity.
+            It will be closed in 14 days unless there's new activity.
+          close-pr-message: |
+            Closing this PR after 14 days of inactivity since being marked stale.
+            Feel free to reopen if you'd like to continue working on it.
+          exempt-pr-labels: 'no-stale-bot,pinned,security'
+
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          operations-per-run: 100
