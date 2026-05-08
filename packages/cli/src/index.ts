@@ -238,7 +238,7 @@ function cmdHelp() {
 
 const [, , cmd, sub, ...rest] = process.argv;
 
-if (!cmd || cmd === "help") {
+if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
   cmdHelp();
   process.exit(0);
 }
