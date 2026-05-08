@@ -90,11 +90,16 @@ You'll need: Docker, Docker Compose, a domain pointed at your server, a Notion i
 
 ```bash
 git clone https://github.com/kfuras/notipo-app.git
-cd notipo
+cd notipo-app
 cp apps/api/.env.example .env
-# Edit .env — at minimum set DATABASE_URL, ENCRYPTION_KEY, API_KEY
+# Edit .env — at minimum set DATABASE_URL, ENCRYPTION_KEY, API_KEY,
+# DOMAIN, ACME_EMAIL, RESEND_API_KEY
 docker compose up -d
 ```
+
+The compose stack pulls multi-arch images (`linux/amd64` + `linux/arm64`) from
+`ghcr.io/kfuras/notipo-api` and `ghcr.io/kfuras/notipo-web`, so it works on both
+x86 servers and Apple Silicon / ARM hardware.
 
 The compose stack starts Traefik + the API + admin UI + Postgres, with Let's Encrypt TLS on first run. See [docker-compose.yml](docker-compose.yml) for details.
 
