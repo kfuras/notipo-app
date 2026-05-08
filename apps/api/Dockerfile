@@ -1,5 +1,5 @@
 # Build context: monorepo root (.)
-FROM node:22-alpine3.23 AS base
+FROM node:24-alpine3.23 AS base
 WORKDIR /app
 
 FROM base AS builder

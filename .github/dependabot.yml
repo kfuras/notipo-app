@@ -83,3 +83,9 @@ updates:
       time: '06:00'
       timezone: Europe/Oslo
     open-pull-requests-limit: 3
+    # Stay on Node LTS in Docker images. The current major (Node 26 as of
+    # May 2026) hits "Current" status, not LTS. Bump deliberately when the
+    # next LTS lands or our LTS approaches end-of-life.
+    ignore:
+      - dependency-name: 'node'
+        update-types: ['version-update:semver-major']
