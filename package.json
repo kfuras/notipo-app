@@ -7,10 +7,10 @@
   "homepage": "https://notipo.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kfuras/notipo.git"
+    "url": "git+https://github.com/kfuras/notipo-app.git"
   },
   "bugs": {
-    "url": "https://github.com/kfuras/notipo/issues"
+    "url": "https://github.com/kfuras/notipo-app/issues"
   },
   "packageManager": "npm@10.9.4",
   "workspaces": [

@@ -89,7 +89,7 @@ plugins/
 You'll need: Docker, Docker Compose, a domain pointed at your server, a Notion integration, and a WordPress site with [Application Passwords](https://wordpress.org/documentation/article/application-passwords/) enabled (WP 5.6+).
 
 ```bash
-git clone https://github.com/kfuras/notipo.git
+git clone https://github.com/kfuras/notipo-app.git
 cd notipo
 cp apps/api/.env.example .env
 # Edit .env — at minimum set DATABASE_URL, ENCRYPTION_KEY, API_KEY
@@ -133,7 +133,7 @@ In plain English:
 - ✅ The `notipo` CLI package is published to npm under MIT (it's just a thin API client wrapper).
 - ✅ The `notipo-seo` WordPress plugin is published under MIT (compatible with WordPress's GPL ecosystem).
 
-If you want to use Notipo's code in a proprietary hosted product without AGPL obligations, [open an issue](https://github.com/kfuras/notipo/issues/new) — commercial licensing may be available.
+If you want to use Notipo's code in a proprietary hosted product without AGPL obligations, [open an issue](https://github.com/kfuras/notipo-app/issues/new) — commercial licensing may be available.
 
 ---
 

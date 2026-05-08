@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Notipo SEO
- * Plugin URI:  https://github.com/kfuras/notipo
+ * Plugin URI:  https://github.com/kfuras/notipo-app
  * Description: Enables Notipo to write SEO metadata (title, description, focus keyword) via the WordPress REST API. Supports Rank Math, Yoast SEO, SEOPress, and All in One SEO.
  * Version:     1.0.0
  * Author:      Notipo
