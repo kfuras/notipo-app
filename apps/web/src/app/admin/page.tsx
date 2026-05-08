@@ -161,7 +161,7 @@ export default function DashboardPage() {
         <WPAuthHandler onSettingsUpdate={refetchSettings} />
       </Suspense>
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         {settings?.data?.plan === "TRIAL" && settings?.data?.trialEndsAt && (
           <Badge variant="secondary">
             Trial — {Math.max(0, Math.ceil((new Date(settings.data.trialEndsAt).getTime() - Date.now()) / 86400000))} days left
@@ -193,7 +193,7 @@ export default function DashboardPage() {
       {posts.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Recent Posts</CardTitle>
+            <CardTitle>Recent Posts</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/admin/posts">View all</Link>
             </Button>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Connections</CardTitle>
+            <CardTitle>Connections</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -230,7 +230,7 @@ export default function DashboardPage() {
               <div className="pt-2">
                 <Button
                   size="sm"
-                  className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+                  className="w-full bg-accent-purple hover:bg-purple-600 text-white"
                   disabled={syncing || hasRunningJobs}
                   onClick={handleSyncNow}
                 >
@@ -263,7 +263,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Recent Jobs</CardTitle>
+            <CardTitle>Recent Jobs</CardTitle>
           </CardHeader>
           <CardContent>
             {/* Live running jobs with step progress */}
@@ -272,17 +272,17 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-purple" />
                     </span>
                     <span className="text-sm font-medium">{jobTypeLabel(lj.type)} Job</span>
                   </div>
-                  <Badge variant="outline" className="text-xs text-violet-400 border-violet-500/30">Running</Badge>
+                  <Badge variant="outline" className="text-xs text-accent-purple border-accent-purple/30">Running</Badge>
                 </div>
                 <div className="space-y-1.5 ml-4">
                   {lj.steps.map((step) => (
                     <div key={step} className="flex items-center gap-2">
-                      <svg className="w-3.5 h-3.5 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="w-3.5 h-3.5 text-accent-purple shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                       <span className="text-xs text-muted-foreground">{step}</span>
@@ -349,7 +349,7 @@ const postStatusStyle: Record<string, string> = {
   SYNCED: "bg-blue-500/15 text-blue-400",
   FAILED: "bg-red-500/15 text-red-400",
   IMAGES_PROCESSING: "bg-yellow-500/15 text-yellow-400",
-  PUBLISHING: "bg-violet-500/15 text-violet-400",
+  PUBLISHING: "bg-accent-purple/15 text-accent-purple",
   UPDATE_PENDING: "bg-orange-500/15 text-orange-400",
 };
 
@@ -366,8 +366,8 @@ function PostPropertyCard({ post, liveJobs }: { post: ApiPost; liveJobs: Map<str
     <div className="rounded-xl border bg-card p-4 md:p-5">
       {/* Title header */}
       <div className="flex items-center gap-2 mb-3 pb-2.5 border-b">
-        <div className="w-5 h-5 rounded bg-violet-500/15 flex items-center justify-center shrink-0">
-          <svg className="w-3 h-3 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+        <div className="w-5 h-5 rounded bg-accent-purple/15 flex items-center justify-center shrink-0">
+          <svg className="w-3 h-3 text-accent-purple" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
         </div>
         <span className="text-sm font-medium truncate">{post.title}</span>
       </div>
@@ -377,10 +377,10 @@ function PostPropertyCard({ post, liveJobs }: { post: ApiPost; liveJobs: Map<str
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Status</span>
           {liveStatus ? (
-            <span className="text-xs font-medium rounded-md px-3 py-0.5 bg-violet-500/15 text-violet-400 flex items-center gap-1.5">
+            <span className="text-xs font-medium rounded-md px-3 py-0.5 bg-accent-purple/15 text-accent-purple flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-violet-400" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-purple" />
               </span>
               {liveStatus}
             </span>
@@ -403,7 +403,7 @@ function PostPropertyCard({ post, liveJobs }: { post: ApiPost; liveJobs: Map<str
               href={post.wpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-violet-400 hover:underline truncate max-w-[180px]"
+              className="text-xs text-accent-purple hover:underline truncate max-w-[180px]"
             >
               {post.wpUrl.replace(/^https?:\/\//, "")}
             </a>
@@ -419,7 +419,7 @@ function StatCard({ title, value }: { title: string; value: number }) {
     <Card>
       <CardContent className="pt-6">
         <p className="text-sm text-muted-foreground">{title}</p>
-        <p className="text-2xl font-bold">{value}</p>
+        <p className="text-3xl md:text-4xl font-semibold tracking-tight tabular-nums">{value}</p>
       </CardContent>
     </Card>
   );
@@ -724,7 +724,7 @@ function SetupCompleteCard({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" asChild className="bg-violet-600 hover:bg-violet-700 text-white">
+          <Button size="sm" asChild className="bg-accent-purple hover:bg-purple-600 text-white">
             <Link href="/admin/write">Write a Post</Link>
           </Button>
           {notionConnected && (

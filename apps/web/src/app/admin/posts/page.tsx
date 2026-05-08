@@ -129,7 +129,7 @@ export default function PostsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Posts</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Posts</h1>
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <div className="flex gap-1">
@@ -203,14 +203,14 @@ export default function PostsPage() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                     <span>{post.category?.name ?? "No category"}</span>
                     <div className="flex items-center gap-3">
-                      <Link href={`/admin/write?id=${post.id}`} className="text-violet-400 hover:underline">
+                      <Link href={`/admin/write?id=${post.id}`} className="text-accent-purple hover:underline">
                         Edit
                       </Link>
-                      <button onClick={() => handleDuplicate(post.id)} className="text-violet-400 hover:underline">
+                      <button onClick={() => handleDuplicate(post.id)} className="text-accent-purple hover:underline">
                         Duplicate
                       </button>
                       {post.wpUrl && (
-                        <a href={post.wpUrl} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline">
+                        <a href={post.wpUrl} target="_blank" rel="noopener noreferrer" className="text-accent-purple hover:underline">
                           View on WP
                         </a>
                       )}
@@ -297,7 +297,7 @@ export default function PostsPage() {
                         href={post.wpUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-violet-400 hover:underline"
+                        className="text-sm text-accent-purple hover:underline"
                       >
                         View
                       </a>
@@ -308,13 +308,13 @@ export default function PostsPage() {
                   <TableCell className="text-right space-x-3 whitespace-nowrap">
                     <Link
                       href={`/admin/write?id=${post.id}`}
-                      className="text-sm text-violet-400 hover:underline"
+                      className="text-sm text-accent-purple hover:underline"
                     >
                       Edit
                     </Link>
                     <button
                       onClick={() => handleDuplicate(post.id)}
-                      className="text-sm text-violet-400 hover:underline"
+                      className="text-sm text-accent-purple hover:underline"
                     >
                       Duplicate
                     </button>

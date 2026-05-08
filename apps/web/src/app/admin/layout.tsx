@@ -23,13 +23,13 @@ function ImpersonationBanner() {
   }
 
   return (
-    <div className="bg-amber-600 text-white text-sm px-4 py-2 flex items-center justify-between">
+    <div className="border-y border-accent-purple/40 bg-accent-purple/10 text-accent-purple text-sm px-4 py-2 flex items-center justify-between">
       <span>
         Viewing as <strong>{impersonating.tenantName}</strong>
       </span>
       <button
         onClick={exit}
-        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-amber-700 transition-colors"
+        className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-accent-purple/15 transition-colors"
       >
         <X className="w-3.5 h-3.5" />
         Exit
@@ -106,7 +106,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 /** Sets html/body background + theme-color so phone safe areas match the dark theme */
 function SetDarkMeta() {
   useEffect(() => {
-    const bg = "#0a0a0a"; // oklch(0.145 0 0) ≈ dark --background
+    const bg = "#0C0B10"; // oklch(0.145 0 0) ≈ dark --background
     document.documentElement.classList.add("dark");
     document.documentElement.style.backgroundColor = bg;
     document.body.style.backgroundColor = bg;

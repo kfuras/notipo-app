@@ -80,7 +80,7 @@ export default function BillingPage() {
   if (loading || !b) {
     return (
       <div className="space-y-6 max-w-2xl">
-        <h1 className="text-2xl font-bold">Billing</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
@@ -93,7 +93,7 @@ export default function BillingPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">Billing</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
         <PlanBadge plan={b.plan} trialDaysRemaining={b.trialDaysRemaining} />
       </div>
 

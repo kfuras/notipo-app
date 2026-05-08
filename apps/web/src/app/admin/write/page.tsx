@@ -328,11 +328,11 @@ function WritePage() {
     <div className="pb-28 md:pb-6">
       {/* WordPress not connected warning */}
       {!wpConnected && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 mb-4">
-          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-200">
+        <div className="flex items-center gap-2 rounded-lg border border-accent-purple/30 bg-accent-purple/5 px-4 py-3 mb-4">
+          <AlertTriangle className="w-4 h-4 text-accent-purple shrink-0" />
+          <p className="text-sm text-text-secondary">
             WordPress is not connected. You can write, but publishing requires a WordPress connection.{" "}
-            <Link href="/admin/settings" className="underline hover:text-amber-100">Connect in Settings</Link>
+            <Link href="/admin/settings" className="underline text-accent-purple hover:opacity-80">Connect in Settings</Link>
           </p>
         </div>
       )}
@@ -497,7 +497,7 @@ function WritePage() {
           {submitting ? "Saving..." : scheduledAt ? "Schedule" : editId ? "Update Draft" : "Save as Draft"}
         </Button>
         {!scheduledAt && (
-          <Button disabled={submitting} onClick={() => handleSubmit(true)} className="bg-violet-600 hover:bg-violet-700 text-white">
+          <Button disabled={submitting} onClick={() => handleSubmit(true)} className="bg-accent-purple hover:bg-purple-600 text-white">
             {submitting ? "Publishing..." : editId ? "Update & Publish" : "Publish"}
           </Button>
         )}
