@@ -1,6 +1,6 @@
 {
   "name": "notipo",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "CLI for the Notipo publishing API",
   "license": "MIT",
   "type": "module",
@@ -27,6 +27,7 @@
   ],
   "homepage": "https://notipo.com/docs/api/cli",
   "devDependencies": {
+    "@types/node": "^22",
     "typescript": "^6.0.3"
   }
 }

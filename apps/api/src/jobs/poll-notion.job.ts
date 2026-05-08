@@ -1,4 +1,4 @@
-import type PgBoss from "pg-boss";
+import type { PgBoss } from "pg-boss";
 import type { PrismaClient } from "@prisma/client";
 import { pollTenant } from "../lib/poll-tenant.js";
 import { getPollInterval } from "../lib/plan-limits.js";

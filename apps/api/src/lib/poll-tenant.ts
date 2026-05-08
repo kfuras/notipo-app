@@ -1,4 +1,4 @@
-import type PgBoss from "pg-boss";
+import type { PgBoss } from "pg-boss";
 import type { PrismaClient, Tenant } from "@prisma/client";
 import { NotionService } from "../services/notion.service.js";
 import { CredentialService } from "../services/credential.service.js";

@@ -1,5 +1,5 @@
 import fp from "fastify-plugin";
-import PgBoss from "pg-boss";
+import { PgBoss } from "pg-boss";
 import type { FastifyInstance } from "fastify";
 import { config } from "../config.js";
 

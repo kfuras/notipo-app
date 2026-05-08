@@ -38,6 +38,25 @@ updates:
       sentry:
         patterns:
           - '@sentry/*'
+    # Major bumps that have known breaking changes for our codebase.
+    # Re-evaluate manually when we have time to migrate.
+    ignore:
+      - dependency-name: '@notionhq/client'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'stripe'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@stripe/stripe-js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@fastify/multipart'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'vitest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'dotenv'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'lucide-react'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions — pin and bump weekly so we get security patches
   - package-ecosystem: github-actions

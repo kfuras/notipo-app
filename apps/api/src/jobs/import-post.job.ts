@@ -1,4 +1,4 @@
-import type PgBoss from "pg-boss";
+import type { PgBoss } from "pg-boss";
 import type { PrismaClient } from "@prisma/client";
 import type { EventEmitter } from "events";
 import { ImportService } from "../services/import.service.js";
