@@ -1,0 +1,27 @@
+name: CLI smoke test
+
+on:
+  workflow_dispatch:
+  # Catch regressions from the published npm package after a release
+  schedule:
+    - cron: '0 5 * * 1'
+
+jobs:
+  install-published:
+    name: Smoke test published npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install latest from npm
+        run: npm install -g notipo
+
+      - name: Verify CLI binary works
+        run: |
+          which notipo
+          notipo --help
+          notipo -h
+          notipo help
+          notipo
