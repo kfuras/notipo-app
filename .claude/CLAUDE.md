@@ -1,6 +1,8 @@
 # Notipo
 
-SaaS for writing and publishing blog posts to WordPress. Features a built-in markdown editor with one-click publish, plus optional Notion sync for power users. Includes automated featured images, code syntax highlighting, and SEO optimization.
+Open-source (AGPL-3.0) WordPress publishing platform with a hosted SaaS at notipo.com. Built-in markdown editor with one-click publish, plus optional Notion sync for power users. Includes automated featured images, code syntax highlighting, SEO optimization, and a 13-tool MCP server for AI-agent publishing.
+
+Repo: `kfuras/notipo-app` on GitHub (renamed from `kfuras/notipo` on 2026-05-08; old links redirect). Self-hosters pull multi-arch Docker images from `ghcr.io/kfuras/notipo-{api,web}` published on every `v*` tag.
 
 ## Monorepo Structure
 
@@ -246,18 +248,19 @@ Exposes Notipo as an MCP tool server at `POST /api/mcp`. AI agents (Claude Deskt
 
 **Transport:** Stateless Streamable HTTP (one McpServer per request, no sessions). The `/api/mcp` path is excluded from the global auth plugin — auth is handled inside the route.
 
-**Claude Desktop config example:**
+**Claude Desktop config example (hosted):**
 ```json
 {
   "mcpServers": {
     "notipo": {
       "type": "streamable-http",
-      "url": "https://your-notipo-instance.com/api/mcp",
+      "url": "https://notipo.com/api/mcp",
       "headers": { "x-api-key": "your-api-key" }
     }
   }
 }
 ```
+Self-hosters use their own domain in place of `notipo.com`.
 
 Write-operation tools (`create_post`, `update_post`, `publish_post`, `delete_post`, `sync_now`) delegate to the REST API via `app.inject()` so all existing validation, plan checks, and job queuing logic is reused. Read-only tools query Prisma directly.
 
@@ -389,7 +392,7 @@ GCS_BUCKET=                # Google Cloud Storage bucket for category image uplo
 ## Deployment
 
 **Production (Google Cloud Run, `notipo-prod` project, `europe-west4`):**
-- `notipo-api` — Fastify backend (min-instances=1 for pg-boss background jobs)
+- `notipo-api` — Fastify backend on Node 24 LTS (min-instances=1 for pg-boss background jobs)
 - `notipo-web` → `notipo.com/admin` — Admin UI (nginx, static Next.js export)
 - `notipo-site` → `notipo.com` — Marketing site (separate `notipo-site` repo)
 - `notipo-db` — Cloud SQL for PostgreSQL (db-f1-micro, Postgres 17, no authorized networks, SSL encrypted-only)
@@ -397,10 +400,15 @@ GCS_BUCKET=                # Google Cloud Storage bucket for category image uplo
 - Cloudflare Worker (`notipo-router`) routes `notipo.com/*` to the correct Cloud Run service
 - Cloud Run connects to Cloud SQL via built-in Unix socket proxy (`--add-cloudsql-instances`)
 - Secrets stored in Google Cloud Secret Manager
-- CI/CD: push to main → CI → Cloud Build → Cloud Run deploy (`.github/workflows/deploy.yml`)
-- Workload Identity Federation for keyless GitHub Actions auth
+- CI/CD: push to main → `.github/workflows/ci.yml` → Docker build in GitHub Actions → Cloud Run deploy
+- Workload Identity Federation for keyless GitHub Actions auth (provider attribute condition pinned to `kfuras/notipo-app` and `kfuras/notipo-site`; SA `github-deploy@notipo-prod` has `principalSet://...attribute.repository/kfuras/notipo-app` binding)
 - Prisma migrations run via a Cloud Run job (`notipo-migrate`) with Cloud SQL Auth Proxy sidecar before each API deploy
+- Cloud Run deploys MUST pass `--to-latest` to flip traffic to the new revision; without it, a service can stick on a pinned older revision and silently miss every deploy. Both deploy steps in `ci.yml` already include this — do not remove.
 - Budget alert: $50/month on billing account
+
+**Self-hosters:** pull `ghcr.io/kfuras/notipo-{api,web}:latest` (multi-arch `linux/amd64` + `linux/arm64`). The repo's `docker-compose.yml` is the supported deployment template (Traefik + Let's Encrypt + bundled Postgres 17). Docker images are built and pushed by `.github/workflows/docker.yml` on every `v*` tag.
+
+**Releases:** GitHub releases are generated from `CHANGELOG.md` by `.github/workflows/release.yml` on `v*` tag push. Each `## vX.Y.Z` section is extracted via `awk` and posted as the release body. Drafting CHANGELOG entries is Claude's responsibility — see the auto-memory feedback note. Tags ending in `-alpha.N` / `-beta.N` / `-rc.N` are flagged as prereleases automatically.
 
 **Dev VPS:** `ssh dev`. Domain: `dev.notipo.com`.
 
