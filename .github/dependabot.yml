@@ -57,6 +57,10 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'lucide-react'
         update-types: ['version-update:semver-major']
+      - dependency-name: '@stripe/react-stripe-js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions — pin and bump weekly so we get security patches
   - package-ecosystem: github-actions
