@@ -27,7 +27,7 @@
   ],
   "homepage": "https://notipo.com/docs/api/cli",
   "devDependencies": {
-    "@types/node": "^25",
+    "@types/node": "^25.8.0",
     "typescript": "^6.0.3"
   }
 }
