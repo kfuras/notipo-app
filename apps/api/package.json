@@ -49,9 +49,9 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.2",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.6"
   }
 }
