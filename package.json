@@ -27,7 +27,7 @@
     "turbo": "^2"
   },
   "dependencies": {
-    "sharp": "^0.34.5"
+    "sharp": "^0.35.1"
   },
   "overrides": {
     "hono": "4.12.23",
