@@ -7,6 +7,7 @@ import { logger } from "../lib/logger.js";
 import { sendEmail } from "../lib/email.js";
 import { createToken, verifyToken } from "../lib/auth-token.js";
 import { isStripeConfigured } from "../lib/stripe.js";
+import { captureServer, identifyServer } from "../lib/posthog-server.js";
 
 const log = logger.child({ route: "auth" });
 
@@ -160,6 +161,9 @@ export async function authRoutes(app: FastifyInstance) {
     const user = tenant.users[0];
     log.info({ tenantId: tenant.id, email: body.email }, "New tenant registered");
 
+    identifyServer({ distinctId: user.id, properties: { $set: { email: body.email, name: body.name, tenant_id: tenant.id } } });
+    captureServer({ distinctId: user.id, event: "server_user_registered", properties: { tenant_id: tenant.id, source: "api" } });
+
     // Send verification email
     const token = createToken(user.id, "verify");
     const verifyUrl = `${getBaseUrl()}/auth/verify?token=${token}`;
@@ -231,6 +235,9 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
+    identifyServer({ distinctId: user.id, properties: { $set: { email: user.email, name: user.name, tenant_id: user.tenant.id } } });
+    captureServer({ distinctId: user.id, event: "server_user_logged_in", properties: { method: "email", tenant_id: user.tenant.id } });
+
     return {
       data: {
         apiKey: user.apiKey,
@@ -256,6 +263,9 @@ export async function authRoutes(app: FastifyInstance) {
     });
 
     log.info({ userId: result.userId }, "Email verified");
+
+    identifyServer({ distinctId: user.id, properties: { $set: { email: user.email, name: user.name, tenant_id: user.tenant.id } } });
+    captureServer({ distinctId: user.id, event: "server_email_verified", properties: { tenant_id: user.tenant.id } });
 
     // Send welcome email (SaaS only, fire-and-forget)
     if (isStripeConfigured()) {
@@ -337,6 +347,7 @@ export async function authRoutes(app: FastifyInstance) {
       );
 
       log.info({ email }, "Password reset email sent");
+      captureServer({ distinctId: user.id, event: "server_password_reset_requested" });
     }
 
     // Always return success to prevent email enumeration
