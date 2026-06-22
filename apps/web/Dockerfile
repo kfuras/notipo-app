@@ -18,6 +18,15 @@ ARG NEXT_PUBLIC_POSTHOG_KEY
 ARG NEXT_PUBLIC_POSTHOG_HOST
 ARG NEXT_PUBLIC_META_PIXEL_ID
 ARG NEXT_PUBLIC_SENTRY_DSN
+# NEXT_PUBLIC_* env vars are baked into the static export at build time.
+# ARG alone makes them available to RUN directives only — Next.js reads
+# from process.env at build, so we must promote each ARG to ENV before
+# `npm run build`. Without this, all NEXT_PUBLIC_* values silently end up
+# empty in the bundle.
+ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY \
+    NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST \
+    NEXT_PUBLIC_META_PIXEL_ID=$NEXT_PUBLIC_META_PIXEL_ID \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 RUN npm run build --workspace=@notipo/web
 
 FROM nginx:alpine
