@@ -3,6 +3,7 @@ import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 import { getEffectivePlan, getPlanLimits, getMonthlyPostCount } from "../lib/plan-limits.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
+import { captureServer } from "../lib/posthog-server.js";
 
 const log = logger.child({ route: "billing" });
 
@@ -196,6 +197,7 @@ export async function billingRoutes(app: FastifyInstance) {
           },
         });
         log.info({ tenantId }, "Tenant upgraded to PRO via checkout");
+        captureServer({ distinctId: tenantId, event: "server_subscription_started", properties: { is_tenant_event: true, plan: "PRO" } });
         break;
       }
 
@@ -226,6 +228,7 @@ export async function billingRoutes(app: FastifyInstance) {
         });
         if (deleted.count > 0) {
           log.info({ tenantId }, "Tenant downgraded to FREE — subscription cancelled");
+          captureServer({ distinctId: tenantId, event: "server_subscription_canceled", properties: { is_tenant_event: true } });
         } else {
           log.warn({ tenantId }, "subscription.deleted: tenant not found, skipping");
         }

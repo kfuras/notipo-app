@@ -7,6 +7,7 @@ import { NotionService } from "../services/notion.service.js";
 import { logger } from "../lib/logger.js";
 import { config } from "../config.js";
 import { canGenerateFeaturedImage } from "../lib/plan-limits.js";
+import { captureServer } from "../lib/posthog-server.js";
 
 const syncBodySchema = z.object({
   notionPageId: z.string().min(1),
@@ -284,6 +285,8 @@ export async function postRoutes(app: FastifyInstance) {
       publish: body.publish,
     });
 
+    captureServer({ distinctId: request.user.id, event: "server_post_direct_published", properties: { tenant_id: tenantId, has_image_title: !!body.imageTitle, has_seo_keyword: !!body.seoKeyword, publish: body.publish } });
+
     return reply.code(202).send({
       data: { jobId, message: "Direct publish queued. Use `get /api/jobs` to monitor progress." },
     });
@@ -320,6 +323,8 @@ export async function postRoutes(app: FastifyInstance) {
       tenantId,
       postId: params.id,
     });
+
+    captureServer({ distinctId: request.user.id, event: "server_post_published", properties: { tenant_id: tenantId, post_id: params.id, source: "notion" } });
 
     return reply.code(202).send({
       data: { jobId, message: "Publish job queued" },
@@ -383,6 +388,7 @@ export async function postRoutes(app: FastifyInstance) {
     await app.prisma.post.delete({ where: { id: postId } });
 
     logger.info({ tenantId, postId, wpPostId: post.wpPostId }, "Post deleted with WP cleanup");
+    captureServer({ distinctId: request.user.id, event: "server_post_deleted", properties: { tenant_id: tenantId, post_id: postId, had_wp_post: !!post.wpPostId } });
     return { data: { message: "Post deleted" } };
   });
 

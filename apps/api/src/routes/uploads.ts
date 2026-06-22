@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { WordPressService } from "../services/wordpress.service.js";
 import { CredentialService } from "../services/credential.service.js";
 import { logger } from "../lib/logger.js";
+import { captureServer } from "../lib/posthog-server.js";
 
 export async function uploadRoutes(app: FastifyInstance) {
   /**
@@ -39,6 +40,7 @@ export async function uploadRoutes(app: FastifyInstance) {
         return reply.code(502).send({ error: "WordPress did not return a valid image URL" });
       }
 
+      captureServer({ distinctId: request.user.id, event: "server_image_uploaded", properties: { tenant_id: tenantId, size_bytes: buffer.length, mime_type: file.mimetype } });
       return { data: { url: media.source_url, mediaId: media.id } };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

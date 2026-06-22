@@ -8,6 +8,7 @@ import fastifyStatic from "@fastify/static";
 import path from "node:path";
 import { ZodError } from "zod";
 import { config } from "./config.js";
+import { getPostHogServer, shutdownPostHogServer } from "./lib/posthog-server.js";
 import { prismaPlugin } from "./plugins/prisma.js";
 import { pgBossPlugin } from "./plugins/pg-boss.js";
 import { authPlugin } from "./plugins/auth.js";
@@ -43,7 +44,7 @@ export async function buildApp() {
   });
 
   // Convert ZodError validation failures to 400 Bad Request
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
       return reply.status(400).send({
         statusCode: 400,
@@ -52,7 +53,13 @@ export async function buildApp() {
       });
     }
     Sentry.captureException(error);
+    const distinctId = (request as any).user?.id ?? "unknown";
+    getPostHogServer()?.captureException(error, distinctId);
     throw error; // let Fastify handle everything else
+  });
+
+  app.addHook("onClose", async () => {
+    await shutdownPostHogServer();
   });
 
   // Security headers

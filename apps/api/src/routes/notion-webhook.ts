@@ -6,6 +6,7 @@ import { CredentialService } from "../services/credential.service.js";
 import { WordPressService } from "../services/wordpress.service.js";
 import { canUseWebhooks } from "../lib/plan-limits.js";
 import { logger } from "../lib/logger.js";
+import { captureServer } from "../lib/posthog-server.js";
 
 const log = logger.child({ route: "notion-webhook" });
 
@@ -107,6 +108,8 @@ export async function notionWebhookRoutes(app: FastifyInstance) {
       log.warn({ workspaceId }, "No tenant found for workspace — ignoring");
       return reply.code(200).send();
     }
+
+    captureServer({ distinctId: tenant.id, event: "server_notion_webhook_received", properties: { is_tenant_event: true, event_type: eventType } });
 
     // Check if tenant's plan allows webhooks
     if (!canUseWebhooks(tenant.plan, tenant.trialEndsAt)) {
