@@ -33,6 +33,20 @@ import { uploadRoutes } from "./routes/uploads.js";
 import { templateRoutes } from "./routes/templates.js";
 import { registerAllJobs } from "./jobs/index.js";
 
+/**
+ * Discovery-only mode: skip every plugin that needs an external service
+ * (Postgres for Prisma + pg-boss, the job runner, the event bus, the
+ * auth plugin) and mount only the MCP route + health check. The MCP
+ * route's introspection methods (tools/list, initialize, etc.) are
+ * static and return tool schemas without touching the database, so an
+ * MCP catalog like Glama can boot the container with no env vars,
+ * confirm the server actually exposes tools, and assign a quality
+ * score. Tool *execution* still fails fast in this mode because the
+ * handlers reach for app.prisma which is not decorated — which is the
+ * correct behaviour, since there is no real backend to execute against.
+ */
+const DISCOVERY_ONLY = process.env.DISCOVERY_ONLY === "true";
+
 export async function buildApp() {
   const app = Fastify({
     logger: {
@@ -101,6 +115,15 @@ export async function buildApp() {
     decorateReply: false,
     wildcard: true,
   });
+
+  if (DISCOVERY_ONLY) {
+    // Minimal surface for MCP catalog introspection — see DISCOVERY_ONLY
+    // comment at the top of this file.
+    await app.register(healthRoutes);
+    await app.register(mcpRoutes);
+    return app;
+  }
+
   await app.register(prismaPlugin);
   await app.register(pgBossPlugin);
   await app.register(authPlugin);
