@@ -375,27 +375,56 @@ export async function mcpRoutes(app: FastifyInstance) {
     return mcp;
   }
 
+  // JSON-RPC methods that any MCP client (Claude Desktop, Cursor, Glama
+  // introspection, mcp.so, Smithery, awesome-mcp-servers checks) must be
+  // able to call without authentication to discover the server's
+  // capabilities. Per MCP spec, only tool *execution* requires auth —
+  // listing schemas does not. Exposing tool names is no leak: they are
+  // already documented at notipo.com/ai-agents and in the public README.
+  const DISCOVERY_METHODS = new Set([
+    "initialize",
+    "notifications/initialized",
+    "ping",
+    "tools/list",
+    "prompts/list",
+    "resources/list",
+    "resources/templates/list",
+  ]);
+
   // ── POST /mcp ───────────────────────────────────────────────────────
-  // Stateless: one McpServer + transport per request, auth checked before handling.
+  // Stateless: one McpServer + transport per request. Discovery methods
+  // run without auth (dummy tenant context — handlers are not invoked
+  // for discovery). Tool execution requires a valid API key.
   app.post("/api/mcp", async (request, reply) => {
     const apiKey =
       (request.headers["x-api-key"] as string | undefined) ||
       (request.headers["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
 
-    if (!apiKey) {
-      return reply.code(401).send({ error: "Missing authentication. Provide x-api-key header or Authorization: Bearer <key>." });
+    const method = (request.body as { method?: string } | null)?.method;
+    const isDiscovery = method ? DISCOVERY_METHODS.has(method) : false;
+
+    let tenantId = "";
+    let resolvedKey = "";
+
+    if (!isDiscovery) {
+      if (!apiKey) {
+        return reply.code(401).send({ error: "Missing authentication. Provide x-api-key header or Authorization: Bearer <key>." });
+      }
+
+      const user = await app.prisma.user.findUnique({
+        where: { apiKey },
+        select: { id: true, tenant: { select: { id: true } } },
+      });
+
+      if (!user) {
+        return reply.code(401).send({ error: "Invalid API key" });
+      }
+
+      tenantId = user.tenant.id;
+      resolvedKey = apiKey;
     }
 
-    const user = await app.prisma.user.findUnique({
-      where: { apiKey },
-      select: { id: true, tenant: { select: { id: true } } },
-    });
-
-    if (!user) {
-      return reply.code(401).send({ error: "Invalid API key" });
-    }
-
-    const mcp = createMcpServer(user.tenant.id, apiKey);
+    const mcp = createMcpServer(tenantId, resolvedKey);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     await mcp.connect(transport);
 
