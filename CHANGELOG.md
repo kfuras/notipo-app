@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.2.1
+
+### MCP Discovery Without Authentication
+
+`POST /api/mcp` now accepts the MCP capability-discovery methods (`initialize`, `tools/list`, `prompts/list`, `resources/list`, `notifications/initialized`, `ping`, `resources/templates/list`) without an API key, matching the MCP spec. Tool execution still requires a valid `x-api-key` header — only the schema-listing path was unauthenticated.
+
+This unblocks MCP catalog services (Glama, Smithery, mcp.so, awesome-mcp-servers checks) which clone the repo, start the container, and call `tools/list` to confirm the server actually exposes tools. Previously every directory bot saw `401` and refused the listing.
+
+No data is exposed by the change: the 13 tool names are already public on [notipo.com/ai-agents](https://notipo.com/ai-agents) and in the README.
+
 ## v1.2.0
 
 The largest Notipo release to date. Notipo is now open source under AGPL-3.0, you can write posts directly in the app without ever opening Notion, AI agents can publish through the new MCP server, and self-hosters get pre-built multi-arch Docker images.
