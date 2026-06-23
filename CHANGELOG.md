@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.2.6
+
+### Cleaner Smithery Scan Output
+
+`triggers/list` — a Smithery-specific scanner probe that is not part of the MCP spec — is now in the discovery-methods allow-list. Previously it fell into the authentication path, returned `401 Authorization required`, and embedded a Smithery setup-URL redirect in the catalog's scan log. Now it returns a clean `-32601 Method not found`, matching how `resources/list` and `prompts/list` already behave when the server does not implement those capabilities.
+
+No scoring impact — Smithery's quality score already topped Capability Quality at 38/40 after v1.2.5. This change just removes the spurious-looking auth warning from the scan log.
+
 ## v1.2.5
 
 ### Output Schemas on the Live MCP HTTP Route
