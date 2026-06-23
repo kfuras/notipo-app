@@ -21,7 +21,33 @@ export async function mcpRoutes(app: FastifyInstance) {
   function createMcpServer(tenantId: string, apiKey: string) {
     const mcp = new McpServer({
       name: "notipo",
-      version: "1.0.0",
+      version: "1.2.5",
+    });
+
+    // Reusable output-schema fragments — declared once, attached to each
+    // tool definition so MCP catalogs (Smithery, Glama) can score the
+    // server on structured-output presence and so agents can validate
+    // responses without parsing the free-form text payload. Keep these
+    // aligned with the schemas in src/stdio-mcp.ts.
+    const postSchema = z.object({
+      id: z.string(),
+      title: z.string(),
+      status: z.string().describe("DRAFT | PUBLISHED | SYNCED | FAILED, etc."),
+      wpUrl: z.string().nullable(),
+      category: z.string().nullable(),
+      createdAt: z.string(),
+      updatedAt: z.string(),
+    });
+    const jobSchema = z.object({
+      id: z.string(),
+      type: z.string().describe("SYNC_POST | PUBLISH_POST"),
+      status: z.string().describe("PENDING | RUNNING | COMPLETED | FAILED"),
+      error: z.string().nullable(),
+      createdAt: z.string(),
+      completedAt: z.string().nullable(),
+    });
+    const jobAck = z.object({
+      jobId: z.string().describe("Use get_job to poll status"),
     });
 
     // Helper: delegate to the existing REST API via Fastify's inject()
@@ -41,6 +67,7 @@ export async function mcpRoutes(app: FastifyInstance) {
       title: "List Posts",
       description: "List all posts for your Notipo account. Returns title, status, WordPress URL, category, and timestamps.",
       inputSchema: z.object({}),
+      outputSchema: z.object({ posts: z.array(postSchema) }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async () => {
       const posts = await app.prisma.post.findMany({
@@ -70,6 +97,10 @@ export async function mcpRoutes(app: FastifyInstance) {
       description: "Get details of a specific post by ID, including status, WordPress URL, and category.",
       inputSchema: z.object({
         postId: z.string().describe("The post ID"),
+      }),
+      outputSchema: postSchema.extend({
+        wpPostId: z.number().nullable(),
+        notionPageId: z.string().nullable(),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async ({ postId }) => {
@@ -114,6 +145,9 @@ export async function mcpRoutes(app: FastifyInstance) {
         slug: z.string().optional().describe("Custom URL slug"),
         publish: z.boolean().optional().default(false).describe("Publish immediately (true) or create as draft (false)"),
       }),
+      outputSchema: jobAck.extend({
+        notionPageId: z.string(),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     }, async (args) => {
       const { statusCode, body } = await callApi("POST", "/api/posts/create", args);
@@ -147,6 +181,7 @@ export async function mcpRoutes(app: FastifyInstance) {
         slug: z.string().optional().describe("Custom URL slug"),
         publish: z.boolean().optional().default(false).describe("Publish immediately (true) or create as draft (false)"),
       }),
+      outputSchema: jobAck,
       annotations: { readOnlyHint: false, destructiveHint: false },
     }, async (args) => {
       const { statusCode, body } = await callApi("POST", "/api/posts/direct", args);
@@ -178,6 +213,7 @@ export async function mcpRoutes(app: FastifyInstance) {
         slug: z.string().optional().describe("New URL slug"),
         publish: z.boolean().optional().describe("Set true to also publish after updating"),
       }),
+      outputSchema: jobAck,
       annotations: { readOnlyHint: false, destructiveHint: false },
     }, async ({ postId, ...rest }) => {
       const { statusCode, body } = await callApi("PATCH", `/api/posts/${postId}`, rest);
@@ -199,6 +235,7 @@ export async function mcpRoutes(app: FastifyInstance) {
       inputSchema: z.object({
         postId: z.string().describe("The post ID to publish"),
       }),
+      outputSchema: jobAck,
       annotations: { readOnlyHint: false, destructiveHint: false },
     }, async ({ postId }) => {
       const { statusCode, body } = await callApi("POST", `/api/posts/${postId}/publish`);
@@ -220,6 +257,7 @@ export async function mcpRoutes(app: FastifyInstance) {
       inputSchema: z.object({
         postId: z.string().describe("The post ID to delete"),
       }),
+      outputSchema: z.object({ deleted: z.boolean() }),
       annotations: { readOnlyHint: false, destructiveHint: true },
     }, async ({ postId }) => {
       const { statusCode, body } = await callApi("DELETE", `/api/posts/${postId}`);
@@ -236,6 +274,13 @@ export async function mcpRoutes(app: FastifyInstance) {
       title: "List Categories",
       description: "List all WordPress categories synced to Notipo. Use these names when creating posts.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        categories: z.array(z.object({
+          id: z.string(),
+          name: z.string(),
+          wpCategoryId: z.number().nullable(),
+        })),
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async () => {
       const categories = await app.prisma.category.findMany({
@@ -255,6 +300,13 @@ export async function mcpRoutes(app: FastifyInstance) {
       title: "List Tags",
       description: "List all WordPress tags synced to Notipo. Use these names when creating posts.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        tags: z.array(z.object({
+          id: z.string(),
+          name: z.string(),
+          wpTagId: z.number().nullable(),
+        })),
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async () => {
       const tags = await app.prisma.tag.findMany({
@@ -277,6 +329,16 @@ export async function mcpRoutes(app: FastifyInstance) {
         "progress steps, and any error message.",
       inputSchema: z.object({
         jobId: z.string().describe("The job ID returned from create_post, update_post, or publish_post"),
+      }),
+      outputSchema: jobSchema.extend({
+        result: z.unknown().nullable(),
+        startedAt: z.string().nullable(),
+        post: z.object({
+          id: z.string(),
+          title: z.string(),
+          status: z.string(),
+          wpUrl: z.string().nullable(),
+        }).nullable(),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async ({ jobId }) => {
@@ -315,6 +377,7 @@ export async function mcpRoutes(app: FastifyInstance) {
         status: z.enum(["PENDING", "RUNNING", "COMPLETED", "FAILED"]).optional().describe("Filter by job status"),
         limit: z.number().min(1).max(50).optional().default(10).describe("Number of jobs to return (default 10)"),
       }),
+      outputSchema: z.object({ jobs: z.array(jobSchema) }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async ({ status, limit }) => {
       const jobs = await app.prisma.job.findMany({
@@ -346,6 +409,13 @@ export async function mcpRoutes(app: FastifyInstance) {
         "Get your Notipo account configuration: which services are connected (Notion, WordPress), " +
         "current plan, feature settings, and trigger statuses.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        notionConnected: z.boolean(),
+        wordpressConnected: z.boolean(),
+        plan: z.string().describe("FREE | TRIAL | PRO"),
+        wpSeoPlugin: z.string().nullable().describe("RANK_MATH | YOAST | SEOPRESS | AIOSEO"),
+        codeHighlighter: z.string().nullable(),
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     }, async () => {
       const { body } = await callApi("GET", "/api/settings");
@@ -361,6 +431,10 @@ export async function mcpRoutes(app: FastifyInstance) {
         "Trigger an immediate sync from Notion. Checks for any posts with trigger statuses and queues sync jobs. " +
         "Pro plan only. Has a 15-second cooldown between calls.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        triggered: z.boolean(),
+        message: z.string(),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     }, async () => {
       const { statusCode, body } = await callApi("POST", "/api/sync-now");
