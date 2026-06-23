@@ -52,7 +52,29 @@ function notSupported(): {
 }
 
 async function main() {
-  const mcp = new McpServer({ name: "notipo", version: "1.2.3" });
+  // Reusable shape fragments — keeps tool defs short and consistent.
+  const postSchema = z.object({
+    id: z.string(),
+    title: z.string(),
+    status: z.string().describe("DRAFT | PUBLISHED | SYNCED | FAILED, etc."),
+    wpUrl: z.string().nullable().describe("Public WordPress URL once published"),
+    category: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  });
+  const jobSchema = z.object({
+    id: z.string(),
+    type: z.string().describe("SYNC_POST | PUBLISH_POST"),
+    status: z.string().describe("PENDING | RUNNING | COMPLETED | FAILED"),
+    error: z.string().nullable(),
+    createdAt: z.string(),
+    completedAt: z.string().nullable(),
+  });
+  const jobAck = z.object({
+    jobId: z.string().describe("Use get_job to poll status"),
+  });
+
+  const mcp = new McpServer({ name: "notipo", version: "1.2.4" });
 
   mcp.registerTool(
     "list_posts",
@@ -61,6 +83,7 @@ async function main() {
       description:
         "List all posts for your Notipo account. Returns title, status, WordPress URL, category, and timestamps.",
       inputSchema: z.object({}),
+      outputSchema: z.object({ posts: z.array(postSchema) }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () => notSupported(),
@@ -74,6 +97,10 @@ async function main() {
         "Get details of a specific post by ID, including status, WordPress URL, and category.",
       inputSchema: z.object({
         postId: z.string().describe("The post ID"),
+      }),
+      outputSchema: postSchema.extend({
+        wpPostId: z.number().nullable().describe("WordPress post ID once synced"),
+        notionPageId: z.string().nullable(),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
@@ -106,6 +133,9 @@ async function main() {
           .optional()
           .default(false)
           .describe("Publish immediately (true) or create as draft (false)"),
+      }),
+      outputSchema: jobAck.extend({
+        notionPageId: z.string().describe("Newly created Notion page"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
@@ -143,6 +173,7 @@ async function main() {
           .default(false)
           .describe("Publish immediately (true) or create as draft (false)"),
       }),
+      outputSchema: jobAck,
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async () => notSupported(),
@@ -176,6 +207,7 @@ async function main() {
           .optional()
           .describe("Set true to also publish after updating"),
       }),
+      outputSchema: jobAck,
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async () => notSupported(),
@@ -189,6 +221,7 @@ async function main() {
       inputSchema: z.object({
         postId: z.string().describe("The post ID to publish"),
       }),
+      outputSchema: jobAck,
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async () => notSupported(),
@@ -203,6 +236,9 @@ async function main() {
       inputSchema: z.object({
         postId: z.string().describe("The post ID to delete"),
       }),
+      outputSchema: z.object({
+        deleted: z.boolean(),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
     async () => notSupported(),
@@ -215,6 +251,15 @@ async function main() {
       description:
         "List all WordPress categories synced to Notipo. Use these names when creating posts.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        categories: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            wpCategoryId: z.number().nullable(),
+          }),
+        ),
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () => notSupported(),
@@ -227,6 +272,15 @@ async function main() {
       description:
         "List all WordPress tags synced to Notipo. Use these names when creating posts.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        tags: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            wpTagId: z.number().nullable(),
+          }),
+        ),
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () => notSupported(),
@@ -245,6 +299,18 @@ async function main() {
           .describe(
             "The job ID returned from create_post, update_post, or publish_post",
           ),
+      }),
+      outputSchema: jobSchema.extend({
+        result: z.unknown().nullable().describe("Job-specific result payload"),
+        startedAt: z.string().nullable(),
+        post: z
+          .object({
+            id: z.string(),
+            title: z.string(),
+            status: z.string(),
+            wpUrl: z.string().nullable(),
+          })
+          .nullable(),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
@@ -270,6 +336,7 @@ async function main() {
           .default(10)
           .describe("Number of jobs to return (default 10)"),
       }),
+      outputSchema: z.object({ jobs: z.array(jobSchema) }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () => notSupported(),
@@ -283,6 +350,16 @@ async function main() {
         "Get your Notipo account configuration: which services are connected (Notion, WordPress), " +
         "current plan, feature settings, and trigger statuses.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        notionConnected: z.boolean(),
+        wordpressConnected: z.boolean(),
+        plan: z.string().describe("FREE | TRIAL | PRO"),
+        wpSeoPlugin: z
+          .string()
+          .nullable()
+          .describe("Detected SEO plugin: RANK_MATH | YOAST | SEOPRESS | AIOSEO"),
+        codeHighlighter: z.string().nullable(),
+      }),
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async () => notSupported(),
@@ -296,6 +373,10 @@ async function main() {
         "Trigger an immediate sync from Notion. Checks for any posts with trigger statuses and queues sync jobs. " +
         "Pro plan only. Has a 15-second cooldown between calls.",
       inputSchema: z.object({}),
+      outputSchema: z.object({
+        triggered: z.boolean(),
+        message: z.string(),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async () => notSupported(),
