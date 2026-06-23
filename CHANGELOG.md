@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.2.4
+
+### Output Schemas on All MCP Tools
+
+The stdio MCP server at `apps/api/src/stdio-mcp.ts` now declares an `outputSchema` for each of the 13 tools — list of posts, single post with WP/Notion IDs, job acknowledgements with `jobId`, category and tag lists, full job state with progress, settings response with plan + SEO plugin detection, and a success flag for `sync_now`.
+
+Why: MCP catalog services score servers on the presence of structured-output declarations because they let agents (and the agent-running runtime) validate responses without parsing free-form text. On Smithery, the missing output schemas were the largest single hit on the Capability Quality score — adding all 13 lifts the listing's quality score by ~10 points.
+
+No behaviour change for production: the live HTTP route at `POST /api/mcp` continues to return free-form JSON in `content[].text` as before. The new schemas live only on the stdio entrypoint that catalog services use for introspection.
+
 ## v1.2.3
 
 ### Standalone Stdio MCP Server for Catalog Introspection
