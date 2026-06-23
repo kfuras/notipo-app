@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.2.5
+
+### Output Schemas on the Live MCP HTTP Route
+
+`POST /api/mcp` now declares an `outputSchema` for each of the 13 tools — list of posts, single post with WP/Notion IDs, job acknowledgements with `jobId`, category and tag lists, full job state, settings response, and a success flag for `sync_now`.
+
+v1.2.4 added these schemas to the stdio entrypoint at `apps/api/src/stdio-mcp.ts` (which Glama introspects), but the schemas were missing from the HTTP route at `apps/api/src/routes/mcp.ts` (which Smithery and any "External URL" catalog scans). Smithery's Capability Quality score therefore stayed flat after v1.2.4 — the live endpoint still returned tool definitions without output schemas.
+
+This release brings the HTTP route in line. The server-info `version` field also bumps from the long-stale `1.0.0` to `1.2.5` so catalog scans report the deployed version.
+
+No behaviour change for clients: the handlers still return JSON in `content[].text` as before. The schemas are declarative metadata.
+
 ## v1.2.4
 
 ### Output Schemas on All MCP Tools
