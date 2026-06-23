@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.2.2
+
+### Discovery-Only Mode for MCP Catalogs
+
+A new `DISCOVERY_ONLY=true` environment variable boots the API with just the health check and the MCP route mounted. Prisma, pg-boss, the job runner, the event bus, and the auth plugin are skipped, so the container starts cleanly with no database and no environment configuration. The MCP route's `tools/list` then returns the 13 tool schemas without authentication.
+
+Why: MCP catalog services (Glama, Smithery, mcp.so) build the published Dockerfile and call `tools/list` to verify the server actually exposes tools. Without a discovery-only mode the API crashed at `pgBossPlugin` before the MCP route was ever registered, so introspection failed and the Glama quality score stayed at `–` (not tested) — blocking the listing on `punkpeye/awesome-mcp-servers#8568`.
+
+Tool execution still fails fast in discovery mode because the handlers reach for `app.prisma`, which is not decorated when the plugin is skipped. That is the correct behaviour — there is no real backend to execute against in this mode.
+
+To enable on Glama: set `DISCOVERY_ONLY=true` in the server's environment-variables schema on the Glama admin page, and add `{"DISCOVERY_ONLY": "true"}` to the placeholder parameters field.
+
 ## v1.2.1
 
 ### MCP Discovery Without Authentication
