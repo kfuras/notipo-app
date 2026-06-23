@@ -285,7 +285,7 @@ export async function postRoutes(app: FastifyInstance) {
       publish: body.publish,
     });
 
-    captureServer({ distinctId: request.user.id, event: "server_post_direct_published", properties: { tenant_id: tenantId, has_image_title: !!body.imageTitle, has_seo_keyword: !!body.seoKeyword, publish: body.publish } });
+    captureServer({ distinctId: request.user.id, event: "server_post_direct_published", properties: { tenant_id: tenantId, has_image_title: !!body.imageTitle, has_seo_keyword: !!body.seoKeyword, publish: body.publish }, isImpersonated: request.isAdmin });
 
     return reply.code(202).send({
       data: { jobId, message: "Direct publish queued. Use `get /api/jobs` to monitor progress." },
@@ -324,7 +324,7 @@ export async function postRoutes(app: FastifyInstance) {
       postId: params.id,
     });
 
-    captureServer({ distinctId: request.user.id, event: "server_post_published", properties: { tenant_id: tenantId, post_id: params.id, source: "notion" } });
+    captureServer({ distinctId: request.user.id, event: "server_post_published", properties: { tenant_id: tenantId, post_id: params.id, source: "notion" }, isImpersonated: request.isAdmin });
 
     return reply.code(202).send({
       data: { jobId, message: "Publish job queued" },
@@ -388,7 +388,7 @@ export async function postRoutes(app: FastifyInstance) {
     await app.prisma.post.delete({ where: { id: postId } });
 
     logger.info({ tenantId, postId, wpPostId: post.wpPostId }, "Post deleted with WP cleanup");
-    captureServer({ distinctId: request.user.id, event: "server_post_deleted", properties: { tenant_id: tenantId, post_id: postId, had_wp_post: !!post.wpPostId } });
+    captureServer({ distinctId: request.user.id, event: "server_post_deleted", properties: { tenant_id: tenantId, post_id: postId, had_wp_post: !!post.wpPostId }, isImpersonated: request.isAdmin });
     return { data: { message: "Post deleted" } };
   });
 

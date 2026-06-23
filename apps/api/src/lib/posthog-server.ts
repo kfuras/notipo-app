@@ -30,12 +30,17 @@ export function getPostHogServer(): PostHog | null {
   return client;
 }
 
-/** Fire-and-forget server-side capture. No-ops if PostHog is not configured. */
+/** Fire-and-forget server-side capture. No-ops if PostHog is not configured.
+ *  Pass `isImpersonated: request.isAdmin` from authenticated routes so
+ *  admin-impersonation traffic (Kjetil testing a tenant's account) does
+ *  not pollute the real tenant's funnel. */
 export function captureServer(args: {
   distinctId: string;
   event: string;
   properties?: Record<string, unknown>;
+  isImpersonated?: boolean;
 }) {
+  if (args.isImpersonated) return;
   const ph = getPostHogServer();
   if (!ph) return;
   ph.capture({

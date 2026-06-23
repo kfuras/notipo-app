@@ -9,7 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import { api, ApiError } from "./api-client";
-import { capture, identifyUser, resetUser } from "./posthog";
+import {
+  capture,
+  identifyUser,
+  pausePostHogForImpersonation,
+  resetUser,
+  resumePostHogAfterImpersonation,
+} from "./posthog";
 
 interface Impersonation {
   tenantId: string;
@@ -67,6 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email = localStorage.getItem("notipo_email");
     const imp = sessionStorage.getItem(IMPERSONATION_KEY);
     const impersonating = imp ? (JSON.parse(imp) as Impersonation) : null;
+    // Page reloaded mid-impersonation — opt PostHog out before any
+    // pageview/identify event fires.
+    if (impersonating) {
+      pausePostHogForImpersonation();
+    }
     if (!stored) {
       setState((s) => ({ ...s, isLoading: false }));
       return;
@@ -166,11 +177,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const imp = { tenantId, tenantName };
     sessionStorage.setItem(IMPERSONATION_KEY, JSON.stringify(imp));
     setState((s) => ({ ...s, impersonating: imp }));
+    pausePostHogForImpersonation();
   }, []);
 
   const stopImpersonating = useCallback(() => {
     sessionStorage.removeItem(IMPERSONATION_KEY);
     setState((s) => ({ ...s, impersonating: null }));
+    resumePostHogAfterImpersonation();
   }, []);
 
   return (
