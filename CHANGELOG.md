@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.2.3
+
+### Standalone Stdio MCP Server for Catalog Introspection
+
+A new `apps/api/src/stdio-mcp.ts` registers the 13 Notipo tool schemas on a stdio transport so MCP catalogs (Glama, Smithery, mcp.so) can introspect the server with their generic stdio-only build pipeline.
+
+Why a separate file: catalog services do not build the production Dockerfile and do not allow CMD to be an HTTP URL. They git-clone the repo, run user-supplied build steps in their own Debian + Node image, then run user-supplied CMD — which has to be a local stdio MCP server. The HTTP route at `POST /api/mcp` needs Postgres, pg-boss, Fastify, and the full API surface — none of which exist in a catalog container.
+
+The stdio entrypoint shares the same tool *schemas* as the HTTP route so `tools/list` returns 13 entries. Handlers stub out and direct callers to the hosted endpoint at `notipo.com/api/mcp` — catalogs only call `tools/list` during introspection, so the stubs never run in catalog flows.
+
+Glama config:
+- Build steps: `npm ci && npm run build --workspace=@notipo/api`
+- CMD: `["node", "apps/api/dist/stdio-mcp.js"]`
+
 ## v1.2.2
 
 ### Discovery-Only Mode for MCP Catalogs
