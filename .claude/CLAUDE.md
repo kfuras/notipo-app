@@ -264,6 +264,22 @@ Self-hosters use their own domain in place of `notipo.com`.
 
 Write-operation tools (`create_post`, `update_post`, `publish_post`, `delete_post`, `sync_now`) delegate to the REST API via `app.inject()` so all existing validation, plan checks, and job queuing logic is reused. Read-only tools query Prisma directly.
 
+### Catalog-introspection design
+
+MCP catalogs (Glama, Smithery, mcp.so, awesome-mcp-servers) all scan the server before listing it. The route has three accommodations baked in for that flow:
+
+**Anonymous discovery methods.** `routes/mcp.ts` keeps a `DISCOVERY_METHODS` allow-list of JSON-RPC methods that bypass auth: `initialize`, `notifications/initialized`, `ping`, `tools/list`, `prompts/list`, `resources/list`, `resources/templates/list`, `triggers/list`. Tool *execution* (`tools/call`) still requires a valid `x-api-key`. Per MCP spec, capability discovery should be callable without auth — without this every catalog scanner gets 401 and refuses to list the server.
+
+**`DISCOVERY_ONLY=true` boot mode.** `app.ts` checks the env var. When true, `buildApp()` skips `prismaPlugin`, `pgBossPlugin`, `authPlugin`, `eventBusPlugin`, and `registerAllJobs`. Mounts only health + MCP routes. Catalogs like Glama clone the repo into a generic container with no DB, so the production boot would crash at pg-boss connect. Discovery-only mode lets `tools/list` respond with the 13 tool schemas without any backend.
+
+**Standalone stdio MCP entrypoint at `apps/api/src/stdio-mcp.ts`.** Glama's introspector wraps your CMD in `mcp-proxy` which expects a stdio child process — it does not accept HTTPS URLs as CMD. This file registers the same 13 tool schemas (with output schemas) as the HTTP route, uses `StdioServerTransport`, and stubs each handler to return "use the hosted HTTP endpoint" if called. Catalogs only call `tools/list` so stubs never run in practice. Glama's build steps: `npm ci && npm run generate -w @notipo/api && npx turbo build --filter=@notipo/api`. CMD: `["node", "apps/api/dist/stdio-mcp.js"]`.
+
+**Output schemas.** Both `routes/mcp.ts` and `stdio-mcp.ts` declare `outputSchema` next to `inputSchema` on every tool. Smithery's Capability Quality score weights this — without output schemas the listing scores ~28/40 instead of 38/40. Keep schemas in sync between the two files when adding new tools.
+
+### Sandbox tenant for catalog health checks
+
+Glama Connectors and similar services do periodic health-checks against the live endpoint and store a credential to do so. Never paste a personal admin/owner key. Create a sandbox tenant via `POST /api/admin/tenants` (admin `API_KEY` from Secret Manager), keep its `apiKey` for the catalog's private-notes field. Current sandbox tenant for Glama: `glama-test-1782236423` (owner `glama-1782236423@notipo.com`).
+
 ## Key Services
 
 ### `sync.service.ts`
