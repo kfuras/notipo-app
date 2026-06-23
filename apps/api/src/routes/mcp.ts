@@ -463,6 +463,11 @@ export async function mcpRoutes(app: FastifyInstance) {
     "prompts/list",
     "resources/list",
     "resources/templates/list",
+    // Smithery extension: their scanner probes triggers/list. Not in the
+    // MCP spec, so McpServer returns -32601 (method not found) — a clean
+    // 405-equivalent. Letting it through unauthenticated avoids a 401 +
+    // setup-URL redirect in catalog scan logs.
+    "triggers/list",
   ]);
 
   // ── POST /mcp ───────────────────────────────────────────────────────
