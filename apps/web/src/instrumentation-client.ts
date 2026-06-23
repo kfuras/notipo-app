@@ -14,6 +14,21 @@ if (key) {
     capture_exceptions: true,
     debug: process.env.NODE_ENV === "development",
   });
+
+  // Opt out for internal-user devices and mid-impersonation reloads.
+  // Covers automatic events too ($pageview, $autocapture, $web_vitals,
+  // $pageleave, exceptions) — opting out at init means none of those
+  // fire before our React tree mounts and runs auth-context.
+  try {
+    if (
+      localStorage.getItem("notipo_internal_user") ||
+      sessionStorage.getItem("notipo_impersonating")
+    ) {
+      posthog.opt_out_capturing();
+    }
+  } catch {
+    // localStorage / sessionStorage may be disabled in some browsers.
+  }
 }
 
 // IMPORTANT: Never combine this approach with other client-side PostHog

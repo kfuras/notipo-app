@@ -10,6 +10,7 @@ import posthog from "posthog-js";
  */
 
 const IMPERSONATION_KEY = "notipo_impersonating";
+const INTERNAL_USER_KEY = "notipo_internal_user";
 
 /** True if the current admin session is impersonating another tenant.
  *  Reads sessionStorage directly so the check works in any capture site
@@ -18,6 +19,20 @@ function isImpersonating(): boolean {
   if (typeof window === "undefined") return false;
   try {
     return Boolean(sessionStorage.getItem(IMPERSONATION_KEY));
+  } catch {
+    return false;
+  }
+}
+
+/** True if this browser has been marked as an internal-user device.
+ *  Survives sessions and works regardless of IP (mobile network, café wifi,
+ *  travel, etc.). Set once per device by running this in the browser console:
+ *    localStorage.setItem("notipo_internal_user", "kjetil");
+ *  Clear with: localStorage.removeItem("notipo_internal_user"); */
+function isInternalUser(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return Boolean(localStorage.getItem(INTERNAL_USER_KEY));
   } catch {
     return false;
   }
@@ -40,12 +55,14 @@ export function resumePostHogAfterImpersonation() {
 }
 
 /** Fire-and-forget event capture. No-ops if PostHog is not initialized,
- *  or if the admin is currently impersonating another tenant. */
+ *  if the admin is currently impersonating another tenant, or if the
+ *  browser has been marked as an internal-user device. */
 export function capture(event: string, properties?: Record<string, unknown>) {
   if (
     typeof window !== "undefined" &&
     posthog.__loaded &&
-    !isImpersonating()
+    !isImpersonating() &&
+    !isInternalUser()
   ) {
     posthog.capture(event, properties);
   }
