@@ -227,7 +227,7 @@ function cmdHelp() {
     },
     examples: [
       "notipo posts create --title \"My Post\" --category \"AI\" --publish --wait",
-      "NOTIPO_URL=https://notipo.com NOTIPO_API_KEY=ntp_... notipo sync",
+      "NOTIPO_URL=https://app.notipo.com NOTIPO_API_KEY=ntp_... notipo sync",
       "notipo posts",
       "notipo jobs",
     ],
