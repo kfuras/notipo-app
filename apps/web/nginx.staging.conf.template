@@ -36,6 +36,12 @@ server {
     absolute_redirect off;
     rewrite ^(.+)/$ $1 permanent;
 
+    # --- Well-known files (served locally, not proxied) ---
+    # Glama connector claim + future .well-known files (RFC 8615).
+    location /.well-known/ {
+        try_files $uri =404;
+    }
+
     # --- Admin UI (local static files) ---
     location /admin {
         add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate" always;
