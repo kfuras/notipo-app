@@ -28,7 +28,7 @@ export async function sendWebhook(prisma: PrismaClient, tenantId: string, payloa
     const errorLine = payload.error ? `\nError: ${payload.error}` : "";
     const dashboardUrl = config.FRONTEND_URL
       ? `${config.FRONTEND_URL}/admin/jobs`
-      : "https://notipo.com/admin/jobs";
+      : "https://app.notipo.com/admin/jobs";
 
     const message = `<!channel> ⚠️ ${typeLabel} failed: ${title}${errorLine}\n→ ${dashboardUrl}`;
 

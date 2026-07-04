@@ -30,7 +30,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const HOSTED_ENDPOINT = "https://notipo.com/api/mcp";
+const HOSTED_ENDPOINT = "https://app.notipo.com/api/mcp";
 
 function notSupported(): {
   content: { type: "text"; text: string }[];

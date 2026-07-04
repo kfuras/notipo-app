@@ -51,7 +51,7 @@ function slugify(name: string): string {
 function getBaseUrl(): string {
   return config.NOTION_OAUTH_REDIRECT_URI
     ? new URL(config.NOTION_OAUTH_REDIRECT_URI).origin
-    : "https://notipo.com";
+    : "https://app.notipo.com";
 }
 
 function verificationEmailHtml(verifyUrl: string): string {
@@ -269,7 +269,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     // Send welcome email (SaaS only, fire-and-forget)
     if (isStripeConfigured()) {
-      const frontendUrl = config.FRONTEND_URL || "https://notipo.com";
+      const frontendUrl = config.FRONTEND_URL || "https://app.notipo.com";
       const dashboardUrl = `${frontendUrl}/admin`;
       const supportEmail = config.SUPPORT_EMAIL || "support@notipo.com";
       const brandName = config.BRAND_NAME || "Notipo";
