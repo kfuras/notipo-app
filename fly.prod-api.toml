@@ -1,0 +1,37 @@
+# fly.toml for Notipo API (Fastify backend, pg-boss job queue)
+# Deploy: flyctl deploy -c fly.prod-api.toml --remote-only
+#
+# Org: furas-digital · Region: ams (Amsterdam)
+# See FLY-CHEATSHEET.md in notipo-site repo for app naming convention.
+
+app = 'notipo-prod-api'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'apps/api/Dockerfile'
+
+[env]
+  NODE_ENV = 'production'
+  PORT = '3000'
+  # Sentry DSN is a public identifier — Sentry validates per-origin.
+  # NEXT_PUBLIC_SENTRY_DSN and SENTRY_DSN set via secrets if needed.
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # min_machines_running = 1 because the API hosts the pg-boss job queue
+  # and Notion webhook receiver. If it suspends, jobs stall and webhooks 404.
+  # auto_stop_machines = false keeps the single instance always warm.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 100
+    soft_limit = 50
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

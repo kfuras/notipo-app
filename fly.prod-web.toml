@@ -1,0 +1,46 @@
+# fly.toml for Notipo Web (Next.js admin UI + nginx reverse proxy)
+# Deploy: flyctl deploy -c fly.prod-web.toml --remote-only
+#
+# Org: notipo · Region: ams (Amsterdam)
+# This app is the front door for notipo.com — it:
+#   - Serves /admin, /auth static Next.js export directly
+#   - Reverse-proxies /api, /health → notipo-prod-api.internal:3000
+#   - Reverse-proxies /* (everything else) → notipo-prod-site.internal:80
+# Requires API_INTERNAL_URL + SITE_INTERNAL_URL runtime secrets set.
+# NEXT_PUBLIC_* env vars are baked in at build time via [build.args].
+
+app = 'notipo-prod-web'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'apps/web/Dockerfile'
+
+  [build.args]
+    # NEXT_PUBLIC_* must be injected at Docker BUILD time to be baked
+    # into the client bundle. Fly secrets only apply at runtime.
+    NEXT_PUBLIC_POSTHOG_KEY = 'phc_notipo_placeholder_replace_with_real_key'
+    NEXT_PUBLIC_POSTHOG_HOST = 'https://eu.i.posthog.com'
+    NEXT_PUBLIC_META_PIXEL_ID = ''
+    NEXT_PUBLIC_SENTRY_DSN = ''
+
+[env]
+  NODE_ENV = 'production'
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  # Web is the front door for notipo.com — must be always available.
+  # min_machines_running = 1 so cold-start doesn't affect all incoming traffic.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 200
+    soft_limit = 100
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
