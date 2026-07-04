@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  REGION: europe-west4
-  REGISTRY: europe-west4-docker.pkg.dev/notipo-prod/notipo
-
 jobs:
   lockfile-check:
     name: Verify lockfile
@@ -44,82 +40,29 @@ jobs:
       - run: npx turbo test
 
   deploy-api:
-    name: Deploy API
+    name: Deploy API to Fly
     needs: [build, lockfile-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     concurrency: deploy-api
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v6
-
-      - uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: projects/625508940450/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-deploy@notipo-prod.iam.gserviceaccount.com
-
-      - uses: google-github-actions/setup-gcloud@v3
-
-      - run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
-
-      - name: Build and push API image
-        run: |
-          docker build -t "$REGISTRY/api" -f apps/api/Dockerfile .
-          docker push "$REGISTRY/api"
-
-      - name: Run Prisma migrations
-        run: |
-          gcloud run jobs update notipo-migrate \
-            --region "$REGION" \
-            --container migrate \
-            --image "$REGISTRY/api"
-          gcloud run jobs execute notipo-migrate \
-            --region "$REGION" \
-            --wait
-
+      - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy API
-        run: |
-          gcloud run deploy notipo-api \
-            --image "$REGISTRY/api" \
-            --region "$REGION"
+        run: flyctl deploy -c fly.prod-api.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   deploy-web:
-    name: Deploy Web
+    name: Deploy Web to Fly
     needs: [build, lockfile-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     concurrency: deploy-web
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v6
-
-      - uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: projects/625508940450/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-deploy@notipo-prod.iam.gserviceaccount.com
-
-      - uses: google-github-actions/setup-gcloud@v3
-
-      - run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
-
-      - name: Build and push Web image
-        run: |
-          docker build \
-            -t "$REGISTRY/web" \
-            -f apps/web/Dockerfile \
-            --build-arg NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }} \
-            --build-arg NEXT_PUBLIC_POSTHOG_HOST=/ingest \
-            --build-arg NEXT_PUBLIC_META_PIXEL_ID=${{ secrets.NEXT_PUBLIC_META_PIXEL_ID }} \
-            --build-arg NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }} \
-            .
-          docker push "$REGISTRY/web"
-
+      - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy Web
-        run: |
-          gcloud run deploy notipo-web \
-            --image "$REGISTRY/web" \
-            --region "$REGION"
+        run: flyctl deploy -c fly.prod-web.toml --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
