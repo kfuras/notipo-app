@@ -28,7 +28,7 @@ npm install -g notipo
 notipo posts create --title "Why Every Dev Should Have a Blog" --publish
 
 # REST API: one call runs the full pipeline
-curl -X POST https://notipo.com/api/posts/create \
+curl -X POST https://app.notipo.com/api/posts/create \
   -H "X-API-Key: $NOTIPO_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"title":"Hello","body":"## Intro\n\nMarkdown in, WordPress out.","publish":true}'
@@ -40,7 +40,7 @@ curl -X POST https://notipo.com/api/posts/create \
   "mcpServers": {
     "notipo": {
       "type": "http",
-      "url": "https://notipo.com/api/mcp",
+      "url": "https://app.notipo.com/api/mcp",
       "headers": { "x-api-key": "your-api-key" }
     }
   }
