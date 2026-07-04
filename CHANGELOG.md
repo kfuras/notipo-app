@@ -6,6 +6,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.3.0
+
+### Fly.io + Neon Postgres Migration, Subdomain Split
+
+Notipo's hosted infrastructure moved off Google Cloud Run + Cloud SQL onto Fly.io + Neon Postgres. Marketing site and admin/API are now split across two subdomains, matching the pattern used by sister projects like Klarbud.
+
+**URL changes** (breaking for hosted-product clients):
+
+- Marketing site: `notipo.com` (unchanged)
+- Admin UI: `notipo.com/admin` → `https://app.notipo.com/admin`
+- Auth pages: `notipo.com/auth/*` → `https://app.notipo.com/auth/*`
+- REST API: `notipo.com/api/*` → `https://app.notipo.com/api/*`
+- MCP endpoint: `notipo.com/api/mcp` → `https://app.notipo.com/api/mcp`
+
+**Update your MCP client configuration** if you have Claude Desktop, Cursor, or another client pointing at `notipo.com/api/mcp` — the old URL now returns 404.
+
+**Self-hosters**: no impact. Docker images still expect one domain via the `DOMAIN` env var, and Traefik routes `/api`, `/admin`, `/auth`, and `/` internally. The subdomain split is a hosted-only architecture change.
+
+### Front-door nginx reverse proxy
+
+The `apps/web` container now runs as an nginx reverse-proxy front door for `app.notipo.com`:
+
+- Serves `/admin` and `/auth` as static Next.js export locally
+- Proxies `/api` and `/health` to `notipo-prod-api.internal:3000` via Fly private networking
+- Proxies remaining paths (marketing) to `notipo-prod-site.internal:80`
+
+Requires `API_INTERNAL_URL` and `SITE_INTERNAL_URL` env vars at runtime.
+
+### CLI 1.1.3 published to npm
+
+Updated the `NOTIPO_URL=https://notipo.com` example in `notipo --help` output to `https://app.notipo.com`. Backwards-compatible — CLI itself is env-driven and works against any hostname.
+
+### Fixes
+
+- Sync `package-lock.json` with `apps/web/package.json` — missing entries for @blocknote/*, tailwindcss 4.3.2, lucide-react, tailwind-merge caused `npm ci` failures on fresh CI builds and Glama's introspector.
+- Update README API examples to `app.notipo.com`.
+- CI: replace Google Cloud Build deploy step with `flyctl deploy --remote-only`. Requires `FLY_API_TOKEN` secret.
+
 ## v1.2.6
 
 ### Cleaner Smithery Scan Output
