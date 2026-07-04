@@ -45,7 +45,7 @@ export async function registerSendTrialExpiryEmailJob(boss: PgBoss, prisma: Pris
       );
       const dayWord = daysLeft === 1 ? "day" : "days";
 
-      const frontendUrl = config.FRONTEND_URL || "https://notipo.com";
+      const frontendUrl = config.FRONTEND_URL || "https://app.notipo.com";
       const billingUrl = `${frontendUrl}/admin/billing`;
       const ok = await sendEmail(
         owner.email,
