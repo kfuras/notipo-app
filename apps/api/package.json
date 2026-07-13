@@ -21,7 +21,7 @@
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/sensible": "^6.0.1",
-    "@fastify/static": "^9.1.1",
+    "@fastify/static": "^10.1.0",
     "@google-cloud/storage": "^7.21.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@notionhq/client": "^2.3.0",
