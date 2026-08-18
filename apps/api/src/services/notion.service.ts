@@ -175,7 +175,8 @@ export class NotionService {
   private client: Client;
 
   constructor(accessToken: string) {
-    this.client = new Client({ auth: accessToken });
+    // Tighten the SDK's 60s default so a hung Notion request can't pin a worker.
+    this.client = new Client({ auth: accessToken, timeoutMs: 30_000 });
   }
 
   /** Query a Notion database for pages matching a status filter. */

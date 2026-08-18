@@ -25,7 +25,10 @@ export class WordPressService {
 
     const headers = { Authorization: `Basic ${auth}` };
 
-    this.client = axios.create({ baseURL: credentials.siteUrl, headers });
+    // Timeout on every WP call: a slow/unresponsive tenant site must not hang a
+    // job worker indefinitely (a worker blocked forever is what turned the Aug 2026
+    // taxonomy-pagination bug into a full outage). 30s covers media uploads.
+    this.client = axios.create({ baseURL: credentials.siteUrl, headers, timeout: 30_000 });
 
     // Use ?rest_route= query-string format instead of /wp-json/ pretty URLs.
     // This works on all WordPress installs regardless of server rewrite rules.
@@ -37,7 +40,7 @@ export class WordPressService {
     });
 
     // Raw client for non-/wp/v2 REST routes (e.g. plugin-specific endpoints)
-    this.rawClient = axios.create({ baseURL: credentials.siteUrl, headers });
+    this.rawClient = axios.create({ baseURL: credentials.siteUrl, headers, timeout: 30_000 });
     this.rawClient.interceptors.request.use((config) => {
       const path = config.url || "";
       config.url = "/";
