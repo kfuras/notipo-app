@@ -263,8 +263,15 @@ export class WordPressService {
   /** Resolve tag slugs to WordPress tag IDs, creating missing tags. */
   async resolveTagIds(tagNames: string[]): Promise<number[]> {
     if (tagNames.length === 0) return [];
+    // One or two WP calls per tag — cap pathological input so a single post can't
+    // drive an unbounded sequence of outbound calls.
+    const MAX_TAGS = 50;
+    const names = tagNames.slice(0, MAX_TAGS);
+    if (tagNames.length > MAX_TAGS) {
+      logger.warn({ requested: tagNames.length, capped: MAX_TAGS }, "resolveTagIds capped tag count");
+    }
     const ids: number[] = [];
-    for (const name of tagNames) {
+    for (const name of names) {
       const slug = name.toLowerCase().replace(/\s+/g, "-");
       const { data: found } = await this.client.get<Array<{ id: number }>>("/tags", {
         params: { slug, per_page: 1 },

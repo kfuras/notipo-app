@@ -21,7 +21,9 @@ export async function registerCheckTrialsJob(boss: PgBoss, prisma: PrismaClient)
 
   // Run once per hour
   setInterval(() => {
-    boss.send("check-trials", {}, { singletonKey: "check-trials" }).catch(() => {});
+    boss.send("check-trials", {}, { singletonKey: "check-trials" }).catch((err: unknown) => {
+      logger.error({ err }, "Failed to enqueue check-trials");
+    });
   }, 60 * 60 * 1000);
 
   await boss.send("check-trials", {}, { singletonKey: "check-trials" });
