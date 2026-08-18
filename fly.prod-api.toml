@@ -17,10 +17,6 @@ primary_region = 'ams'
   # so the SaaS prod app must enable it explicitly. Kept here (version-controlled) so
   # it survives redeploys/migrations — it was lost in the GCP→Fly move (Aug 2026).
   ALLOW_SIGNUP = 'true'
-  # Node does not auto-size its heap from the machine RAM here — it caps ~256 MB by
-  # default and OOM-crashes. Give it room on the 1 GB machine (leaves headroom for
-  # non-heap RSS). Added Aug 2026 after a post-migration OOM crash-loop.
-  NODE_OPTIONS = '--max-old-space-size=768'
   # Sentry DSN is a public identifier — Sentry validates per-origin.
   # NEXT_PUBLIC_SENTRY_DSN and SENTRY_DSN set via secrets if needed.
 
@@ -42,4 +38,4 @@ primary_region = 'ams'
 
 [[vm]]
   size = 'shared-cpu-1x'
-  memory = '1024mb'
+  memory = '512mb'
