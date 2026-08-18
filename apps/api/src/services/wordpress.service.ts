@@ -286,38 +286,43 @@ export class WordPressService {
     await this.client.delete(`/posts/${wpPostId}`, { params: { force: true } });
   }
 
-  /** Fetch all categories from the WordPress site. */
-  async listCategories(): Promise<Array<{ id: number; name: string; slug: string; count: number }>> {
+  /**
+   * Fetch all items from a paginated WP taxonomy endpoint (categories/tags).
+   * Hardened against WP sites that ignore the `page` param and return the same
+   * page forever (caching/security plugins) — which would make a naive
+   * `while (true)` loop grow unboundedly and OOM the process. Bounded by a hard
+   * page cap AND by detecting a page that yields no new IDs.
+   */
+  private async listTaxonomy(
+    path: string,
+  ): Promise<Array<{ id: number; name: string; slug: string; count: number }>> {
     const results: Array<{ id: number; name: string; slug: string; count: number }> = [];
-    let page = 1;
-    while (true) {
-      const { data } = await this.client.get("/categories", {
-        params: { per_page: 100, page },
-      });
+    const seen = new Set<number>();
+    const MAX_PAGES = 50; // 5000 terms — far beyond any real site; prevents runaway
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data } = await this.client.get(path, { params: { per_page: 100, page } });
+      if (!Array.isArray(data) || data.length === 0) break;
+      let added = 0;
       for (const c of data) {
+        if (seen.has(c.id)) continue; // site ignoring pagination → same items again
+        seen.add(c.id);
         results.push({ id: c.id, name: c.name, slug: c.slug, count: c.count });
+        added++;
       }
-      if (data.length < 100) break;
-      page++;
+      // Last page, or the site returned no new items (broken pagination) — stop.
+      if (data.length < 100 || added === 0) break;
     }
     return results;
   }
 
+  /** Fetch all categories from the WordPress site. */
+  async listCategories(): Promise<Array<{ id: number; name: string; slug: string; count: number }>> {
+    return this.listTaxonomy("/categories");
+  }
+
   /** Fetch all tags from the WordPress site. */
   async listTags(): Promise<Array<{ id: number; name: string; slug: string; count: number }>> {
-    const results: Array<{ id: number; name: string; slug: string; count: number }> = [];
-    let page = 1;
-    while (true) {
-      const { data } = await this.client.get("/tags", {
-        params: { per_page: 100, page },
-      });
-      for (const t of data) {
-        results.push({ id: t.id, name: t.name, slug: t.slug, count: t.count });
-      }
-      if (data.length < 100) break;
-      page++;
-    }
-    return results;
+    return this.listTaxonomy("/tags");
   }
 
   /** List posts with pagination. Returns posts, total count, and total pages. */

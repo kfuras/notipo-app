@@ -8,7 +8,14 @@ import { logger } from "../lib/logger.js";
 const lastPolledAt = new Map<string, number>();
 
 export async function registerPollNotionJob(boss: PgBoss, prisma: PrismaClient) {
-  await boss.createQueue("poll-notion");
+  // pg-boss v12 enforces singleton/dedup via the QUEUE POLICY — the send-time
+  // `singletonKey` below silently no-ops on a 'standard' queue (v9 behaviour changed).
+  // 'stately' allows at most one poll-notion job per state (queued + active), so the
+  // 60s tick + startup send can't pile up. Without this the backlog OOM-crashes the
+  // worker on startup. retryLimit 0: a missed poll just runs on the next tick.
+  // (Existing prod queues are migrated to 'stately' directly in the DB — pg-boss v12's
+  // updateQueue cannot change policy, and createQueue no-ops on an existing queue.)
+  await boss.createQueue("poll-notion", { policy: "stately", retryLimit: 0, expireInSeconds: 120 });
 
   // Register the handler
   await boss.work("poll-notion", async () => {
