@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useApi, useApiCall } from "@/hooks/use-api";
 import { useAuth } from "@/lib/auth-context";
+import { authClient } from "@/lib/auth-client";
 import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Lock, Trash2, Loader2, Key, Copy, Check } from "lucide-react";
+import { User, Lock, Trash2, Loader2, Key, Copy, Check, RefreshCw } from "lucide-react";
 
 interface AccountData {
   data: {
@@ -19,7 +20,6 @@ interface AccountData {
     email: string;
     name: string | null;
     role: string;
-    apiKey: string;
     createdAt: string;
     tenant: {
       name: string;
@@ -30,14 +30,20 @@ interface AccountData {
   };
 }
 
+interface ApiKeyData {
+  data: { key: string; name: string | null; lastUsedAt: string | null; createdAt: string } | null;
+}
+
 export default function AccountPage() {
   const { logout } = useAuth();
   const { call } = useApiCall();
   const { data: account, loading } = useApi<AccountData>("/api/account");
+  const { data: keyData, loading: keyLoading, refetch: refetchKey } = useApi<ApiKeyData>("/api/settings/api-key");
   const router = useRouter();
 
-  // API key copy state
+  // API key state
   const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
 
   // Change password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -46,7 +52,6 @@ export default function AccountPage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Delete account state
-  const [deletePassword, setDeletePassword] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -62,10 +67,12 @@ export default function AccountPage() {
     }
     setPasswordLoading(true);
     try {
-      await call("/api/account/password", {
-        method: "PATCH",
-        body: { currentPassword, newPassword },
+      const { error } = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
       });
+      if (error) throw new Error(error.message || "Failed to change password");
       toast.success("Password updated successfully");
       setCurrentPassword("");
       setNewPassword("");
@@ -77,15 +84,25 @@ export default function AccountPage() {
     }
   };
 
+  const handleRotateKey = async () => {
+    setRotating(true);
+    try {
+      await call("/api/settings/api-key/rotate", { method: "POST" });
+      await refetchKey();
+      toast.success("API key rotated — update your CLI/MCP config with the new key");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to rotate key");
+    } finally {
+      setRotating(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
     try {
-      await call("/api/account", {
-        method: "DELETE",
-        body: { password: deletePassword },
-      });
+      await call("/api/account", { method: "DELETE" });
       capture("account_deleted");
-      logout();
+      await logout();
       router.push("/");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete account");
@@ -105,6 +122,7 @@ export default function AccountPage() {
   }
 
   const isOwner = a.role === "OWNER";
+  const apiKey = keyData?.data?.key ?? "";
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -134,7 +152,7 @@ export default function AccountPage() {
             <Badge variant="outline">{a.role}</Badge>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Organization</span>
+            <span className="text-sm text-muted-foreground">Blog</span>
             <span className="text-sm font-medium">{a.tenant.name}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -153,13 +171,15 @@ export default function AccountPage() {
             <Key className="w-5 h-5" />
             API Key
           </CardTitle>
-          <CardDescription>Use this key to authenticate API requests from external tools.</CardDescription>
+          <CardDescription>
+            Use this key to authenticate the CLI and MCP server. Keep it secret — rotate it if it leaks.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
             <Input
               type="password"
-              value={a.apiKey}
+              value={keyLoading ? "Loading…" : apiKey}
               readOnly
               className="font-mono text-sm"
               onFocus={(e) => { e.target.type = "text"; }}
@@ -168,15 +188,24 @@ export default function AccountPage() {
             <Button
               variant="outline"
               size="icon"
+              disabled={!apiKey}
               onClick={() => {
-                navigator.clipboard.writeText(a.apiKey);
+                navigator.clipboard.writeText(apiKey);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
             >
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </Button>
+            <Button variant="outline" size="icon" onClick={handleRotateKey} disabled={rotating} title="Rotate key">
+              {rotating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            </Button>
           </div>
+          {keyData?.data?.lastUsedAt && (
+            <p className="text-xs text-muted-foreground">
+              Last used {new Date(keyData.data.lastUsedAt).toLocaleString()}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -187,7 +216,9 @@ export default function AccountPage() {
             <Lock className="w-5 h-5" />
             Change Password
           </CardTitle>
-          <CardDescription>Update your password to keep your account secure.</CardDescription>
+          <CardDescription>
+            Update your password. If you signed in with Google, you don&apos;t have a password to change.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="space-y-4">
@@ -240,8 +271,8 @@ export default function AccountPage() {
           </CardTitle>
           <CardDescription>
             {isOwner
-              ? "Deleting your account will permanently remove your organization and all associated data including posts, categories, and jobs."
-              : "Deleting your account will remove your access to this organization."}
+              ? "Deleting your account will permanently remove your blog and all associated data including posts, categories, and jobs."
+              : "Deleting your account will remove your access to this blog."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -255,33 +286,20 @@ export default function AccountPage() {
           ) : (
             <div className="space-y-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
               <p className="text-sm font-medium text-destructive">
-                Enter your password to confirm account deletion. This action cannot be undone.
+                This permanently deletes your blog and account. This action cannot be undone.
               </p>
-              <div className="space-y-2">
-                <Label htmlFor="deletePassword">Password</Label>
-                <Input
-                  id="deletePassword"
-                  type="password"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  placeholder="Enter your password"
-                />
-              </div>
               <div className="flex gap-2">
                 <Button
                   variant="destructive"
                   onClick={handleDeleteAccount}
-                  disabled={deleteLoading || !deletePassword}
+                  disabled={deleteLoading}
                 >
                   {deleteLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Permanently Delete
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setDeletePassword("");
-                  }}
+                  onClick={() => setShowDeleteConfirm(false)}
                 >
                   Cancel
                 </Button>

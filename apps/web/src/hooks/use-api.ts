@@ -5,18 +5,19 @@ import { api, apiUpload, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 
 export function useApi<T>(path: string | null) {
-  const { apiKey, impersonating } = useAuth();
+  const { apiKey, isAuthed, impersonating } = useAuth();
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!path);
 
   const fetchData = useCallback(async (isInitial: boolean) => {
-    if (!path || !apiKey) return;
+    if (!path || !isAuthed) return;
     if (isInitial) setLoading(true);
     setError(null);
     try {
       const res = await api<T>(path, {
-        apiKey,
+        // Session users authenticate by cookie (apiKey null); admin/CLI pass the key.
+        apiKey: apiKey ?? undefined,
         impersonateTenant: impersonating?.tenantId,
       });
       setData(res);
@@ -25,7 +26,7 @@ export function useApi<T>(path: string | null) {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [path, apiKey, impersonating?.tenantId]);
+  }, [path, apiKey, isAuthed, impersonating?.tenantId]);
 
   const refetch = useCallback(() => fetchData(false), [fetchData]);
 
@@ -43,8 +44,8 @@ export function useApiCall() {
 
   return useMemo(() => ({
     call: <T>(path: string, opts: { method?: string; body?: unknown } = {}) =>
-      api<T>(path, { ...opts, apiKey: apiKey!, impersonateTenant: tenantId }),
+      api<T>(path, { ...opts, apiKey: apiKey ?? undefined, impersonateTenant: tenantId }),
     upload: <T>(path: string, file: File) =>
-      apiUpload<T>(path, file, { apiKey: apiKey!, impersonateTenant: tenantId }),
+      apiUpload<T>(path, file, { apiKey: apiKey ?? undefined, impersonateTenant: tenantId }),
   }), [apiKey, tenantId]);
 }

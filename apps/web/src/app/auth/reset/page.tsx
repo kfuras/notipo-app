@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { api } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,10 +74,8 @@ function ResetForm() {
 
     setLoading(true);
     try {
-      await api("/api/auth/reset-password", {
-        method: "POST",
-        body: { token, password },
-      });
+      const { error } = await authClient.resetPassword({ newPassword: password, token: token! });
+      if (error) throw new Error(error.message || "Failed to reset password");
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reset password");

@@ -62,15 +62,15 @@ function PostHogEnrich() {
 }
 
 function AdminShell({ children }: { children: React.ReactNode }) {
-  const { apiKey, isLoading, isAdmin, impersonating } = useAuth();
+  const { isAuthed, isLoading, isAdmin, impersonating } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading && !apiKey) {
+    if (!isLoading && !isAuthed) {
       router.replace("/auth/login");
     }
-  }, [apiKey, isLoading, router]);
+  }, [isAuthed, isLoading, router]);
 
   // Admin without impersonation: redirect to tenants page (tenant routes won't work)
   useEffect(() => {
@@ -79,7 +79,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, isAdmin, impersonating, pathname, router]);
 
-  if (isLoading || !apiKey) {
+  if (isLoading || !isAuthed) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

@@ -8,7 +8,8 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { api, ApiError } from "./api-client";
+import { api } from "./api-client";
+import { authClient, useSession } from "./auth-client";
 import {
   capture,
   identifyUser,
@@ -22,19 +23,20 @@ interface Impersonation {
   tenantName: string;
 }
 
-interface AuthState {
+interface AuthContextValue {
+  /** True once any auth is established — a better-auth session OR an admin/CLI key. */
+  isAuthed: boolean;
+  /** Programmatic key for the admin/CLI (x-api-key) path. null for normal session users. */
   apiKey: string | null;
   email: string | null;
   isAdmin: boolean;
   isLoading: boolean;
   impersonating: Impersonation | null;
-}
-
-interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   register: (email: string, password: string, blogName: string) => Promise<boolean>;
   setApiKey: (key: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   impersonate: (tenantId: string, tenantName: string) => void;
   stopImpersonating: () => void;
 }
@@ -42,21 +44,23 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const IMPERSONATION_KEY = "notipo_impersonating";
+const API_KEY_STORAGE = "notipo_api_key";
+const EMAIL_STORAGE = "notipo_email";
 
-function clearStoredAuth() {
-  localStorage.removeItem("notipo_api_key");
-  localStorage.removeItem("notipo_email");
+function clearStoredKey() {
+  localStorage.removeItem(API_KEY_STORAGE);
+  localStorage.removeItem(EMAIL_STORAGE);
   sessionStorage.removeItem(IMPERSONATION_KEY);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    apiKey: null,
-    email: null,
-    isAdmin: false,
-    isLoading: true,
-    impersonating: null,
-  });
+  const { data: session, isPending: sessionPending } = useSession();
+
+  // x-api-key (admin/CLI) path — kept alongside sessions.
+  const [apiKey, setApiKeyState] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [keyChecking, setKeyChecking] = useState(true);
+  const [impersonating, setImpersonating] = useState<Impersonation | null>(null);
 
   const detectAdmin = useCallback(async (key: string) => {
     try {
@@ -67,128 +71,143 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Restore from localStorage on mount
+  // Restore an api-key login + impersonation from storage on mount.
   useEffect(() => {
-    const stored = localStorage.getItem("notipo_api_key");
-    const email = localStorage.getItem("notipo_email");
+    const stored = localStorage.getItem(API_KEY_STORAGE);
     const imp = sessionStorage.getItem(IMPERSONATION_KEY);
-    const impersonating = imp ? (JSON.parse(imp) as Impersonation) : null;
-    // Page reloaded mid-impersonation — opt PostHog out before any
-    // pageview/identify event fires.
-    if (impersonating) {
+    const restoredImp = imp ? (JSON.parse(imp) as Impersonation) : null;
+    if (restoredImp) {
+      setImpersonating(restoredImp);
+      // Reloaded mid-impersonation — opt PostHog out before any event fires.
       pausePostHogForImpersonation();
     }
     if (!stored) {
-      setState((s) => ({ ...s, isLoading: false }));
+      setKeyChecking(false);
       return;
     }
 
     let cancelled = false;
-
-    async function restoreSession() {
+    (async () => {
       try {
-        const isAdmin = await detectAdmin(stored!);
-        if (!isAdmin) {
-          await api("/api/settings", { apiKey: stored!, timeoutMs: 10_000 });
+        const admin = await detectAdmin(stored);
+        if (!admin) {
+          // Validate a non-admin CLI key against a tenant endpoint.
+          await api("/api/settings", { apiKey: stored, timeoutMs: 10_000 });
         }
         if (!cancelled) {
-          setState({ apiKey: stored, email, isAdmin, isLoading: false, impersonating });
+          setApiKeyState(stored);
+          setIsAdmin(admin);
         }
       } catch {
-        clearStoredAuth();
+        clearStoredKey();
         if (!cancelled) {
-          setState({ apiKey: null, email: null, isAdmin: false, isLoading: false, impersonating: null });
+          setApiKeyState(null);
+          setIsAdmin(false);
+          setImpersonating(null);
         }
+      } finally {
+        if (!cancelled) setKeyChecking(false);
       }
-    }
+    })();
 
-    restoreSession();
     return () => {
       cancelled = true;
     };
   }, [detectAdmin]);
 
-  const setApiKey = useCallback(
-    async (key: string) => {
-      // Validate key by trying a tenant endpoint first; admin keys skip this check
-      const isAdmin = await detectAdmin(key);
-      if (!isAdmin) {
-        await api("/api/settings", { apiKey: key });
-      }
-      localStorage.setItem("notipo_api_key", key);
-      setState({ apiKey: key, email: null, isAdmin, isLoading: false, impersonating: null });
-    },
-    [detectAdmin],
-  );
+  const login = useCallback(async (email: string, password: string) => {
+    const { error } = await authClient.signIn.email({ email, password });
+    if (error) throw new Error(error.message || "Login failed");
+    localStorage.setItem(EMAIL_STORAGE, email);
+    identifyUser(email);
+    capture("user_logged_in", { method: "email" });
+  }, []);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const res = await api<{ data: { apiKey: string } }>(
-        "/api/auth/login",
-        { method: "POST", body: { email, password } },
-      );
-      localStorage.setItem("notipo_api_key", res.data.apiKey);
-      localStorage.setItem("notipo_email", email);
-      const isAdmin = await detectAdmin(res.data.apiKey);
-      setState({
-        apiKey: res.data.apiKey,
-        email,
-        isAdmin,
-        isLoading: false,
-        impersonating: null,
-      });
-      identifyUser(email);
-      capture("user_logged_in", { method: "email" });
-    },
-    [detectAdmin],
-  );
+  const loginWithGoogle = useCallback(async () => {
+    await authClient.signIn.social({ provider: "google", callbackURL: "/admin" });
+  }, []);
 
   const register = useCallback(
     async (email: string, password: string, blogName: string): Promise<boolean> => {
-      const res = await api<{ data?: { apiKey: string }; needsVerification?: boolean }>(
-        "/api/auth/register",
-        { method: "POST", body: { email, password, blogName } },
-      );
-      // If email is not configured, the API auto-verifies and returns an API key
-      if (res.data?.apiKey) {
-        localStorage.setItem("notipo_api_key", res.data.apiKey);
-        localStorage.setItem("notipo_email", email);
-        const isAdmin = await detectAdmin(res.data.apiKey);
-        setState({ apiKey: res.data.apiKey, email, isAdmin, isLoading: false, impersonating: null });
-        identifyUser(email);
-        capture("user_registered", { auto_verified: true });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (typeof window !== "undefined" && typeof (window as any).fbq === "function") (window as any).fbq("track", "CompleteRegistration");
-        return true; // auto-logged in
+      const { error } = await authClient.signUp.email({
+        email,
+        password,
+        name: email.split("@")[0],
+        // additionalField — the databaseHook creates the blog (organization).
+        blogName,
+      } as Parameters<typeof authClient.signUp.email>[0]);
+      if (error) throw new Error(error.message || "Registration failed");
+      localStorage.setItem(EMAIL_STORAGE, email);
+      identifyUser(email);
+      capture("user_registered", { auto_verified: true });
+      if (typeof window !== "undefined" && typeof (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq === "function") {
+        (window as unknown as { fbq: (...a: unknown[]) => void }).fbq("track", "CompleteRegistration");
       }
-      capture("user_registered", { auto_verified: false });
-      return false; // needs email verification
+      // autoSignIn + no verification gate → the session is already active.
+      return true;
+    },
+    [],
+  );
+
+  const setApiKey = useCallback(
+    async (key: string) => {
+      const admin = await detectAdmin(key);
+      if (!admin) {
+        await api("/api/settings", { apiKey: key });
+      }
+      localStorage.setItem(API_KEY_STORAGE, key);
+      setApiKeyState(key);
+      setIsAdmin(admin);
+      setKeyChecking(false);
     },
     [detectAdmin],
   );
 
-  const logout = useCallback(() => {
-    clearStoredAuth();
-    setState({ apiKey: null, email: null, isAdmin: false, isLoading: false, impersonating: null });
+  const logout = useCallback(async () => {
+    clearStoredKey();
+    setApiKeyState(null);
+    setIsAdmin(false);
+    setImpersonating(null);
     resetUser();
-  }, []);
+    if (session?.user) {
+      await authClient.signOut().catch(() => {});
+    }
+  }, [session?.user]);
 
   const impersonate = useCallback((tenantId: string, tenantName: string) => {
     const imp = { tenantId, tenantName };
     sessionStorage.setItem(IMPERSONATION_KEY, JSON.stringify(imp));
-    setState((s) => ({ ...s, impersonating: imp }));
+    setImpersonating(imp);
     pausePostHogForImpersonation();
   }, []);
 
   const stopImpersonating = useCallback(() => {
     sessionStorage.removeItem(IMPERSONATION_KEY);
-    setState((s) => ({ ...s, impersonating: null }));
+    setImpersonating(null);
     resumePostHogAfterImpersonation();
   }, []);
 
+  const email = session?.user?.email ?? (typeof window !== "undefined" ? localStorage.getItem(EMAIL_STORAGE) : null);
+  const isAuthed = !!session?.user || !!apiKey;
+  const isLoading = sessionPending || keyChecking;
+
   return (
     <AuthContext.Provider
-      value={{ ...state, login, register, setApiKey, logout, impersonate, stopImpersonating }}
+      value={{
+        isAuthed,
+        apiKey,
+        email,
+        isAdmin,
+        isLoading,
+        impersonating,
+        login,
+        loginWithGoogle,
+        register,
+        setApiKey,
+        logout,
+        impersonate,
+        stopImpersonating,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -90,6 +90,8 @@ export async function buildApp() {
       ? [config.FRONTEND_URL, "http://localhost:3001"]
       : true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    // Allow the better-auth session cookie on cross-origin (dev) requests.
+    credentials: true,
   });
   await app.register(sensible);
   await app.register(rateLimit, {

@@ -8,18 +8,21 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 export function useEventSource(
   onEvent: (event: string, data: unknown) => void,
 ) {
-  const { apiKey, impersonating } = useAuth();
+  const { apiKey, isAuthed, impersonating } = useAuth();
   const callbackRef = useRef(onEvent);
   callbackRef.current = onEvent;
 
   useEffect(() => {
-    if (!apiKey) return;
+    if (!isAuthed) return;
 
-    let url = `${API_BASE}/api/events?token=${encodeURIComponent(apiKey)}`;
-    if (impersonating?.tenantId) {
-      url += `&impersonateTenant=${encodeURIComponent(impersonating.tenantId)}`;
-    }
-    const es = new EventSource(url);
+    // Session users authenticate by cookie (withCredentials); admin/CLI pass
+    // the key as a query param since EventSource can't set request headers.
+    const params = new URLSearchParams();
+    if (apiKey) params.set("token", apiKey);
+    if (impersonating?.tenantId) params.set("impersonateTenant", impersonating.tenantId);
+    const qs = params.toString();
+    const url = `${API_BASE}/api/events${qs ? `?${qs}` : ""}`;
+    const es = new EventSource(url, { withCredentials: true });
 
     es.addEventListener("job_update", (e) => {
       try {
@@ -35,5 +38,5 @@ export function useEventSource(
     };
 
     return () => es.close();
-  }, [apiKey, impersonating?.tenantId]);
+  }, [apiKey, isAuthed, impersonating?.tenantId]);
 }
