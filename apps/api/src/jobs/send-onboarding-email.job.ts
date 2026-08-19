@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { sendEmail } from "../lib/email.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
+import { resolveOwnerContact } from "../lib/tenant-owner.js";
 
 const log = logger.child({ job: "send-onboarding-email" });
 
@@ -30,17 +31,12 @@ export async function registerSendOnboardingEmailJob(boss: PgBoss, prisma: Prism
           { wordpressCredentials: null },
         ],
       },
-      include: {
-        users: {
-          where: { role: "OWNER", emailVerified: true },
-          select: { email: true, name: true },
-        },
-      },
     });
 
     let sent = 0;
     for (const tenant of tenants) {
-      const owner = tenant.users[0];
+      // Owner via better-auth membership (legacy users table is empty for new tenants).
+      const owner = await resolveOwnerContact(prisma, tenant.id);
       if (!owner) continue;
 
       const missingNotion = !tenant.notionCredentials;
