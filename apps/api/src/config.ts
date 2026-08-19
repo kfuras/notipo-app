@@ -19,6 +19,12 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   ENCRYPTION_KEY: z.string().min(64),
   API_KEY: z.string().min(8),
+  // better-auth (human/web access). Optional so the app boots without them;
+  // BETTER_AUTH_SECRET + GOOGLE_* are set in prod for sessions + Google sign-in.
+  BETTER_AUTH_SECRET: emptyToUndefined,
+  BETTER_AUTH_URL: emptyToUndefinedUrl,
+  GOOGLE_CLIENT_ID: emptyToUndefined,
+  GOOGLE_CLIENT_SECRET: emptyToUndefined,
   PORT: z.coerce.number().default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
