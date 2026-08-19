@@ -330,6 +330,9 @@ model AuthAccount {
   id                    String    @id
   accountId             String
   providerId            String
+  // better-auth 1.7 scopes account identity by issuer (e.g. the OAuth issuer
+  // URL). Queried by findAccountOwnerByKey/findAccountByKey during OAuth sign-in.
+  issuer                String?
   userId                String
   authuser              AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
