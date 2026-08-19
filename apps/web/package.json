@@ -10,10 +10,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@blocknote/core": "^0.52.1",
-    "@blocknote/mantine": "^0.52.1",
-    "@blocknote/react": "^0.52.1",
-    "@blocknote/shadcn": "^0.52.1",
     "@notipo/shared": "*",
     "@posthog/react": "^1.9.0",
     "@sentry/nextjs": "^10.52.0",

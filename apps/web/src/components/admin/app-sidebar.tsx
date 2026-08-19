@@ -2,7 +2,6 @@
 
 import {
   LayoutDashboard,
-  PenLine,
   FileText,
   FolderTree,
   Activity,
@@ -31,7 +30,6 @@ import {
 
 const tenantNavItems = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { title: "Write", href: "/admin/write", icon: PenLine },
   { title: "Posts", href: "/admin/posts", icon: FileText },
   { title: "Categories", href: "/admin/categories", icon: FolderTree },
   { title: "Jobs", href: "/admin/jobs", icon: Activity },
