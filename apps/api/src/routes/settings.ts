@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { randomBytes } from "node:crypto";
+import { requireSession } from "../plugins/auth.js";
 import { CredentialService } from "../services/credential.service.js";
 import { WordPressService } from "../services/wordpress.service.js";
 import { NotionService } from "../services/notion.service.js";
@@ -267,5 +269,50 @@ export async function settingsRoutes(app: FastifyInstance) {
     }
 
     return reply.code(204).send();
+  });
+
+  /**
+   * GET /api/settings/api-key — the programmatic key (CLI/MCP) for the active
+   * blog. Session-only: a request authenticated *with* an API key cannot read
+   * or rotate the key.
+   */
+  app.get("/api/settings/api-key", async (request, reply) => {
+    if (!requireSession(request, reply)) return;
+    const key = await app.prisma.apiKey.findFirst({
+      where: { tenantId: request.tenant.id },
+      orderBy: { createdAt: "desc" },
+      select: { key: true, name: true, lastUsedAt: true, createdAt: true },
+    });
+    if (!key) return { data: null };
+    return {
+      data: {
+        key: key.key,
+        name: key.name,
+        lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
+        createdAt: key.createdAt.toISOString(),
+      },
+    };
+  });
+
+  /**
+   * POST /api/settings/api-key/rotate — regenerate the active blog's key.
+   * Session-only. Replaces every existing key for the blog with one fresh key,
+   * so the old key stops working immediately.
+   */
+  app.post("/api/settings/api-key/rotate", async (request, reply) => {
+    if (!requireSession(request, reply)) return;
+    const newKey = `ntp_${randomBytes(32).toString("hex")}`;
+    await app.prisma.$transaction([
+      app.prisma.apiKey.deleteMany({ where: { tenantId: request.tenant.id } }),
+      app.prisma.apiKey.create({
+        data: {
+          key: newKey,
+          tenantId: request.tenant.id,
+          userId: request.user.id,
+          name: "Default",
+        },
+      }),
+    ]);
+    return { data: { key: newKey } };
   });
 }

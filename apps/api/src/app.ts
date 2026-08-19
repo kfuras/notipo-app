@@ -12,6 +12,7 @@ import { getPostHogServer, shutdownPostHogServer } from "./lib/posthog-server.js
 import { prismaPlugin } from "./plugins/prisma.js";
 import { pgBossPlugin } from "./plugins/pg-boss.js";
 import { authPlugin } from "./plugins/auth.js";
+import { betterAuthPlugin } from "./plugins/better-auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { postRoutes } from "./routes/posts.js";
 import { categoryRoutes } from "./routes/categories.js";
@@ -89,6 +90,8 @@ export async function buildApp() {
       ? [config.FRONTEND_URL, "http://localhost:3001"]
       : true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    // Allow the better-auth session cookie on cross-origin (dev) requests.
+    credentials: true,
   });
   await app.register(sensible);
   await app.register(rateLimit, {
@@ -125,6 +128,7 @@ export async function buildApp() {
   }
 
   await app.register(prismaPlugin);
+  await app.register(betterAuthPlugin);
   await app.register(pgBossPlugin);
   await app.register(authPlugin);
   await app.register(eventBusPlugin);

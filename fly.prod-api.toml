@@ -10,6 +10,13 @@ primary_region = 'ams'
 [build]
   dockerfile = 'apps/api/Dockerfile'
 
+# Run pending Prisma migrations in the release image (secrets injected, new code)
+# before the app machines start. `prisma` is a runtime dependency so the CLI is
+# present in the production image. A failed migration aborts the deploy and the
+# current version keeps serving.
+[deploy]
+  release_command = "sh -c 'cd /app/apps/api && npx prisma migrate deploy'"
+
 [env]
   NODE_ENV = 'production'
   PORT = '3000'
