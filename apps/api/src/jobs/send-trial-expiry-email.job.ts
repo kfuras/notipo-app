@@ -78,7 +78,9 @@ export async function registerSendTrialExpiryEmailJob(boss: PgBoss, prisma: Pris
 
   // Run once per hour
   setInterval(() => {
-    boss.send("send-trial-expiry-email", {}, { singletonKey: "send-trial-expiry-email" }).catch(() => {});
+    boss.send("send-trial-expiry-email", {}, { singletonKey: "send-trial-expiry-email" }).catch((err: unknown) => {
+      logger.error({ err }, "Failed to enqueue send-trial-expiry-email");
+    });
   }, 60 * 60 * 1000);
 
   await boss.send("send-trial-expiry-email", {}, { singletonKey: "send-trial-expiry-email" });

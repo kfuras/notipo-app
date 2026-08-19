@@ -130,7 +130,11 @@ export async function buildApp() {
   await app.register(eventBusPlugin);
 
   // Jobs
-  await registerAllJobs(app.boss, app.prisma, app.eventBus);
+  if (config.JOBS_ENABLED) {
+    await registerAllJobs(app.boss, app.prisma, app.eventBus);
+  } else {
+    app.log.warn("JOBS_ENABLED=false — background job workers NOT registered (HTTP API only)");
+  }
 
   // Routes
   await app.register(healthRoutes);

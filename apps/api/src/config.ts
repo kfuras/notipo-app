@@ -27,6 +27,10 @@ const envSchema = z.object({
   NOTION_OAUTH_CLIENT_SECRET: emptyToUndefined,
   NOTION_OAUTH_REDIRECT_URI: emptyToUndefinedUrl,
   ALLOW_SIGNUP: z.string().default("false").transform((v) => v === "true"),
+  // Kill-switch for background job workers (pg-boss). Default on. Set to "false"
+  // to run the HTTP API without registering job handlers — used to isolate a
+  // runaway/OOM in the job layer while keeping the API serving.
+  JOBS_ENABLED: z.string().default("true").transform((v) => v === "true"),
   POLL_INTERVAL_SECONDS: z.coerce.number().default(300),
   STRIPE_SECRET_KEY: emptyToUndefined,
   STRIPE_PUBLISHABLE_KEY: emptyToUndefined,

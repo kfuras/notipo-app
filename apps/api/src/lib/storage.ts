@@ -52,28 +52,33 @@ export async function uploadFile(
   assertSafePathComponent(tenantId, "tenantId");
   assertSafePathComponent(filename, "filename");
 
+  // Defense-in-depth on top of the validator above: path.basename() strips any
+  // directory components, guaranteeing a single path segment. It is also the
+  // barrier the path-injection static analysis recognizes. For validated inputs
+  // these are identical to the originals.
+  const safeTenant = path.basename(tenantId);
+  const safeFile = path.basename(filename);
+
   if (useGcs()) {
-    const key = `${PREFIX}/${tenantId}/${filename}`;
+    const key = `${PREFIX}/${safeTenant}/${safeFile}`;
     const bucket = await getBucket();
     await bucket.file(key).save(buffer, { contentType, resumable: false });
     log.info({ tenantId, key }, "Uploaded file to GCS");
-    return `gcs:${tenantId}/${filename}`;
+    return `gcs:${safeTenant}/${safeFile}`;
   }
 
-  // Local filesystem fallback. After validation above, the resolution
-  // prefix check keeps us inside UPLOADS_DIR even if a future attacker
-  // bypasses the validator. Use the resolved path for the actual
-  // write so the value being written equals the value we validated.
+  // Local filesystem fallback. The resolution prefix check keeps us inside
+  // UPLOADS_DIR even if a future code path bypasses the validator.
   const baseDir = path.resolve(UPLOADS_DIR);
-  const dir = path.resolve(baseDir, tenantId);
-  const target = path.resolve(dir, filename);
+  const dir = path.resolve(baseDir, safeTenant);
+  const target = path.resolve(dir, safeFile);
   if (!target.startsWith(baseDir + path.sep)) {
     throw new Error("Resolved upload path escapes UPLOADS_DIR");
   }
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(target, buffer);
   log.info({ tenantId, filename }, "Uploaded file to local storage");
-  return `upload:${tenantId}/${filename}`;
+  return `upload:${safeTenant}/${safeFile}`;
 }
 
 /** Download a file by its storage ref. Used by the featured image service. */

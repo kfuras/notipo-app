@@ -13,6 +13,10 @@ primary_region = 'ams'
 [env]
   NODE_ENV = 'production'
   PORT = '3000'
+  # Public self-serve registration. config default is 'false' (safe for self-hosted),
+  # so the SaaS prod app must enable it explicitly. Kept here (version-controlled) so
+  # it survives redeploys/migrations — it was lost in the GCP→Fly move (Aug 2026).
+  ALLOW_SIGNUP = 'true'
   # Sentry DSN is a public identifier — Sentry validates per-origin.
   # NEXT_PUBLIC_SENTRY_DSN and SENTRY_DSN set via secrets if needed.
 

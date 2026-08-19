@@ -4,6 +4,7 @@
  */
 
 import { Client } from "@notionhq/client";
+import { logger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------
 // Markdown → Notion block helpers (used by createPage)
@@ -175,7 +176,8 @@ export class NotionService {
   private client: Client;
 
   constructor(accessToken: string) {
-    this.client = new Client({ auth: accessToken });
+    // Tighten the SDK's 60s default so a hung Notion request can't pin a worker.
+    this.client = new Client({ auth: accessToken, timeoutMs: 30_000 });
   }
 
   /** Query a Notion database for pages matching a status filter. */
@@ -196,6 +198,11 @@ export class NotionService {
     const blocks: unknown[] = [];
     let cursor: string | undefined;
 
+    // Bound the pagination. The Notion SDK terminates correctly in practice, but an
+    // accumulate-until-has_more loop is the same unbounded shape that caused the WP
+    // OOM — cap it defensively. 100 pages = 10k blocks, far beyond any real post.
+    const MAX_PAGES = 100;
+    let page = 0;
     do {
       const response = await this.client.blocks.children.list({
         block_id: pageId,
@@ -204,7 +211,10 @@ export class NotionService {
       });
       blocks.push(...response.results);
       cursor = response.has_more ? response.next_cursor ?? undefined : undefined;
-    } while (cursor);
+    } while (cursor && ++page < MAX_PAGES);
+    if (cursor) {
+      logger.warn({ pageId, blocks: blocks.length }, "getPageBlocks hit MAX_PAGES cap — page truncated");
+    }
 
     return blocks;
   }

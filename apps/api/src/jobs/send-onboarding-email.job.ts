@@ -85,7 +85,9 @@ export async function registerSendOnboardingEmailJob(boss: PgBoss, prisma: Prism
 
   // Run once per hour
   setInterval(() => {
-    boss.send("send-onboarding-email", {}, { singletonKey: "send-onboarding-email" }).catch(() => {});
+    boss.send("send-onboarding-email", {}, { singletonKey: "send-onboarding-email" }).catch((err: unknown) => {
+      logger.error({ err }, "Failed to enqueue send-onboarding-email");
+    });
   }, 60 * 60 * 1000);
 
   await boss.send("send-onboarding-email", {}, { singletonKey: "send-onboarding-email" });
