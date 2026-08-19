@@ -6,6 +6,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml` and posted as the GitHub release notes when the matching tag is pushed.
 
+## v1.4.0
+
+### New account system: sessions + Google sign-in
+
+Notipo's web dashboard moved from a single API key pasted into the browser to a proper account system built on [better-auth](https://better-auth.com) — email/password and **Sign in with Google**, first-party session cookies, and a redesigned login/signup. **AI agents are unaffected**: the MCP server, REST API, and CLI keep authenticating with `x-api-key`, now created and rotated in web Settings behind your session.
+
+- Web login/signup rebuilt; Google sign-in added.
+- Admin is now a signed-in user (via `ADMIN_EMAILS`), not a shared key.
+- API keys scope publishing to the blog that owns them — unchanged for CLI/MCP.
+
+### Removed the in-app markdown editor
+
+The built-in Write editor is gone. Notipo refocuses on the two things it does best: **syncing from Notion** and **publishing from AI agents** (MCP, REST API, CLI). Drafting happens in Notion or your agent; Notipo runs the WordPress pipeline — markdown to Gutenberg, image hosting, featured images, and SEO metadata.
+
+### Listed in the official MCP Registry
+
+Notipo is now in the official [Model Context Protocol Registry](https://registry.modelcontextprotocol.io) as `io.github.kfuras/notipo`, so MCP-compatible clients can discover the hosted server at `https://app.notipo.com/api/mcp` directly. Also listed on Glama.
+
+### Security & reliability
+
+- Session-only access enforced on the billing, account, and settings routes.
+- SSRF guards on webhook and image-pipeline URLs.
+- Hardened, retryable signup provisioning; assorted audit fixes; deploy and runtime fixes for the Fly.io + Neon Postgres stack.
+
+### Tooling
+
+- CLI releases now publish through GitHub Actions OIDC trusted publishing (no npm tokens or OTP). The `notipo` CLI is at 1.1.4 on npm with refreshed MCP/agent keywords.
+
 ## v1.3.0
 
 ### Fly.io + Neon Postgres Migration, Subdomain Split
