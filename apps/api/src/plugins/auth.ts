@@ -77,7 +77,11 @@ async function authHook(app: FastifyInstance) {
       .catch(() => null);
     if (session?.user) {
       const email = (session.user.email ?? "").toLowerCase();
-      const isAdmin = config.ADMIN_EMAILS.includes(email);
+      // Admin requires a VERIFIED email — otherwise anyone could email/password
+      // sign up as an admin address (verification is off for normal users) and
+      // escalate. A verified email means the user controls that mailbox/Google
+      // account, so only the real owner of an ADMIN_EMAILS address gets admin.
+      const isAdmin = session.user.emailVerified === true && config.ADMIN_EMAILS.includes(email);
       request.isAdmin = isAdmin;
       request.authMethod = "session";
 

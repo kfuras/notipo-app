@@ -98,7 +98,13 @@ async function migrate(tenantIds: string[]) {
           id: randomUUID(),
           email: legacy.email,
           name: legacy.name || legacy.email.split("@")[0],
-          emailVerified: true, // lets Google sign-in link by verified email
+          // SECURITY: only migrate accounts whose email is owner-controlled —
+          // marking a self-asserted email as verified lets whoever controls that
+          // mailbox/Google account claim the pre-created blog. In practice this
+          // script is run only for the owner's own account (dead accounts are
+          // deleted, not imported), so `true` is safe and is required so the
+          // owner can sign in with Google and (if in ADMIN_EMAILS) be admin.
+          emailVerified: true,
         },
       });
       console.log(`  + authUser ${authUser.email}`);
