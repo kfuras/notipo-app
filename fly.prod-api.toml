@@ -15,7 +15,11 @@ primary_region = 'ams'
 # present in the production image. A failed migration aborts the deploy and the
 # current version keeps serving.
 [deploy]
-  release_command = "sh -c 'cd /app/apps/api && npx prisma migrate deploy'"
+  # Disable Prisma's migrate advisory lock — Neon (via its proxy) does not grant
+  # pg_advisory_lock within the 10s timeout, causing P1002. The lock only guards
+  # against concurrent migrations, which can't happen here: Fly runs the release
+  # command serially and CI uses `concurrency: deploy-api`.
+  release_command = "sh -c 'cd /app/apps/api && PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy'"
 
 [env]
   NODE_ENV = 'production'
