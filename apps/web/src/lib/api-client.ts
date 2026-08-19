@@ -39,6 +39,9 @@ export async function api<T>(
       headers,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      // Send the better-auth session cookie. Normal users authenticate by
+      // cookie (no x-api-key); admins still pass the admin key explicitly.
+      credentials: "include",
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -80,6 +83,7 @@ export async function apiUpload<T>(
       headers,
       body: formData,
       signal: controller.signal,
+      credentials: "include",
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {

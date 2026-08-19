@@ -51,6 +51,13 @@ model Tenant {
   jobs       Job[]
   templates  PostTemplate[]
 
+  // better-auth organization plugin maps onto this table (one org = one blog).
+  logo        String?
+  metadata    String?
+  members     Member[]
+  invitations Invitation[]
+  apiKeys     ApiKey[]
+
   @@index([notionWorkspaceId])
   @@map("tenants")
 }
@@ -278,4 +285,121 @@ model PostTemplate {
 
   @@unique([tenantId, name])
   @@map("post_templates")
+}
+
+// ─── better-auth (human/web access) ──────────────────────────────────────────
+// Distinct table names (authUser etc.) so the legacy per-tenant `User` (table
+// `users`) can coexist during migration. The organization = a blog, mapped onto
+// the existing `Tenant` model above.
+
+model AuthUser {
+  id            String        @id
+  name          String
+  email         String
+  emailVerified Boolean       @default(false)
+  image         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  blogName      String?
+  authsessions  AuthSession[]
+  authaccounts  AuthAccount[]
+  members       Member[]
+  invitations   Invitation[]
+
+  @@unique([email])
+  @@map("authUser")
+}
+
+model AuthSession {
+  id                   String   @id
+  expiresAt            DateTime
+  token                String   @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  ipAddress            String?
+  userAgent            String?
+  userId               String
+  authuser             AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganizationId String?
+
+  @@index([userId])
+  @@map("authSession")
+}
+
+model AuthAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  authuser              AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("authAccount")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Member {
+  id             String   @id
+  organizationId String
+  tenant         Tenant   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  authuser       AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String   @default("member")
+  createdAt      DateTime
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String   @id
+  organizationId String
+  tenant         Tenant   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String   @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  inviterId      String
+  authuser       AuthUser @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitation")
+}
+
+// Programmatic access (CLI/MCP). Each key resolves to exactly one blog (tenant).
+model ApiKey {
+  id         String    @id @default(cuid())
+  key        String    @unique
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String
+  name       String?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId])
+  @@map("api_keys")
 }

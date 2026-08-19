@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import type { PrismaClient } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
+import { prisma as client } from "../lib/prisma.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -10,12 +10,7 @@ declare module "fastify" {
 }
 
 async function prisma(app: FastifyInstance) {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-  const client = new PrismaClient({
-    adapter,
-    log: app.log.level === "debug" ? ["query", "info", "warn", "error"] : ["error"],
-  });
-
+  // Shared singleton (lib/prisma.ts) — better-auth uses the same pool.
   await client.$connect();
   app.decorate("prisma", client);
 
