@@ -14,8 +14,9 @@ interface Providers {
   google: boolean;
 }
 
-export function LoginForm() {
-  const { login } = useAuth();
+export function SignupForm() {
+  const { register } = useAuth();
+  const [blogName, setBlogName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +26,7 @@ export function LoginForm() {
   useEffect(() => {
     api<{ data: Providers }>("/api/auth/providers")
       .then((res) => setProviders(res.data))
-      .catch(() => setProviders({ signup: false, google: false }));
+      .catch(() => setProviders({ signup: true, google: false }));
   }, []);
 
   async function onSubmit(e: React.FormEvent) {
@@ -33,24 +34,36 @@ export function LoginForm() {
     setError("");
     setPending(true);
     try {
-      await login(email, password);
-      // The auth gate redirects once the session becomes active.
+      await register(email, password, blogName);
+      // autoSignIn → session active → the auth gate redirects to /admin.
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Registration failed");
       setPending(false);
     }
   }
 
   return (
-    <AuthShell title="Sign in" subtitle="Welcome back." footer={<>© 2026 Notipo</>}>
+    <AuthShell title="Create account" subtitle="Start publishing in minutes." footer={<>© 2026 Notipo</>}>
       {providers?.google && (
         <>
-          <GoogleButton label="Sign in with Google" />
+          <GoogleButton label="Sign up with Google" />
           <OrDivider />
         </>
       )}
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="blogName">Blog name</Label>
+          <Input
+            id="blogName"
+            type="text"
+            placeholder="My Awesome Blog"
+            required
+            value={blogName}
+            onChange={(e) => setBlogName(e.target.value)}
+          />
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -68,34 +81,27 @@ export function LoginForm() {
           <Input
             id="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
+            minLength={8}
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
 
-        <div className="flex justify-end -mt-1">
-          <Link href="/auth/forgot" className="text-xs text-muted-foreground hover:text-foreground">
-            Forgot password?
-          </Link>
-        </div>
-
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "Creating account…" : "Create account"}
         </Button>
       </form>
 
-      {providers?.signup && (
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-foreground hover:underline">
-            Sign up
-          </Link>
-        </p>
-      )}
+      <p className="text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/auth/login" className="text-foreground hover:underline">
+          Sign in
+        </Link>
+      </p>
     </AuthShell>
   );
 }

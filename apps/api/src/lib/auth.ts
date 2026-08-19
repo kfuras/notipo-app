@@ -80,7 +80,13 @@ export const auth = betterAuth({
     },
   },
   session: { modelName: "authSession" },
-  account: { modelName: "authAccount" },
+  account: {
+    modelName: "authAccount",
+    // Let Google sign-in link to a pre-existing account with the same verified
+    // email — required so migrated users (created without a password) can sign
+    // in with Google and land on their existing blog rather than a new one.
+    accountLinking: { enabled: true, trustedProviders: ["google"] },
+  },
   verification: { modelName: "verification" },
   databaseHooks: {
     user: {

@@ -1,6 +1,5 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { timingSafeEqual } from "node:crypto";
 import { config } from "../config.js";
 import { auth } from "../lib/auth.js";
 
@@ -15,7 +14,7 @@ interface UserContext {
   role: string;
 }
 
-type AuthMethod = "session" | "apiKey" | "admin" | null;
+type AuthMethod = "session" | "apiKey" | null;
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -38,11 +37,11 @@ function toHeaders(raw: FastifyRequest["headers"]): Headers {
 
 /**
  * Guard for routes that must be a browser session (e.g. billing, API-key
- * management) and must NOT be reachable with a programmatic API key.
- * Call at the top of the route handler.
+ * management, account deletion) and must NOT be reachable with a programmatic
+ * API key. Call at the top of the route handler.
  */
 export function requireSession(request: FastifyRequest, reply: FastifyReply): boolean {
-  if (request.authMethod !== "session" && request.authMethod !== "admin") {
+  if (request.authMethod !== "session") {
     reply.forbidden("This action requires a logged-in session");
     return false;
   }
@@ -70,48 +69,42 @@ async function authHook(app: FastifyInstance) {
     )
       return;
 
-    const apiKey =
-      (request.headers["x-api-key"] as string | undefined) ||
-      (request.query as Record<string, string>)["token"];
-
-    // ── 1. Admin key ──────────────────────────────────────────────────────────
-    if (
-      apiKey &&
-      apiKey.length === config.API_KEY.length &&
-      timingSafeEqual(Buffer.from(apiKey), Buffer.from(config.API_KEY))
-    ) {
-      request.isAdmin = true;
-      request.authMethod = "admin";
-      if (request.url.startsWith("/api/admin")) return;
-
-      const impersonateTenantId =
-        (request.headers["x-impersonate-tenant"] as string | undefined) ||
-        (request.query as Record<string, string>)["impersonateTenant"];
-      if (!impersonateTenantId) {
-        return reply.unauthorized("Admin key requires X-Impersonate-Tenant header for tenant routes");
-      }
-      const tenant = await app.prisma.tenant.findUnique({
-        where: { id: impersonateTenantId },
-        select: { id: true, slug: true },
-      });
-      if (!tenant) return reply.notFound("Tenant not found");
-      request.tenant = tenant;
-      request.user = { id: "admin", email: "admin", role: "ADMIN" };
-      return;
-    }
-
-    // Non-admin admin routes — reject before any DB/session work.
-    if (request.url.startsWith("/api/admin")) {
-      return reply.unauthorized("Invalid admin API key");
-    }
-
-    // ── 2. Session (web/human) ────────────────────────────────────────────────
-    // Cookie-based; only present for browser requests. Errors (e.g. better-auth
-    // not configured) fall through to the API-key path.
+    // ── 1. Session (web/human) ────────────────────────────────────────────────
+    // Cookie-based; only present for browser requests. Admin is a session user
+    // whose email is in ADMIN_EMAILS — there is no shared admin API key.
     const session = await auth.api
       .getSession({ headers: toHeaders(request.headers) })
       .catch(() => null);
     if (session?.user) {
+      const email = (session.user.email ?? "").toLowerCase();
+      const isAdmin = config.ADMIN_EMAILS.includes(email);
+      request.isAdmin = isAdmin;
+      request.authMethod = "session";
+
+      // Admin-only routes — no tenant context needed.
+      if (request.url.startsWith("/api/admin")) {
+        if (!isAdmin) return reply.forbidden("Admin access required");
+        request.user = { id: session.user.id, email, role: "ADMIN" };
+        return;
+      }
+
+      // Admin impersonating a specific blog (support/debug).
+      const impersonateTenantId = isAdmin
+        ? (request.headers["x-impersonate-tenant"] as string | undefined) ||
+          (request.query as Record<string, string>)["impersonateTenant"]
+        : undefined;
+      if (impersonateTenantId) {
+        const tenant = await app.prisma.tenant.findUnique({
+          where: { id: impersonateTenantId },
+          select: { id: true, slug: true },
+        });
+        if (!tenant) return reply.notFound("Tenant not found");
+        request.tenant = tenant;
+        request.user = { id: session.user.id, email, role: "ADMIN" };
+        return;
+      }
+
+      // Normal: resolve the user's own blog.
       const activeOrgId = (session.session as { activeOrganizationId?: string | null })
         .activeOrganizationId;
       let member = activeOrgId
@@ -129,12 +122,18 @@ async function authHook(app: FastifyInstance) {
       }
       if (!member) return reply.unauthorized("No blog is set up for this account");
       request.tenant = member.tenant;
-      request.user = { id: session.user.id, email: session.user.email, role: member.role };
-      request.authMethod = "session";
+      request.user = { id: session.user.id, email, role: member.role };
       return;
     }
 
-    // ── 3. API key (CLI / MCP / programmatic) ─────────────────────────────────
+    // ── 2. API key (CLI / MCP / programmatic) — tenant-scoped, never admin ─────
+    if (request.url.startsWith("/api/admin")) {
+      return reply.unauthorized("Admin requires a logged-in session");
+    }
+
+    const apiKey =
+      (request.headers["x-api-key"] as string | undefined) ||
+      (request.query as Record<string, string>)["token"];
     if (!apiKey) {
       return reply.unauthorized("Missing session cookie or x-api-key");
     }
@@ -148,7 +147,6 @@ async function authHook(app: FastifyInstance) {
       request.tenant = ak.tenant;
       request.user = { id: ak.userId, email: "", role: "OWNER" };
       request.authMethod = "apiKey";
-      // fire-and-forget usage stamp
       app.prisma.apiKey.update({ where: { key: apiKey }, data: { lastUsedAt: new Date() } }).catch(() => {});
       return;
     }

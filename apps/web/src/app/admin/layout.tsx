@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useApi } from "@/hooks/use-api";
@@ -62,22 +62,14 @@ function PostHogEnrich() {
 }
 
 function AdminShell({ children }: { children: React.ReactNode }) {
-  const { isAuthed, isLoading, isAdmin, impersonating } = useAuth();
+  const { isAuthed, isLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && !isAuthed) {
       router.replace("/auth/login");
     }
   }, [isAuthed, isLoading, router]);
-
-  // Admin without impersonation: redirect to tenants page (tenant routes won't work)
-  useEffect(() => {
-    if (!isLoading && isAdmin && !impersonating && !pathname.startsWith("/admin/tenants")) {
-      router.replace("/admin/tenants");
-    }
-  }, [isLoading, isAdmin, impersonating, pathname, router]);
 
   if (isLoading || !isAuthed) {
     return (

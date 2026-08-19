@@ -24,18 +24,17 @@ interface Impersonation {
 }
 
 interface AuthContextValue {
-  /** True once any auth is established — a better-auth session OR an admin/CLI key. */
+  /** True once a better-auth session is established. */
   isAuthed: boolean;
-  /** Programmatic key for the admin/CLI (x-api-key) path. null for normal session users. */
-  apiKey: string | null;
   email: string | null;
+  userId: string | null;
+  /** True when the logged-in user is a Notipo admin (ADMIN_EMAILS on the API). */
   isAdmin: boolean;
   isLoading: boolean;
   impersonating: Impersonation | null;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (email: string, password: string, blogName: string) => Promise<boolean>;
-  setApiKey: (key: string) => Promise<void>;
   logout: () => Promise<void>;
   impersonate: (tenantId: string, tenantName: string) => void;
   stopImpersonating: () => void;
@@ -44,76 +43,47 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const IMPERSONATION_KEY = "notipo_impersonating";
-const API_KEY_STORAGE = "notipo_api_key";
 const EMAIL_STORAGE = "notipo_email";
-
-function clearStoredKey() {
-  localStorage.removeItem(API_KEY_STORAGE);
-  localStorage.removeItem(EMAIL_STORAGE);
-  sessionStorage.removeItem(IMPERSONATION_KEY);
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, isPending: sessionPending } = useSession();
 
-  // x-api-key (admin/CLI) path — kept alongside sessions.
-  const [apiKey, setApiKeyState] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [keyChecking, setKeyChecking] = useState(true);
+  const [adminResolved, setAdminResolved] = useState(false);
   const [impersonating, setImpersonating] = useState<Impersonation | null>(null);
 
-  const detectAdmin = useCallback(async (key: string) => {
-    try {
-      await api("/api/admin/tenants", { apiKey: key });
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
-
-  // Restore an api-key login + impersonation from storage on mount.
+  // Restore impersonation from storage on mount.
   useEffect(() => {
-    const stored = localStorage.getItem(API_KEY_STORAGE);
     const imp = sessionStorage.getItem(IMPERSONATION_KEY);
-    const restoredImp = imp ? (JSON.parse(imp) as Impersonation) : null;
-    if (restoredImp) {
-      setImpersonating(restoredImp);
+    if (imp) {
+      setImpersonating(JSON.parse(imp) as Impersonation);
       // Reloaded mid-impersonation — opt PostHog out before any event fires.
       pausePostHogForImpersonation();
     }
-    if (!stored) {
-      setKeyChecking(false);
+  }, []);
+
+  // Resolve admin status from the API once a session exists.
+  useEffect(() => {
+    if (!session?.user) {
+      setIsAdmin(false);
+      setAdminResolved(!sessionPending);
       return;
     }
-
     let cancelled = false;
-    (async () => {
-      try {
-        const admin = await detectAdmin(stored);
-        if (!admin) {
-          // Validate a non-admin CLI key against a tenant endpoint.
-          await api("/api/settings", { apiKey: stored, timeoutMs: 10_000 });
-        }
-        if (!cancelled) {
-          setApiKeyState(stored);
-          setIsAdmin(admin);
-        }
-      } catch {
-        clearStoredKey();
-        if (!cancelled) {
-          setApiKeyState(null);
-          setIsAdmin(false);
-          setImpersonating(null);
-        }
-      } finally {
-        if (!cancelled) setKeyChecking(false);
-      }
-    })();
-
+    api<{ data: { isAdmin?: boolean } | null }>("/api/account", { timeoutMs: 10_000 })
+      .then((res) => {
+        if (!cancelled) setIsAdmin(!!res.data?.isAdmin);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      })
+      .finally(() => {
+        if (!cancelled) setAdminResolved(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [detectAdmin]);
+  }, [session?.user, sessionPending]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { error } = await authClient.signIn.email({ email, password });
@@ -133,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         name: email.split("@")[0],
-        // additionalField — the databaseHook creates the blog (organization).
         blogName,
       } as Parameters<typeof authClient.signUp.email>[0]);
       if (error) throw new Error(error.message || "Registration failed");
@@ -143,36 +112,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof window !== "undefined" && typeof (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq === "function") {
         (window as unknown as { fbq: (...a: unknown[]) => void }).fbq("track", "CompleteRegistration");
       }
-      // autoSignIn + no verification gate → the session is already active.
-      return true;
+      return true; // autoSignIn + no verification gate → session is active.
     },
     [],
   );
 
-  const setApiKey = useCallback(
-    async (key: string) => {
-      const admin = await detectAdmin(key);
-      if (!admin) {
-        await api("/api/settings", { apiKey: key });
-      }
-      localStorage.setItem(API_KEY_STORAGE, key);
-      setApiKeyState(key);
-      setIsAdmin(admin);
-      setKeyChecking(false);
-    },
-    [detectAdmin],
-  );
-
   const logout = useCallback(async () => {
-    clearStoredKey();
-    setApiKeyState(null);
-    setIsAdmin(false);
+    sessionStorage.removeItem(IMPERSONATION_KEY);
+    localStorage.removeItem(EMAIL_STORAGE);
     setImpersonating(null);
+    setIsAdmin(false);
     resetUser();
-    if (session?.user) {
-      await authClient.signOut().catch(() => {});
-    }
-  }, [session?.user]);
+    await authClient.signOut().catch(() => {});
+  }, []);
 
   const impersonate = useCallback((tenantId: string, tenantName: string) => {
     const imp = { tenantId, tenantName };
@@ -187,23 +139,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resumePostHogAfterImpersonation();
   }, []);
 
-  const email = session?.user?.email ?? (typeof window !== "undefined" ? localStorage.getItem(EMAIL_STORAGE) : null);
-  const isAuthed = !!session?.user || !!apiKey;
-  const isLoading = sessionPending || keyChecking;
+  const email =
+    session?.user?.email ??
+    (typeof window !== "undefined" ? localStorage.getItem(EMAIL_STORAGE) : null);
+  const isAuthed = !!session?.user;
+  const isLoading = sessionPending || (isAuthed && !adminResolved);
 
   return (
     <AuthContext.Provider
       value={{
         isAuthed,
-        apiKey,
         email,
+        userId: session?.user?.id ?? null,
         isAdmin,
         isLoading,
         impersonating,
         login,
         loginWithGoogle,
         register,
-        setApiKey,
         logout,
         impersonate,
         stopImpersonating,

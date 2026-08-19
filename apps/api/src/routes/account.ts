@@ -24,12 +24,6 @@ export async function accountRoutes(app: FastifyInstance) {
       select: { name: true, slug: true, plan: true, createdAt: true },
     });
 
-    if (request.user.id === "admin") {
-      return {
-        data: { id: "admin", email: "admin", name: "Admin", role: "ADMIN", tenant },
-      };
-    }
-
     // Prefer the global better-auth user; fall back to the legacy per-tenant
     // user (a CLI key that hasn't been migrated off the old `users` table yet).
     const authUser = await app.prisma.authUser.findUnique({
@@ -43,6 +37,7 @@ export async function accountRoutes(app: FastifyInstance) {
           email: authUser.email,
           name: authUser.name,
           role: request.user.role,
+          isAdmin: request.isAdmin,
           emailVerified: authUser.emailVerified,
           createdAt: authUser.createdAt,
           tenant,
@@ -54,7 +49,7 @@ export async function accountRoutes(app: FastifyInstance) {
       where: { id: request.user.id },
       select: { id: true, email: true, name: true, role: true, createdAt: true },
     });
-    return { data: legacy ? { ...legacy, tenant } : null };
+    return { data: legacy ? { ...legacy, isAdmin: request.isAdmin, tenant } : null };
   });
 
   /**
