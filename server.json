@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.kfuras/notipo",
   "title": "Notipo",
-  "description": "Publish to self-hosted WordPress from AI agents: markdown to Gutenberg, image hosting, featured images, SEO metadata, categories, and Notion sync. 13 tools, no WordPress plugin.",
+  "description": "Publish to self-hosted WordPress from AI agents: markdown, images, SEO, and Notion sync.",
   "version": "1.2.5",
   "repository": {
     "url": "https://github.com/kfuras/notipo-app",
