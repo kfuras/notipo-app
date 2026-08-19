@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.kfuras/notipo",
+  "title": "Notipo",
+  "description": "Publish to self-hosted WordPress from AI agents: markdown to Gutenberg, image hosting, featured images, SEO metadata, categories, and Notion sync. 13 tools, no WordPress plugin.",
+  "version": "1.2.5",
+  "repository": {
+    "url": "https://github.com/kfuras/notipo-app",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://app.notipo.com/api/mcp",
+      "headers": [
+        {
+          "name": "X-API-Key",
+          "description": "Your Notipo API key (create one at notipo.com → Settings → Account). The key scopes publishing to the blog that owns it.",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
