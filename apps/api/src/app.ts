@@ -50,6 +50,9 @@ const DISCOVERY_ONLY = process.env.DISCOVERY_ONLY === "true";
 
 export async function buildApp() {
   const app = Fastify({
+    // Behind Fly's proxy — trust X-Forwarded-* so request.ip is the real client
+    // IP (used for rate-limit bucketing), not the shared edge address.
+    trustProxy: true,
     logger: {
       level: config.LOG_LEVEL,
       ...(config.NODE_ENV === "development" && {
@@ -86,9 +89,15 @@ export async function buildApp() {
 
   // Plugins
   await app.register(cors, {
+    // Never reflect an arbitrary Origin together with credentials:true. With a
+    // configured FRONTEND_URL use it; in prod fall back to the canonical app
+    // origin (not `true`, which would let any site make credentialed calls);
+    // only in dev reflect any origin for convenience.
     origin: config.FRONTEND_URL
       ? [config.FRONTEND_URL, "http://localhost:3001"]
-      : true,
+      : config.NODE_ENV === "production"
+        ? ["https://app.notipo.com"]
+        : true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     // Allow the better-auth session cookie on cross-origin (dev) requests.
     credentials: true,

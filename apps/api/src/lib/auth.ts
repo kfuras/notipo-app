@@ -4,6 +4,10 @@ import { organization } from "better-auth/plugins";
 import { randomBytes } from "node:crypto";
 import { prisma } from "./prisma.js";
 import { sendEmail } from "./email.js";
+import { config } from "../config.js";
+import { isStripeConfigured } from "./stripe.js";
+
+const TRIAL_DAYS = 7;
 
 const BASE_URL = process.env.BETTER_AUTH_URL || "https://app.notipo.com";
 
@@ -45,9 +49,28 @@ export const auth = betterAuth({
   baseURL: BASE_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: [process.env.BETTER_AUTH_URL || "https://app.notipo.com"],
+  // Behind Fly's proxy request.ip is the edge IP; resolve the real client IP so
+  // rate limiting buckets per-user instead of collapsing everyone into one.
+  advanced: {
+    ipAddress: { ipAddressHeaders: ["fly-client-ip", "x-forwarded-for"] },
+  },
+  // Throttle credential endpoints (brute-force / signup abuse). In-memory store
+  // is per-machine; acceptable for the current 2-machine setup.
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 300, max: 5 },
+      "/request-password-reset": { window: 300, max: 5 },
+    },
+  },
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
+    // Honor ALLOW_SIGNUP server-side, not just in the UI hint. Prod sets it true.
+    disableSignUp: !config.ALLOW_SIGNUP,
     requireEmailVerification: false,
     autoSignIn: true,
     minPasswordLength: 8,
@@ -96,8 +119,19 @@ export const auth = betterAuth({
           const org = await auth.api.createOrganization({
             body: { name: blogName, slug: slugify(blogName), userId: user.id },
           });
-          // Give the new blog a default API key so CLI/MCP work immediately.
           if (org?.id) {
+            // Start the billing trial (mirrors the retired register route): with
+            // Stripe configured, a 7-day trial; self-hosted stays PRO. Without
+            // this, the tenant default (plan=TRIAL, trialEndsAt=null) resolves to
+            // FREE immediately — see getEffectivePlan.
+            const usesTrial = isStripeConfigured();
+            await prisma.tenant.update({
+              where: { id: org.id },
+              data: usesTrial
+                ? { plan: "TRIAL", trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000) }
+                : { plan: "PRO" },
+            });
+            // Give the new blog a default API key so CLI/MCP work immediately.
             await prisma.apiKey.create({
               data: {
                 key: `ntp_${randomBytes(32).toString("hex")}`,

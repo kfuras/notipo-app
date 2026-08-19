@@ -25,15 +25,17 @@ interface BillingData {
   };
 }
 
-function PlanBadge({ plan, trialDaysRemaining }: { plan: string; trialDaysRemaining: number | null }) {
-  if (plan === "TRIAL") {
+function PlanBadge({ effectivePlan, trialDaysRemaining }: { effectivePlan: string; trialDaysRemaining: number | null }) {
+  if (effectivePlan === "TRIAL") {
     return (
       <Badge variant="secondary">
-        Trial — {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""} left
+        {trialDaysRemaining != null
+          ? `Trial — ${trialDaysRemaining} day${trialDaysRemaining !== 1 ? "s" : ""} left`
+          : "Trial"}
       </Badge>
     );
   }
-  if (plan === "PRO") {
+  if (effectivePlan === "PRO") {
     return <Badge className="bg-primary text-primary-foreground">Pro</Badge>;
   }
   return <Badge variant="outline">Free</Badge>;
@@ -86,15 +88,16 @@ export default function BillingPage() {
     );
   }
 
+  // Drive the UI off the EFFECTIVE plan (a TRIAL with no/expired end date
+  // resolves to FREE), so copy, badge, and buttons stay consistent.
   const effectivePlan = b.effectivePlan;
-  const isFree = effectivePlan === "FREE";
-  const isPro = effectivePlan === "PRO" || effectivePlan === "TRIAL";
+  const isTrial = effectivePlan === "TRIAL";
 
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
-        <PlanBadge plan={b.plan} trialDaysRemaining={b.trialDaysRemaining} />
+        <PlanBadge effectivePlan={effectivePlan} trialDaysRemaining={b.trialDaysRemaining} />
       </div>
 
       {/* Plan card */}
@@ -102,30 +105,26 @@ export default function BillingPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
-            {b.plan === "TRIAL" ? "Trial" : isPro ? "Pro Plan" : "Free Plan"}
+            {isTrial ? "Trial" : effectivePlan === "PRO" ? "Pro Plan" : "Free Plan"}
           </CardTitle>
           <CardDescription>
-            {b.plan === "TRIAL"
-              ? `You have Pro features for ${b.trialDaysRemaining} more day${b.trialDaysRemaining !== 1 ? "s" : ""}. Upgrade to keep them.`
-              : isPro
+            {isTrial
+              ? b.trialDaysRemaining != null
+                ? `You have Pro features for ${b.trialDaysRemaining} more day${b.trialDaysRemaining !== 1 ? "s" : ""}. Upgrade to keep them.`
+                : "You have Pro features during your trial. Upgrade to keep them."
+              : effectivePlan === "PRO"
               ? "You have access to all features."
               : "Upgrade to Pro for unlimited posts, featured images, and instant sync."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {b.stripeConfigured && isFree && (
+          {b.stripeConfigured && effectivePlan !== "PRO" && (
             <Button onClick={handleCheckout} disabled={actionLoading}>
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Upgrade to Pro — $19/mo
             </Button>
           )}
-          {b.stripeConfigured && b.plan === "TRIAL" && (
-            <Button onClick={handleCheckout} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Upgrade to Pro — $19/mo
-            </Button>
-          )}
-          {b.stripeConfigured && b.plan === "PRO" && b.hasStripeCustomer && (
+          {b.stripeConfigured && effectivePlan === "PRO" && b.hasStripeCustomer && (
             <Button variant="outline" onClick={handlePortal} disabled={actionLoading}>
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Manage Subscription

@@ -4,6 +4,7 @@ import { getEffectivePlan, getPlanLimits, getMonthlyPostCount } from "../lib/pla
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { captureServer } from "../lib/posthog-server.js";
+import { requireSession } from "../plugins/auth.js";
 
 const log = logger.child({ route: "billing" });
 
@@ -43,6 +44,7 @@ export async function billingRoutes(app: FastifyInstance) {
 
   /** POST /api/billing/checkout — create Stripe Checkout session */
   app.post("/api/billing/checkout", async (request, reply) => {
+    if (!requireSession(request, reply)) return;
     if (!isStripeConfigured()) {
       return reply.code(503).send({ error: "Billing is not configured" });
     }
@@ -97,6 +99,7 @@ export async function billingRoutes(app: FastifyInstance) {
 
   /** POST /api/billing/portal — create Stripe Customer Portal session */
   app.post("/api/billing/portal", async (request, reply) => {
+    if (!requireSession(request, reply)) return;
     if (!isStripeConfigured()) {
       return reply.code(503).send({ error: "Billing is not configured" });
     }
