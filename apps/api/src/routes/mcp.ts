@@ -490,16 +490,26 @@ export async function mcpRoutes(app: FastifyInstance) {
         return reply.code(401).send({ error: "Missing authentication. Provide x-api-key header or Authorization: Bearer <key>." });
       }
 
-      const user = await app.prisma.user.findUnique({
-        where: { apiKey },
-        select: { id: true, tenant: { select: { id: true } } },
+      // New per-blog ApiKey table first, then the legacy users.apiKey column
+      // (pre-migration keys) — same dual lookup as plugins/auth.ts.
+      const ak = await app.prisma.apiKey.findUnique({
+        where: { key: apiKey },
+        select: { tenant: { select: { id: true } } },
       });
+      const resolvedTenantId =
+        ak?.tenant.id ??
+        (
+          await app.prisma.user.findUnique({
+            where: { apiKey },
+            select: { tenant: { select: { id: true } } },
+          })
+        )?.tenant.id;
 
-      if (!user) {
+      if (!resolvedTenantId) {
         return reply.code(401).send({ error: "Invalid API key" });
       }
 
-      tenantId = user.tenant.id;
+      tenantId = resolvedTenantId;
       resolvedKey = apiKey;
     }
 

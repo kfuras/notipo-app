@@ -94,7 +94,7 @@ export const auth = betterAuth({
           if (org?.id) {
             await prisma.apiKey.create({
               data: {
-                key: randomBytes(32).toString("hex"),
+                key: `ntp_${randomBytes(32).toString("hex")}`,
                 tenantId: org.id,
                 userId: user.id,
                 name: "Default",
