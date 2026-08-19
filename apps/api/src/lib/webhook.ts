@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { logger } from "./logger.js";
 import { config } from "../config.js";
+import { isPrivateUrl } from "./url-validation.js";
 
 interface WebhookPayload {
   jobType: string;
@@ -22,6 +23,10 @@ export async function sendWebhook(prisma: PrismaClient, tenantId: string, payloa
     });
 
     if (!tenant?.webhookUrl) return;
+    if (await isPrivateUrl(tenant.webhookUrl)) {
+      logger.warn({ tenantId }, "Skipping webhook: URL points to a private/internal address");
+      return;
+    }
 
     const typeLabel = payload.jobType === "SYNC_POST" ? "Sync" : "Publish";
     const title = payload.postTitle ? `"${payload.postTitle}"` : "Unknown post";

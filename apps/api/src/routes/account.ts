@@ -60,8 +60,20 @@ export async function accountRoutes(app: FastifyInstance) {
    */
   app.delete("/api/account", authRateLimit, async (request, reply) => {
     if (!requireSession(request, reply)) return;
-    if (request.user.id === "admin") {
-      return reply.badRequest("Admin cannot delete accounts through this route");
+    // Never delete through an impersonated context, and only let a user delete a
+    // blog they actually belong to — otherwise an admin impersonating a customer
+    // (x-impersonate-tenant) would wipe the CUSTOMER's blog, and could even
+    // cascade-delete their own authUser. request.tenant is the impersonated
+    // tenant, so verify membership against the real session user.
+    if (request.isAdmin || request.headers["x-impersonate-tenant"]) {
+      return reply.badRequest("Cannot delete an account while impersonating");
+    }
+    const membership = await app.prisma.member.findFirst({
+      where: { userId: request.user.id, organizationId: request.tenant.id },
+      select: { id: true },
+    });
+    if (!membership) {
+      return reply.forbidden("You are not a member of this blog");
     }
 
     // Cancel Stripe subscription if any (billing stays per-tenant in Phase 1).

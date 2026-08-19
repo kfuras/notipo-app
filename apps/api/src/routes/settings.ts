@@ -7,6 +7,7 @@ import { WordPressService } from "../services/wordpress.service.js";
 import { NotionService } from "../services/notion.service.js";
 import { syncWpCategories } from "../lib/sync-wp-categories.js";
 import { getEffectivePlan } from "../lib/plan-limits.js";
+import { isPrivateUrl } from "../lib/url-validation.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 
@@ -202,6 +203,11 @@ export async function settingsRoutes(app: FastifyInstance) {
   app.patch("/api/settings", async (request, reply) => {
     const body = generalSettingsSchema.parse(request.body);
 
+    // Reject SSRF-y webhook URLs at save time so they never reach the job runner.
+    if (body.webhookUrl && (await isPrivateUrl(body.webhookUrl))) {
+      return reply.code(400).send({ error: "Webhook URL points to a private/internal address" });
+    }
+
     await app.prisma.tenant.update({
       where: { id: request.tenant.id },
       data: {
@@ -254,6 +260,9 @@ export async function settingsRoutes(app: FastifyInstance) {
 
     if (!tenant.webhookUrl) {
       return reply.code(400).send({ error: "No webhook URL configured" });
+    }
+    if (await isPrivateUrl(tenant.webhookUrl)) {
+      return reply.code(400).send({ error: "Webhook URL points to a private/internal address" });
     }
 
     const message = "<!channel> ✅ Notipo webhook test — connection working!";

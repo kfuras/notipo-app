@@ -42,6 +42,20 @@ export function SignupForm() {
     }
   }
 
+  // Respect the server-side signup switch (better-auth also enforces this).
+  if (providers && !providers.signup) {
+    return (
+      <AuthShell title="Signups closed" subtitle="New registrations are currently disabled." footer={<>© 2026 Notipo</>}>
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/auth/login" className="text-foreground hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell title="Create account" subtitle="Start publishing in minutes." footer={<>© 2026 Notipo</>}>
       {providers?.google && (
