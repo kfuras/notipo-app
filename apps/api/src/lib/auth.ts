@@ -115,11 +115,13 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          const blogName = (user as { blogName?: string }).blogName || "My blog";
-          const org = await auth.api.createOrganization({
-            body: { name: blogName, slug: slugify(blogName), userId: user.id },
-          });
-          if (org?.id) {
+          try {
+            const blogName = (user as { blogName?: string }).blogName || "My blog";
+            const org = await auth.api.createOrganization({
+              body: { name: blogName, slug: slugify(blogName), userId: user.id },
+            });
+            if (!org?.id) throw new Error("createOrganization returned no organization id");
+
             // Start the billing trial (mirrors the retired register route): with
             // Stripe configured, a 7-day trial; self-hosted stays PRO. Without
             // this, the tenant default (plan=TRIAL, trialEndsAt=null) resolves to
@@ -140,6 +142,14 @@ export const auth = betterAuth({
                 name: "Default",
               },
             });
+          } catch (err) {
+            // Provisioning failed after the authUser row was committed. Delete the
+            // orphaned user so signup stays RETRYABLE — otherwise the account is
+            // permanently locked out (every request 401s "No blog is set up", and
+            // re-signup fails with "email already exists"). Rethrow so signup
+            // reports failure instead of a false success.
+            await prisma.authUser.delete({ where: { id: user.id } }).catch(() => {});
+            throw err;
           }
         },
       },

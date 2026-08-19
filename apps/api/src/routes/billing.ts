@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { captureServer } from "../lib/posthog-server.js";
 import { requireSession } from "../plugins/auth.js";
+import { resolveOwnerContact } from "../lib/tenant-owner.js";
 
 const log = logger.child({ route: "billing" });
 
@@ -55,16 +56,16 @@ export async function billingRoutes(app: FastifyInstance) {
       select: { id: true, stripeCustomerId: true, plan: true },
     });
 
-    const owner = await app.prisma.user.findFirst({
-      where: { tenantId: tenant.id, role: "OWNER" },
-      select: { email: true },
-    });
+    // Session-only route, so request.user.email is the buyer's better-auth email;
+    // fall back to the tenant owner for legacy/edge cases.
+    const ownerEmail =
+      request.user.email || (await resolveOwnerContact(app.prisma, tenant.id))?.email;
 
     // Create or reuse Stripe customer
     let customerId = tenant.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: owner?.email,
+        email: ownerEmail,
         metadata: { tenantId: tenant.id },
       });
       customerId = customer.id;
