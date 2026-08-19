@@ -203,9 +203,6 @@ export default function PostsPage() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                     <span>{post.category?.name ?? "No category"}</span>
                     <div className="flex items-center gap-3">
-                      <Link href={`/admin/write?id=${post.id}`} className="text-accent-purple hover:underline">
-                        Edit
-                      </Link>
                       <button onClick={() => handleDuplicate(post.id)} className="text-accent-purple hover:underline">
                         Duplicate
                       </button>
@@ -306,12 +303,6 @@ export default function PostsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right space-x-3 whitespace-nowrap">
-                    <Link
-                      href={`/admin/write?id=${post.id}`}
-                      className="text-sm text-accent-purple hover:underline"
-                    >
-                      Edit
-                    </Link>
                     <button
                       onClick={() => handleDuplicate(post.id)}
                       className="text-sm text-accent-purple hover:underline"
