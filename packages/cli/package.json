@@ -1,6 +1,6 @@
 {
   "name": "notipo",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Publish to self-hosted WordPress from AI agents, scripts, or Notion — markdown to Gutenberg, image hosting, featured images, and SEO. Pairs with the Notipo MCP server.",
   "license": "MIT",
   "type": "module",
