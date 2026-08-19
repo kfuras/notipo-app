@@ -10,9 +10,24 @@ primary_region = 'ams'
 [build]
   dockerfile = 'apps/api/Dockerfile'
 
+# Run pending Prisma migrations in the release image (secrets injected, new code)
+# before the app machines start. `prisma` is a runtime dependency so the CLI is
+# present in the production image. A failed migration aborts the deploy and the
+# current version keeps serving.
+[deploy]
+  # Disable Prisma's migrate advisory lock — Neon (via its proxy) does not grant
+  # pg_advisory_lock within the 10s timeout, causing P1002. The lock only guards
+  # against concurrent migrations, which can't happen here: Fly runs the release
+  # command serially and CI uses `concurrency: deploy-api`.
+  release_command = "sh -c 'cd /app/apps/api && PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy'"
+
 [env]
   NODE_ENV = 'production'
   PORT = '3000'
+  # Public self-serve registration. config default is 'false' (safe for self-hosted),
+  # so the SaaS prod app must enable it explicitly. Kept here (version-controlled) so
+  # it survives redeploys/migrations — it was lost in the GCP→Fly move (Aug 2026).
+  ALLOW_SIGNUP = 'true'
   # Sentry DSN is a public identifier — Sentry validates per-origin.
   # NEXT_PUBLIC_SENTRY_DSN and SENTRY_DSN set via secrets if needed.
 

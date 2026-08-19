@@ -1,6 +1,12 @@
 # Notipo Migration: GCP → Fly + Neon
 
-Status: **In Progress** (started 2026-07-04)
+Status: **Complete** (started 2026-07-04, GCP cleanup finished 2026-08-05)
+
+GCP leftovers deleted 2026-08-05: Artifact Registry repo `notipo` (32.9 GB of old
+Docker images — was the recurring ~23 NOK/month) and the `notipo-prod_cloudbuild`
+bucket (2.5 GB). Only `notipo-uploads` (GCS, ~2 MB) remains, kept deliberately.
+Note: prod-web ran with stale staging secrets (SITE_INTERNAL_URL pointing at a dead
+machine) until 2026-08-04 — app.notipo.com was 502 for ~3 weeks before it was caught.
 
 ## Target architecture
 

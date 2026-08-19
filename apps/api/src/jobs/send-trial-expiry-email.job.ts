@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { sendEmail } from "../lib/email.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
+import { resolveOwnerContact } from "../lib/tenant-owner.js";
 
 const log = logger.child({ job: "send-trial-expiry-email" });
 
@@ -27,17 +28,12 @@ export async function registerSendTrialExpiryEmailJob(boss: PgBoss, prisma: Pris
         trialEndsAt: { lte: twoDaysFromNow, gt: now },
         trialExpiryEmailSentAt: null,
       },
-      include: {
-        users: {
-          where: { role: "OWNER", emailVerified: true },
-          select: { email: true, name: true },
-        },
-      },
     });
 
     let sent = 0;
     for (const tenant of tenants) {
-      const owner = tenant.users[0];
+      // Owner via better-auth membership (legacy users table is empty for new tenants).
+      const owner = await resolveOwnerContact(prisma, tenant.id);
       if (!owner) continue;
 
       const daysLeft = Math.ceil(
@@ -78,7 +74,9 @@ export async function registerSendTrialExpiryEmailJob(boss: PgBoss, prisma: Pris
 
   // Run once per hour
   setInterval(() => {
-    boss.send("send-trial-expiry-email", {}, { singletonKey: "send-trial-expiry-email" }).catch(() => {});
+    boss.send("send-trial-expiry-email", {}, { singletonKey: "send-trial-expiry-email" }).catch((err: unknown) => {
+      logger.error({ err }, "Failed to enqueue send-trial-expiry-email");
+    });
   }, 60 * 60 * 1000);
 
   await boss.send("send-trial-expiry-email", {}, { singletonKey: "send-trial-expiry-email" });

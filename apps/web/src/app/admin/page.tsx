@@ -52,7 +52,7 @@ interface LiveJob {
 }
 
 export default function DashboardPage() {
-  const { apiKey } = useAuth();
+  const { userId } = useAuth();
   const { call } = useApiCall();
   const { data: postsData, refetch: refetchPosts } = useApi<ApiListResponse<ApiPost>>("/api/posts");
   const { data: jobsData, refetch: refetchJobs } = useApi<{ data: ApiJob[]; total: number }>(
@@ -176,10 +176,10 @@ export default function DashboardPage() {
       </div>
 
       {needsSetup && settings && (
-        <SetupCard settings={settings} onUpdate={refetchSettings} apiKey={apiKey} />
+        <SetupCard settings={settings} onUpdate={refetchSettings} />
       )}
       {allSetUp && (
-        <SetupCompleteCard onSyncNow={handleSyncNow} syncing={syncing || hasRunningJobs} apiKey={apiKey} notionConnected={notionConnected} />
+        <SetupCompleteCard onSyncNow={handleSyncNow} syncing={syncing || hasRunningJobs} userKey={userId} notionConnected={notionConnected} />
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -507,7 +507,6 @@ function SetupCard({
 }: {
   settings: SettingsData;
   onUpdate: () => void;
-  apiKey: string | null;
 }) {
   const wordpress = settings.data.wordpress;
 
@@ -686,29 +685,29 @@ function WordPressStepContent({
 function SetupCompleteCard({
   onSyncNow,
   syncing,
-  apiKey,
+  userKey,
   notionConnected,
 }: {
   onSyncNow: () => void;
   syncing: boolean;
-  apiKey: string | null;
+  userKey: string | null;
   notionConnected: boolean;
 }) {
   const [dismissed, setDismissed] = useState(
-    () => typeof window !== "undefined" && !!apiKey && localStorage.getItem("notipo_setup_dismissed") === shortHash(apiKey),
+    () => typeof window !== "undefined" && !!userKey && localStorage.getItem("notipo_setup_dismissed") === shortHash(userKey),
   );
 
   useEffect(() => {
-    if (apiKey && localStorage.getItem("notipo_setup_complete_tracked") !== shortHash(apiKey)) {
+    if (userKey && localStorage.getItem("notipo_setup_complete_tracked") !== shortHash(userKey)) {
       capture("onboarding_completed");
-      localStorage.setItem("notipo_setup_complete_tracked", shortHash(apiKey));
+      localStorage.setItem("notipo_setup_complete_tracked", shortHash(userKey));
     }
-  }, [apiKey]);
+  }, [userKey]);
 
   if (dismissed) return null;
 
   function dismiss() {
-    if (apiKey) localStorage.setItem("notipo_setup_dismissed", shortHash(apiKey));
+    if (userKey) localStorage.setItem("notipo_setup_dismissed", shortHash(userKey));
     setDismissed(true);
   }
 
@@ -719,22 +718,23 @@ function SetupCompleteCard({
           <p className="text-sm font-medium">You&apos;re all set!</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {notionConnected
-              ? "Write a post from the editor, or sync from Notion."
-              : "Write your first post, or connect Notion for two-way sync."}
+              ? "Sync your latest posts from Notion to WordPress."
+              : "Connect Notion to publish to WordPress."}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" asChild className="bg-accent-purple hover:bg-purple-600 text-white">
-            <Link href="/admin/write">Write a Post</Link>
-          </Button>
-          {notionConnected && (
+          {notionConnected ? (
             <Button
               size="sm"
-              variant="outline"
+              className="bg-accent-purple hover:bg-purple-600 text-white"
               disabled={syncing}
               onClick={onSyncNow}
             >
-              Sync Now
+              {syncing ? "Syncing..." : "Sync Now"}
+            </Button>
+          ) : (
+            <Button size="sm" asChild className="bg-accent-purple hover:bg-purple-600 text-white">
+              <Link href="/admin/settings">Connect Notion</Link>
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={dismiss} className="text-muted-foreground">

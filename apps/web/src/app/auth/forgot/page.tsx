@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,10 +52,8 @@ export default function ForgotPasswordPage() {
     setError("");
     setLoading(true);
     try {
-      await api("/api/auth/forgot-password", {
-        method: "POST",
-        body: { email },
-      });
+      const { error } = await authClient.requestPasswordReset({ email, redirectTo: "/auth/reset" });
+      if (error) throw new Error(error.message || "Something went wrong");
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

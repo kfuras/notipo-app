@@ -4,6 +4,8 @@ import { getEffectivePlan, getPlanLimits, getMonthlyPostCount } from "../lib/pla
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { captureServer } from "../lib/posthog-server.js";
+import { requireSession } from "../plugins/auth.js";
+import { resolveOwnerContact } from "../lib/tenant-owner.js";
 
 const log = logger.child({ route: "billing" });
 
@@ -43,6 +45,7 @@ export async function billingRoutes(app: FastifyInstance) {
 
   /** POST /api/billing/checkout — create Stripe Checkout session */
   app.post("/api/billing/checkout", async (request, reply) => {
+    if (!requireSession(request, reply)) return;
     if (!isStripeConfigured()) {
       return reply.code(503).send({ error: "Billing is not configured" });
     }
@@ -53,16 +56,16 @@ export async function billingRoutes(app: FastifyInstance) {
       select: { id: true, stripeCustomerId: true, plan: true },
     });
 
-    const owner = await app.prisma.user.findFirst({
-      where: { tenantId: tenant.id, role: "OWNER" },
-      select: { email: true },
-    });
+    // Session-only route, so request.user.email is the buyer's better-auth email;
+    // fall back to the tenant owner for legacy/edge cases.
+    const ownerEmail =
+      request.user.email || (await resolveOwnerContact(app.prisma, tenant.id))?.email;
 
     // Create or reuse Stripe customer
     let customerId = tenant.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: owner?.email,
+        email: ownerEmail,
         metadata: { tenantId: tenant.id },
       });
       customerId = customer.id;
@@ -97,6 +100,7 @@ export async function billingRoutes(app: FastifyInstance) {
 
   /** POST /api/billing/portal — create Stripe Customer Portal session */
   app.post("/api/billing/portal", async (request, reply) => {
+    if (!requireSession(request, reply)) return;
     if (!isStripeConfigured()) {
       return reply.code(503).send({ error: "Billing is not configured" });
     }

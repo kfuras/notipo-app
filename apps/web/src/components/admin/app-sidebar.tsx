@@ -2,7 +2,6 @@
 
 import {
   LayoutDashboard,
-  PenLine,
   FileText,
   FolderTree,
   Activity,
@@ -31,7 +30,6 @@ import {
 
 const tenantNavItems = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { title: "Write", href: "/admin/write", icon: PenLine },
   { title: "Posts", href: "/admin/posts", icon: FileText },
   { title: "Categories", href: "/admin/categories", icon: FolderTree },
   { title: "Jobs", href: "/admin/jobs", icon: Activity },
@@ -49,13 +47,14 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { email, isAdmin, impersonating, logout } = useAuth();
 
-  // Admin without impersonation: only show admin items
-  const showTenantNav = !isAdmin || impersonating;
+  // Admins use their own dashboard like everyone else; the admin group below
+  // adds the extra tenant-management items.
+  const showTenantNav = true;
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link href={isAdmin && !impersonating ? "/admin/tenants" : "/admin"} className="flex items-center gap-2">
+        <Link href="/admin" className="flex items-center gap-2">
           <LogoIcon className="w-7 h-7" id="sidebar" />
           <span className="font-semibold text-lg">Notipo</span>
         </Link>

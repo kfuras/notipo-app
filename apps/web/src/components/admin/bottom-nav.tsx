@@ -2,7 +2,6 @@
 
 import {
   LayoutDashboard,
-  PenLine,
   FileText,
   FolderTree,
   Activity,
@@ -19,7 +18,6 @@ import { useAuth } from "@/lib/auth-context";
 
 const tenantNavItems = [
   { title: "Home", href: "/admin", icon: LayoutDashboard },
-  { title: "Write", href: "/admin/write", icon: PenLine },
   { title: "Posts", href: "/admin/posts", icon: FileText },
   { title: "Categories", href: "/admin/categories", icon: FolderTree },
   { title: "Jobs", href: "/admin/jobs", icon: Activity },
@@ -33,14 +31,10 @@ const adminItem = { title: "Tenants", href: "/admin/tenants", icon: Users };
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { isAdmin, impersonating, logout } = useAuth();
+  const { isAdmin, logout } = useAuth();
 
-  // Admin without impersonation: only show Tenants
-  const items = isAdmin && !impersonating
-    ? [adminItem]
-    : isAdmin && impersonating
-      ? [...tenantNavItems, adminItem]
-      : tenantNavItems;
+  // Everyone gets the normal nav; admins get the extra tenant-management item.
+  const items = isAdmin ? [...tenantNavItems, adminItem] : tenantNavItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background md:hidden">

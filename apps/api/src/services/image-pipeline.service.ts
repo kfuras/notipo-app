@@ -13,6 +13,7 @@ import type { ImageRef, ProcessedImages } from "../types/index.js";
 import { createHash } from "node:crypto";
 import axios from "axios";
 import { logger } from "../lib/logger.js";
+import { isPrivateUrl } from "../lib/url-validation.js";
 
 /** Strip query parameters from a URL for cache lookup. */
 function baseUrl(url: string): string {
@@ -80,7 +81,20 @@ export class ImagePipelineService {
           if (!base64Data) throw new Error(`Invalid data URI for image ${i}`);
           buffer = Buffer.from(base64Data, "base64");
         } else {
-          const response = await axios.get(img.url, { responseType: "arraybuffer" });
+          // SSRF guard: a user/Notion-supplied URL must not reach internal hosts
+          // or cloud metadata endpoints.
+          if (await isPrivateUrl(img.url)) {
+            throw new Error(`Image URL points to a private/internal address: ${img.url}`);
+          }
+          // Cap time and size: a user/Notion-supplied image URL must not stall a
+          // sync (timeout) or blow the heap by streaming a huge file into a Buffer
+          // (maxContentLength). 30 MB is well above any real featured image.
+          const response = await axios.get(img.url, {
+            responseType: "arraybuffer",
+            timeout: 20_000,
+            maxContentLength: 30 * 1024 * 1024,
+            maxBodyLength: 30 * 1024 * 1024,
+          });
           buffer = Buffer.from(response.data);
         }
 

@@ -31,16 +31,16 @@ function SetDarkMeta() {
 }
 
 function AuthGate() {
-  const { apiKey, isLoading } = useAuth();
+  const { isAuthed, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && apiKey) {
+    if (!isLoading && isAuthed) {
       router.replace("/admin");
     }
-  }, [apiKey, isLoading, router]);
+  }, [isAuthed, isLoading, router]);
 
-  if (isLoading || apiKey) {
+  if (isLoading || isAuthed) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
