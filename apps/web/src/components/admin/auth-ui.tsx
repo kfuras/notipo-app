@@ -4,8 +4,8 @@ import { type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 /**
- * Shared shell for the auth pages (login / signup) — a Klarbud-style centered
- * dark card with a wordmark above and a small footer below. The surrounding
+ * Shared shell for the auth pages (login / signup) — a centered dark card with
+ * a wordmark above and a small footer below. The surrounding
  * page already applies the `dark` theme + background.
  */
 export function AuthShell({

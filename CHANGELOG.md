@@ -38,7 +38,7 @@ Notipo is now in the official [Model Context Protocol Registry](https://registry
 
 ### Fly.io + Neon Postgres Migration, Subdomain Split
 
-Notipo's hosted infrastructure moved off Google Cloud Run + Cloud SQL onto Fly.io + Neon Postgres. Marketing site and admin/API are now split across two subdomains, matching the pattern used by sister projects like Klarbud.
+Notipo's hosted infrastructure moved off Google Cloud Run + Cloud SQL onto Fly.io + Neon Postgres. Marketing site and admin/API are now split across two subdomains.
 
 **URL changes** (breaking for hosted-product clients):
 

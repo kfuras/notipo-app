@@ -2,7 +2,7 @@ import { PostHog } from "posthog-node";
 
 /**
  * Singleton PostHog client for server-side event capture from API routes,
- * webhooks, and background jobs. Mirrors Klarbud's pattern.
+ * webhooks, and background jobs.
  *
  * Key conventions for callers:
  * - distinctId should be the stable internal user.id (NOT email), so events

@@ -98,7 +98,7 @@ export const auth = betterAuth({
   user: {
     modelName: "authUser",
     additionalFields: {
-      // Name of the blog to create on signup (mirrors Klarbud's companyName).
+      // Name of the blog to create on signup.
       blogName: { type: "string", required: false, input: true },
     },
   },
