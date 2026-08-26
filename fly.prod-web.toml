@@ -29,11 +29,16 @@ primary_region = 'ams'
 [http_service]
   internal_port = 80
   force_https = true
-  # Web is the front door for notipo.com — must be always available.
-  # min_machines_running = 1 so cold-start doesn't affect all incoming traffic.
-  auto_stop_machines = false
+  # Serves app.notipo.com, the product UI behind a login. An earlier comment
+  # here called this the front door for notipo.com and kept it always warm for
+  # that reason; the marketing site has since moved to its own app, which holds
+  # the apex certificate. Nothing public-facing depends on this staying warm.
+  #
+  # Sleeps when idle; auto_start wakes it on the first request, so a visitor
+  # pays a cold start rather than the app running around the clock for none.
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ['app']
 
   [http_service.concurrency]

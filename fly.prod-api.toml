@@ -34,12 +34,17 @@ primary_region = 'ams'
 [http_service]
   internal_port = 3000
   force_https = true
-  # min_machines_running = 1 because the API hosts the pg-boss job queue
-  # and Notion webhook receiver. If it suspends, jobs stall and webhooks 404.
-  # auto_stop_machines = false keeps the single instance always warm.
-  auto_stop_machines = false
+  # This app runs pg-boss, which polls Postgres on a short interval for as long
+  # as the process is alive. On a serverless Postgres that scales to zero, an
+  # always-warm machine therefore keeps the database compute permanently awake —
+  # the queue never idles, even with an empty queue.
+  #
+  # Sleeping when idle lets the database suspend too; auto_start brings the
+  # machine back on the first request, at the cost of a cold start. Set
+  # min_machines_running = 1 when inbound webhooks must not miss a delivery.
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ['app']
 
   [http_service.concurrency]
