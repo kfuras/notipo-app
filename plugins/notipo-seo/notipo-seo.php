@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Notipo SEO
+ * Plugin Name: SEO Meta for REST API
  * Plugin URI:  https://github.com/kfuras/notipo-app
  * Description: REST API bridge for SEO metadata. Write focus keyword, SEO title, and description to Rank Math, Yoast, SEOPress, or AIOSEO from any REST client (n8n, Zapier, AI agents, custom scripts, or the Notipo publishing platform).
  * Version:     1.1.0
@@ -180,7 +180,7 @@ add_action('rest_api_init', function () {
 });
 
 /* -------------------------------------------------------------------------
- * Tools → Notipo SEO
+ * Tools → SEO Meta for REST API
  *
  * The plugin has no front-end output and no settings, so a fresh install shows
  * nothing anywhere in wp-admin. This screen exists so that anyone — including
@@ -191,8 +191,8 @@ add_action('rest_api_init', function () {
 add_action('admin_menu', function () {
     add_submenu_page(
         'tools.php',
-        esc_html__('Notipo SEO', 'notipo-seo'),
-        esc_html__('Notipo SEO', 'notipo-seo'),
+        esc_html__('SEO Meta for REST API', 'notipo-seo'),
+        esc_html__('SEO Meta for REST API', 'notipo-seo'),
         'manage_options',
         'notipo-seo',
         'notipo_seo_render_tools_page'
@@ -249,7 +249,7 @@ function notipo_seo_render_tools_page() {
     }
     ?>
     <div class="wrap">
-        <h1><?php esc_html_e('Notipo SEO', 'notipo-seo'); ?></h1>
+        <h1><?php esc_html_e('SEO Meta for REST API', 'notipo-seo'); ?></h1>
 
         <?php if ($notice) : ?>
             <div class="notice notice-<?php echo esc_attr($notice[0]); ?>">

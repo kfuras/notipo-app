@@ -1,6 +1,6 @@
-=== Notipo SEO ===
+=== SEO Meta for REST API ===
 Contributors: kfuras
-Tags: seo, rest api, rank math, yoast, seopress
+Tags: seo, rest api, yoast, rank math, seopress
 Requires at least: 5.5
 Tested up to: 7.0
 Requires PHP: 7.4
@@ -12,7 +12,7 @@ REST API bridge for SEO metadata. Write focus keyword, SEO title, and descriptio
 
 == Description ==
 
-Notipo SEO adds a REST API bridge for SEO metadata that works with any external tool — n8n workflows, AI agents, custom scripts, or the Notipo publishing platform.
+This plugin adds a REST API bridge for SEO metadata that works with any external tool — n8n workflows, AI agents, custom scripts, or the Notipo publishing platform.
 
 Yoast SEO and All in One SEO (AIOSEO) do not expose their metadata for writing via the WordPress REST API. This plugin fills that gap by registering three REST-visible meta fields and copying them into the active SEO plugin's own fields whenever a post is saved.
 
@@ -44,7 +44,7 @@ They are registered on the `post` post type and are readable and writable throug
 
 1. Install and activate the plugin.
 2. Make sure one of the supported SEO plugins (Rank Math, Yoast SEO, SEOPress, or AIOSEO) is also active.
-3. Go to **Tools → Notipo SEO**. The page shows which SEO plugin was detected.
+3. Go to **Tools → SEO Meta for REST API**. The page shows which SEO plugin was detected.
 
 There is nothing else to configure. The plugin has no settings and adds no front-end output.
 
@@ -52,7 +52,7 @@ There is nothing else to configure. The plugin has no settings and adds no front
 
 Everything below happens inside wp-admin — no REST client needed.
 
-1. Go to **Tools → Notipo SEO**.
+1. Go to **Tools → SEO Meta for REST API**.
 2. Confirm the Status section names your SEO plugin. If it says none was detected, activate Rank Math, Yoast SEO, SEOPress, or AIOSEO first.
 3. Under **Try it**, pick a post, type anything into the three fields, and press **Save and copy to SEO plugin**.
 4. The **Result** table then reads the values back out of the database, showing this plugin's field name next to the SEO plugin's own field name and the value now stored there.
@@ -69,7 +69,7 @@ Authenticate with an application password (**Users → Profile → Application P
 `  -H "Content-Type: application/json" \`
 `  -d '{"meta":{"notipo_seo_title":"Example title","notipo_seo_description":"Example description","notipo_seo_keyword":"example"}}'`
 
-The **Tools → Notipo SEO** page prints this same command with your own site URL already filled in.
+The **Tools → SEO Meta for REST API** page prints this same command with your own site URL already filled in.
 
 To check which SEO plugin is active from outside WordPress, call `GET /wp-json/notipo/v1/seo-status` as a user who can edit posts. It returns the detected plugin and the plugin version.
 
@@ -106,7 +106,7 @@ Posts. The meta fields are registered on the `post` type only.
 == Changelog ==
 
 = 1.1.0 =
-* Added a **Tools → Notipo SEO** screen showing which SEO plugin was detected, a form for writing the three fields to a post, and a table reading the values back out of the SEO plugin's own fields.
+* Added a **Tools → SEO Meta for REST API** screen showing which SEO plugin was detected, a form for writing the three fields to a post, and a table reading the values back out of the SEO plugin's own fields.
 * The screen also prints a ready-to-run REST example using the site's own URL.
 * Field mapping moved into a single shared function used by both the save hook and the new screen, so the two can no longer disagree.
 * Readme: added step-by-step verification instructions and external-client usage.
