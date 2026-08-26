@@ -8,7 +8,7 @@
  * Author URI:  https://github.com/kfuras
  * License:     MIT
  * License URI: https://opensource.org/licenses/MIT
- * Text Domain: notipo-seo
+ * Text Domain: kfuras-seo-for-notipo
  * Requires at least: 5.5
  * Requires PHP: 7.4
  */
@@ -191,17 +191,17 @@ add_action('rest_api_init', function () {
 add_action('admin_menu', function () {
     add_submenu_page(
         'tools.php',
-        esc_html__('SEO Meta for REST API', 'notipo-seo'),
-        esc_html__('SEO Meta for REST API', 'notipo-seo'),
+        esc_html__('SEO Meta for REST API', 'kfuras-seo-for-notipo'),
+        esc_html__('SEO Meta for REST API', 'kfuras-seo-for-notipo'),
         'manage_options',
-        'notipo-seo',
+        'kfuras-seo-for-notipo',
         'notipo_seo_render_tools_page'
     );
 });
 
 function notipo_seo_render_tools_page() {
     if (!current_user_can('manage_options')) {
-        wp_die(esc_html__('You do not have permission to access this page.', 'notipo-seo'));
+        wp_die(esc_html__('You do not have permission to access this page.', 'kfuras-seo-for-notipo'));
     }
 
     $plugin  = notipo_seo_detect_plugin();
@@ -216,9 +216,9 @@ function notipo_seo_render_tools_page() {
         $post    = $post_id ? get_post($post_id) : null;
 
         if (!$post || $post->post_type !== 'post') {
-            $notice = ['error', __('Pick a post to write the test values to.', 'notipo-seo')];
+            $notice = ['error', __('Pick a post to write the test values to.', 'kfuras-seo-for-notipo')];
         } elseif (!current_user_can('edit_post', $post_id)) {
-            $notice = ['error', __('You cannot edit that post.', 'notipo-seo')];
+            $notice = ['error', __('You cannot edit that post.', 'kfuras-seo-for-notipo')];
         } else {
             foreach (array_keys(notipo_seo_fields()) as $key) {
                 $value = isset($_POST[$key]) ? sanitize_text_field(wp_unslash($_POST[$key])) : '';
@@ -229,10 +229,10 @@ function notipo_seo_render_tools_page() {
             $notice  = $written
                 ? ['success', sprintf(
                     /* translators: %s: name of the detected SEO plugin. */
-                    __('Values saved and copied into %s. The table below reads them back from the database.', 'notipo-seo'),
+                    __('Values saved and copied into %s. The table below reads them back from the database.', 'kfuras-seo-for-notipo'),
                     notipo_seo_plugin_label($written)
                 )]
-                : ['warning', __('Values saved, but no supported SEO plugin is active, so there was nothing to copy them into.', 'notipo-seo')];
+                : ['warning', __('Values saved, but no supported SEO plugin is active, so there was nothing to copy them into.', 'kfuras-seo-for-notipo')];
         }
     }
 
@@ -249,7 +249,7 @@ function notipo_seo_render_tools_page() {
     }
     ?>
     <div class="wrap">
-        <h1><?php esc_html_e('SEO Meta for REST API', 'notipo-seo'); ?></h1>
+        <h1><?php esc_html_e('SEO Meta for REST API', 'kfuras-seo-for-notipo'); ?></h1>
 
         <?php if ($notice) : ?>
             <div class="notice notice-<?php echo esc_attr($notice[0]); ?>">
@@ -257,34 +257,34 @@ function notipo_seo_render_tools_page() {
             </div>
         <?php endif; ?>
 
-        <h2><?php esc_html_e('Status', 'notipo-seo'); ?></h2>
+        <h2><?php esc_html_e('Status', 'kfuras-seo-for-notipo'); ?></h2>
         <?php if ($plugin) : ?>
             <p>
                 <?php
                 printf(
                     /* translators: %s: name of the detected SEO plugin. */
-                    esc_html__('Detected SEO plugin: %s. Values written to the fields below are copied into it automatically whenever a post is saved.', 'notipo-seo'),
+                    esc_html__('Detected SEO plugin: %s. Values written to the fields below are copied into it automatically whenever a post is saved.', 'kfuras-seo-for-notipo'),
                     '<strong>' . esc_html(notipo_seo_plugin_label($plugin)) . '</strong>'
                 );
                 ?>
             </p>
         <?php else : ?>
             <div class="notice notice-warning inline">
-                <p><?php esc_html_e('No supported SEO plugin is active. Activate Rank Math, Yoast SEO, SEOPress, or All in One SEO, then reload this page. The fields below still store their values, but there is nothing to copy them into yet.', 'notipo-seo'); ?></p>
+                <p><?php esc_html_e('No supported SEO plugin is active. Activate Rank Math, Yoast SEO, SEOPress, or All in One SEO, then reload this page. The fields below still store their values, but there is nothing to copy them into yet.', 'kfuras-seo-for-notipo'); ?></p>
             </div>
         <?php endif; ?>
 
-        <h2><?php esc_html_e('Try it', 'notipo-seo'); ?></h2>
-        <p><?php esc_html_e('Write test values to a post and see where they end up. This does the same thing an external REST client does.', 'notipo-seo'); ?></p>
+        <h2><?php esc_html_e('Try it', 'kfuras-seo-for-notipo'); ?></h2>
+        <p><?php esc_html_e('Write test values to a post and see where they end up. This does the same thing an external REST client does.', 'kfuras-seo-for-notipo'); ?></p>
 
         <?php if (empty($recent)) : ?>
-            <p><em><?php esc_html_e('Create a post first — there is nothing to write to yet.', 'notipo-seo'); ?></em></p>
+            <p><em><?php esc_html_e('Create a post first — there is nothing to write to yet.', 'kfuras-seo-for-notipo'); ?></em></p>
         <?php else : ?>
             <form method="post">
                 <?php wp_nonce_field('notipo_seo_test'); ?>
                 <table class="form-table" role="presentation">
                     <tr>
-                        <th scope="row"><label for="notipo_seo_post"><?php esc_html_e('Post', 'notipo-seo'); ?></label></th>
+                        <th scope="row"><label for="notipo_seo_post"><?php esc_html_e('Post', 'kfuras-seo-for-notipo'); ?></label></th>
                         <td>
                             <select name="post_id" id="notipo_seo_post">
                                 <?php foreach ($recent as $p) : ?>
@@ -308,19 +308,19 @@ function notipo_seo_render_tools_page() {
                         </tr>
                     <?php endforeach; ?>
                 </table>
-                <?php submit_button(esc_html__('Save and copy to SEO plugin', 'notipo-seo'), 'primary', 'notipo_seo_test'); ?>
+                <?php submit_button(esc_html__('Save and copy to SEO plugin', 'kfuras-seo-for-notipo'), 'primary', 'notipo_seo_test'); ?>
             </form>
         <?php endif; ?>
 
         <?php if ($post_id && $plugin) : ?>
-            <h2><?php esc_html_e('Current values for this post', 'notipo-seo'); ?></h2>
-            <p><?php esc_html_e('Read straight from the database, so this is what the SEO plugin actually has:', 'notipo-seo'); ?></p>
+            <h2><?php esc_html_e('Current values for this post', 'kfuras-seo-for-notipo'); ?></h2>
+            <p><?php esc_html_e('Read straight from the database, so this is what the SEO plugin actually has:', 'kfuras-seo-for-notipo'); ?></p>
             <table class="widefat striped" style="max-width:820px">
                 <thead>
                     <tr>
-                        <th><?php esc_html_e('This plugin', 'notipo-seo'); ?></th>
+                        <th><?php esc_html_e('This plugin', 'kfuras-seo-for-notipo'); ?></th>
                         <th><?php echo esc_html(notipo_seo_plugin_label($plugin)); ?></th>
-                        <th><?php esc_html_e('Stored value', 'notipo-seo'); ?></th>
+                        <th><?php esc_html_e('Stored value', 'kfuras-seo-for-notipo'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -334,12 +334,12 @@ function notipo_seo_render_tools_page() {
                 </tbody>
             </table>
             <p class="description">
-                <?php esc_html_e('Open the post editor and check the SEO plugin panel — the same values are there.', 'notipo-seo'); ?>
+                <?php esc_html_e('Open the post editor and check the SEO plugin panel — the same values are there.', 'kfuras-seo-for-notipo'); ?>
             </p>
         <?php endif; ?>
 
-        <h2><?php esc_html_e('From an external client', 'notipo-seo'); ?></h2>
-        <p><?php esc_html_e('The same three fields are writable over the WordPress REST API, which is what n8n, Zapier, AI agents or any script would use. Authenticate with an application password:', 'notipo-seo'); ?></p>
+        <h2><?php esc_html_e('From an external client', 'kfuras-seo-for-notipo'); ?></h2>
+        <p><?php esc_html_e('The same three fields are writable over the WordPress REST API, which is what n8n, Zapier, AI agents or any script would use. Authenticate with an application password:', 'kfuras-seo-for-notipo'); ?></p>
         <pre style="background:#fff;border:1px solid #c3c4c7;padding:12px;overflow:auto"><?php
             echo esc_html(
                 "curl -X POST " . esc_url_raw(rest_url('wp/v2/posts/123')) . " \\\n" .
@@ -354,7 +354,7 @@ function notipo_seo_render_tools_page() {
             <?php
             printf(
                 /* translators: %s: REST endpoint URL. */
-                esc_html__('To check what was detected from outside WordPress, call %s as a logged-in user.', 'notipo-seo'),
+                esc_html__('To check what was detected from outside WordPress, call %s as a logged-in user.', 'kfuras-seo-for-notipo'),
                 '<code>' . esc_html(rest_url('notipo/v1/seo-status')) . '</code>'
             );
             ?>
