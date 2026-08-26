@@ -18,7 +18,7 @@ export async function registerSendOnboardingEmailJob(boss: PgBoss, prisma: Prism
 
   await boss.createQueue("send-onboarding-email");
 
-  await boss.work("send-onboarding-email", async () => {
+  await boss.work("send-onboarding-email", { pollingIntervalSeconds: 30 }, async () => {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
     // Find tenants created >24h ago that are missing Notion or WordPress and haven't been emailed yet

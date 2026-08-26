@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js";
 export async function registerCheckTrialsJob(boss: PgBoss, prisma: PrismaClient) {
   await boss.createQueue("check-trials");
 
-  await boss.work("check-trials", async () => {
+  await boss.work("check-trials", { pollingIntervalSeconds: 30 }, async () => {
     const expired = await prisma.tenant.updateMany({
       where: {
         plan: "TRIAL",

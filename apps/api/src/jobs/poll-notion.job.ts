@@ -18,7 +18,7 @@ export async function registerPollNotionJob(boss: PgBoss, prisma: PrismaClient) 
   await boss.createQueue("poll-notion", { policy: "stately", retryLimit: 0, expireInSeconds: 120 });
 
   // Register the handler
-  await boss.work("poll-notion", async () => {
+  await boss.work("poll-notion", { pollingIntervalSeconds: 30 }, async () => {
     const log = logger.child({ job: "poll-notion" });
 
     // Get all tenants with Notion configured
@@ -49,8 +49,13 @@ export async function registerPollNotionJob(boss: PgBoss, prisma: PrismaClient) 
     }
   });
 
-  // Global tick every 60s — per-tenant intervals enforced inside handler
-  const TICK_MS = 60_000;
+  // Global tick — per-tenant intervals are enforced inside the handler, and
+  // every plan currently gates polling at 300s. A 60s tick therefore woke the
+  // database five times for every time a tenant could actually be polled: four
+  // of five ticks queried the tenants, found all of them "too soon", and did
+  // nothing. Matching the tick to the interval it enforces removes that waste
+  // without changing how often any tenant is polled.
+  const TICK_MS = 300_000;
   setInterval(() => {
     boss.send("poll-notion", {}, { singletonKey: "poll-notion" }).catch((err: unknown) => {
       logger.error({ err }, "Failed to enqueue poll-notion job");

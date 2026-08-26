@@ -36,7 +36,13 @@ export async function registerAllJobs(boss: PgBoss, prisma: PrismaClient, eventB
   await registerImportPostJob(boss, prisma, eventBus);
   await registerDirectPublishJob(boss, prisma, eventBus);
 
-  // Periodically fail jobs stuck in RUNNING for more than 5 minutes
+  // Periodically fail jobs stuck in RUNNING for more than 5 minutes.
+  //
+  // This runs outside pg-boss and writes to the database on its own schedule,
+  // so it sets the floor for how long the database can ever stay idle. Checking
+  // every 60s bought nothing: the cutoff is 5 minutes, so a job cannot become
+  // stuck-and-undetected any faster than that. Matching the two means one write
+  // per five minutes instead of five.
   setInterval(async () => {
     const cutoff = new Date(Date.now() - 5 * 60 * 1000);
     const stuck = await prisma.job.updateMany({
@@ -47,7 +53,7 @@ export async function registerAllJobs(boss: PgBoss, prisma: PrismaClient, eventB
       logger.warn({ count: stuck.count }, "Marked timed-out RUNNING jobs as FAILED");
       await resetNotionStatusForFailedJobs(prisma);
     }
-  }, 60 * 1000);
+  }, 5 * 60 * 1000);
 
   logger.info("All job handlers registered");
 }

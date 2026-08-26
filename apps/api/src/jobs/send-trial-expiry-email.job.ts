@@ -17,7 +17,7 @@ export async function registerSendTrialExpiryEmailJob(boss: PgBoss, prisma: Pris
 
   await boss.createQueue("send-trial-expiry-email");
 
-  await boss.work("send-trial-expiry-email", async () => {
+  await boss.work("send-trial-expiry-email", { pollingIntervalSeconds: 30 }, async () => {
     const now = new Date();
     const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
