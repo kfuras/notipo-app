@@ -30,3 +30,6 @@ apps/api/uploads/
 # Claude Code
 .claude/
 data/
+
+# SOPS-kryptert - skal committes. Klartekst-variantene forblir ignorert.
+!*.enc
