@@ -32,4 +32,3 @@ apps/api/uploads/
 data/
 
 # SOPS-kryptert - skal committes. Klartekst-variantene forblir ignorert.
-!*.enc
