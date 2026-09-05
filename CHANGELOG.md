@@ -8,23 +8,25 @@ Each `## vX.Y.Z` section is extracted verbatim by `.github/workflows/release.yml
 
 ## v1.5.0
 
-### You get told when someone signs up
-
-`ADMIN_NOTIFY_EMAIL` works again. It was documented and read from the environment, but nothing had sent to it since the account system moved to better-auth in v1.4.0 — set it and every new blog now sends you a note with the address and blog name. Requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`, same as the other transactional mail.
-
-### The WordPress plugin is now "SEO Meta for REST API"
-
-The bundled plugin in `plugins/notipo-seo/` — the one Yoast and AIOSEO users install so Notipo can write SEO fields over the REST API — was renamed to describe what it does rather than where it came from. It also declares compatibility with the current WordPress release and gained a Tools screen, so you can confirm it is active and exercise it without publishing a post first.
-
-### Background jobs stop hammering the database
-
-The job queue polled far faster than any work could arrive. On a small self-hosted instance that was a steady stream of queries for nothing; the interval now matches the rate at which jobs actually appear.
+Mostly a security release. If you are running an older tag, this is the one to take.
 
 ### Security and dependency refresh
 
 A large batch, most of it security-driven: axios 1.15 → 1.19, nanoid 3.3.11 → 3.3.18, fastify 5.9 → 5.12, `@fastify/static` 9 → 10, `@google-cloud/storage` 7 → 8, hono 4.12 → 4.13, posthog-js, qs, fast-uri, postcss and browserslist. CI workflows now pin every action to a commit SHA.
 
 **One behaviour change worth knowing:** `@fastify/rate-limit` moved to 11, which emits `Retry-After` in seconds per RFC 9110 where 10 sent milliseconds. Nothing in Notipo reads that header, but a client of yours that backs off on it will now wait the intended interval rather than a thousand times longer.
+
+### Background jobs stop hammering the database
+
+The job queue polled far faster than any work could arrive. On a small self-hosted instance that was a steady stream of queries for nothing; the interval now matches the rate at which jobs actually appear.
+
+### The WordPress plugin is now "SEO Meta for REST API"
+
+The bundled plugin in `plugins/notipo-seo/` — the one Yoast and AIOSEO users install so Notipo can write SEO fields over the REST API — was renamed to describe what it does rather than where it came from. It also declares compatibility with the current WordPress release and gained a Tools screen, so you can confirm it is active and exercise it without publishing a post first.
+
+### Signup notifications work again
+
+Only relevant if you run an instance other people can register on. `ADMIN_NOTIFY_EMAIL` was documented and read from the environment, but nothing had sent to it since the account system moved to better-auth in v1.4.0. Set it, together with `RESEND_API_KEY` and `RESEND_FROM_EMAIL`, and each new blog sends you a note with the address and blog name. On a single-user instance with signup closed, this changes nothing.
 
 ## v1.4.0
 
