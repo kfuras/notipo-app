@@ -46,10 +46,50 @@ jobs:
       - run: npx turbo build
       - run: npx turbo test
 
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      # Anything outside the two app directories counts as touching both, so a
+      # shared package, the lockfile or this workflow still ships everywhere.
+      # Only a change confined to one app skips the other's deploy.
+      - id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          api=false
+          web=false
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            api=true
+            web=true
+          else
+            while IFS= read -r f; do
+              case "$f" in
+                "") ;;
+                apps/api/*|fly.prod-api.toml) api=true ;;
+                apps/web/*|fly.prod-web.toml) web=true ;;
+                *) api=true; web=true ;;
+              esac
+            done <<< "$(git diff --name-only "$BEFORE" "$AFTER")"
+          fi
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "api=$api web=$web"
+
   deploy-api:
     name: Deploy API to Fly
-    needs: [build, lockfile-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, lockfile-check, changes]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     concurrency: deploy-api
     steps:
@@ -86,8 +126,8 @@ jobs:
 
   deploy-web:
     name: Deploy Web to Fly
-    needs: [build, lockfile-check]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build, lockfile-check, changes]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     concurrency: deploy-web
     steps:
