@@ -59,6 +59,30 @@ jobs:
         run: flyctl deploy -c fly.prod-api.toml --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Ensure machines are running
+        run: |
+          set -euo pipefail
+          stopped=$(flyctl machines list -a notipo-prod-api --json | jq -r '.[] | select(.state != "started") | .id')
+          for id in $stopped; do
+            echo "Starting machine $id"
+            flyctl machine start "$id" -a notipo-prod-api
+          done
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 https://app.notipo.com/health || true)
+            if [ "$code" = "200" ]; then
+              echo "API healthy"
+              exit 0
+            fi
+            echo "attempt $i: HTTP $code"
+            sleep 10
+          done
+          echo "API did not return 200 after deploy"
+          exit 1
 
   deploy-web:
     name: Deploy Web to Fly
