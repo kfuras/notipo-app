@@ -20,6 +20,15 @@ const BASE_URL = process.env.BETTER_AUTH_URL || "https://app.notipo.com";
  * both coexist, better-auth's own tables use distinct names (`authUser` etc.).
  * A blog is an "organization" → mapped onto the existing `tenants` table.
  */
+/** The blog name is free text from the signup form and lands in an HTML email. */
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function slugify(input: string): string {
   const base = input
     .toLowerCase()
@@ -115,8 +124,8 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
+          const blogName = (user as { blogName?: string }).blogName || "My blog";
           try {
-            const blogName = (user as { blogName?: string }).blogName || "My blog";
             const org = await auth.api.createOrganization({
               body: { name: blogName, slug: slugify(blogName), userId: user.id },
             });
@@ -150,6 +159,22 @@ export const auth = betterAuth({
             // reports failure instead of a false success.
             await prisma.authUser.delete({ where: { id: user.id } }).catch(() => {});
             throw err;
+          }
+
+          // Tell the operator someone signed up. Deliberately outside the block
+          // above: that one deletes the user and rethrows when provisioning
+          // fails, and a bounced notification must never reach that path — a
+          // signup is not worth losing over an email. sendEmail resolves false
+          // rather than throwing, and the catch guards against that changing.
+          if (config.ADMIN_NOTIFY_EMAIL) {
+            void sendEmail(
+              config.ADMIN_NOTIFY_EMAIL,
+              `New signup: ${user.email}`,
+              `<p>A new blog was created.</p><ul>` +
+                `<li>Email: ${escapeHtml(user.email)}</li>` +
+                `<li>Blog: ${escapeHtml(blogName)}</li>` +
+                `</ul>`,
+            ).catch(() => {});
           }
         },
       },
