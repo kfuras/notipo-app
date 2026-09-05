@@ -56,7 +56,6 @@ const envSchema = z.object({
   BRAND_NAME: emptyToUndefined,
   UNSPLASH_ACCESS_KEY: emptyToUndefined,
   GEMINI_API_KEY: emptyToUndefined,
-  GCS_BUCKET: emptyToUndefined,
   SENTRY_DSN: emptyToUndefinedUrl,
 });
 

@@ -9,7 +9,6 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import axios from "axios";
 import { isPrivateUrl } from "../lib/url-validation.js";
-import { downloadFile } from "../lib/storage.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
 import { GeminiImageService } from "./gemini-image.service.js";
@@ -165,12 +164,13 @@ export class FeaturedImageService {
     let unsplashAttribution: UnsplashAttribution | undefined;
 
     if (params.backgroundImageUrl) {
-      // Load background — gcs:/upload: ref from storage, URL via HTTP, plain filename from bundled assets
+      // Load background — URL over HTTP, or a plain filename from bundled assets.
+      // Uploaded backgrounds live in the tenant's own WordPress media library and
+      // arrive as an ordinary https URL, so they take the same path as one typed
+      // in by hand.
       let bgBuffer: Buffer;
       const bg = params.backgroundImageUrl;
-      if (bg.startsWith("gcs:") || bg.startsWith("upload:")) {
-        bgBuffer = await downloadFile(bg);
-      } else if (bg.startsWith("http://") || bg.startsWith("https://")) {
+      if (bg.startsWith("http://") || bg.startsWith("https://")) {
         if (await isPrivateUrl(bg)) {
           throw new Error("Background image URL points to a private/internal address");
         }

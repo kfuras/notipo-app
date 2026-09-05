@@ -180,7 +180,13 @@ model Category {
   name            String
   wpCategoryId    Int?
   wpTagIds        Int[]
+  /// Public URL of the background image, served from the tenant's own
+  /// WordPress media library. Read through the plain-URL path in
+  /// featured-image.service, same as any other https background.
   backgroundImage String?
+  /// WordPress media id for the image above, kept so it can be deleted again.
+  /// Null for a background set as a bare URL rather than uploaded here.
+  backgroundImageMediaId Int?
 
   posts Post[]
 
