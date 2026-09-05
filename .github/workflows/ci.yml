@@ -19,14 +19,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-      - name: Check for Alpine Linux native binaries
+      # A lockfile regenerated from scratch on macOS keeps only the host's own
+      # platform packages. The build is where that surfaces, several minutes
+      # later and as a confusing resolve error, so check it here instead.
+      - name: Check for Linux native binaries
         run: |
           missing=""
-          grep -q "@img/sharp-linuxmusl-x64" package-lock.json || missing="$missing sharp-linuxmusl-x64"
-          grep -q "lightningcss-linux-x64-musl" package-lock.json || missing="$missing lightningcss-linux-x64-musl"
+          for pkg in \
+            "@img/sharp-linuxmusl-x64" \
+            "lightningcss-linux-x64-musl" \
+            "@typescript/typescript-linux-x64"
+          do
+            grep -q "$pkg" package-lock.json || missing="$missing $pkg"
+          done
           if [ -n "$missing" ]; then
-            echo "::error::Lockfile missing Alpine Linux binaries:$missing"
-            echo "Run 'npm install' with .npmrc in place to fix."
+            echo "::error::Lockfile is missing Linux binaries:$missing"
+            echo "Do not delete package-lock.json. Restore it and update in place:"
+            echo "  git checkout origin/main -- package-lock.json && npm install"
             exit 1
           fi
           echo "All platform binaries present in lockfile."

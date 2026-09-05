@@ -254,7 +254,7 @@ Exposes Notipo as an MCP tool server at `POST /api/mcp`. AI agents (Claude Deskt
   "mcpServers": {
     "notipo": {
       "type": "streamable-http",
-      "url": "https://notipo.com/api/mcp",
+      "url": "https://app.notipo.com/api/mcp",
       "headers": { "x-api-key": "your-api-key" }
     }
   }
