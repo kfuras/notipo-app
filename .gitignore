@@ -36,3 +36,6 @@ data/
 # Working notes and build artifacts — never committed.
 posthog-setup-report.md
 *.tsbuildinfo
+
+# Internal operations notes — kept local, not published
+MIGRATION_TO_FLY.md
