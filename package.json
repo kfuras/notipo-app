@@ -32,6 +32,10 @@
   "overrides": {
     "hono": "4.12.34",
     "@hono/node-server": "1.19.14",
-    "postcss": "8.5.28"
+    "postcss": "8.5.28",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "better-auth": "~1.6.10",
+    "@better-auth/core": "~1.6.10"
   }
 }

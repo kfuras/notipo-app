@@ -41,6 +41,19 @@ updates:
     # Major bumps that have known breaking changes for our codebase.
     # Re-evaluate manually when we have time to migrate.
     ignore:
+      # better-auth 1.7 is a schema migration wearing a minor version. It
+      # replaces account.scope with grantedScopes with no read-time fallback,
+      # and AuthAccount here still carries scope. Both the build and the test
+      # suite pass on 1.7 — only an actual sign-in shows the difference — so it
+      # must not ride along in a group bump. Moving to 1.7 means writing the
+      # migration first, in its own pull request, checked against a real
+      # database.
+      - dependency-name: 'better-auth'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: '@better-auth/*'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: '@notionhq/client'
         update-types: ['version-update:semver-major']
       - dependency-name: 'stripe'
