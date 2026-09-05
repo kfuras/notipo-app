@@ -170,10 +170,14 @@ export const auth = betterAuth({
             void sendEmail(
               config.ADMIN_NOTIFY_EMAIL,
               `New signup: ${user.email}`,
-              `<p>A new blog was created.</p><ul>` +
+              `<p>A new blog was created on Notipo.</p><ul>` +
                 `<li>Email: ${escapeHtml(user.email)}</li>` +
                 `<li>Blog: ${escapeHtml(blogName)}</li>` +
-                `</ul>`,
+                `</ul>` +
+                `<p>Open the admin panel to see the account.</p>`,
+              `A new blog was created on Notipo.\n\n` +
+                `Email: ${user.email}\nBlog: ${blogName}\n\n` +
+                `Open the admin panel to see the account.`,
             ).catch(() => {});
           }
         },
