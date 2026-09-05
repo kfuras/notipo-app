@@ -33,18 +33,8 @@ primary_region = 'ams'
 
 [http_service]
   internal_port = 3000
-  force_https = true
-  # Must stay warm. This app has no public hostname of its own — the web app
-  # reverse-proxies /api and /health to notipo-prod-api.internal:3000, and Fly's
-  # private .internal DNS does not wake a stopped machine. Only the public proxy
-  # (or a .flycast address) triggers auto_start, so min_machines_running = 0 here
-  # takes the API down permanently rather than putting it to sleep. Verified the
-  # hard way: with 0, every request through the web app returned 502 and the
-  # machines never came back.
-  #
-  # Reaching zero here means giving this app a .flycast address first, or letting
-  # it answer on its own hostname. Until then the compute cost belongs to
-  # pg-boss's polling interval, which is the knob that actually controls it.
+  # Internal callers reach this service through the Fly proxy over http.
+  force_https = false
   auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 1
