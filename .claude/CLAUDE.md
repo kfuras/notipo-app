@@ -278,7 +278,7 @@ MCP catalogs (Glama, Smithery, mcp.so, awesome-mcp-servers) all scan the server 
 
 ### Sandbox tenant for catalog health checks
 
-Glama Connectors and similar services do periodic health-checks against the live endpoint and store a credential to do so. Never paste a personal admin/owner key. Create a sandbox tenant via `POST /api/admin/tenants` (admin `API_KEY` from Secret Manager), keep its `apiKey` for the catalog's private-notes field. Current sandbox tenant for Glama: `glama-test-1782236423` (owner `glama-1782236423@notipo.com`).
+Catalogs run periodic health-checks against a live endpoint and store a credential to do so. Never give one a personal admin or owner key. Create a dedicated tenant via `POST /api/admin/tenants` and hand over that tenant's `apiKey` instead, so the credential can be revoked without touching anything else. Keep the tenant's identifiers out of this file.
 
 ## Key Services
 
@@ -407,31 +407,18 @@ GCS_BUCKET=                # Google Cloud Storage bucket for category image uplo
 
 ## Deployment
 
-**Production (Google Cloud Run, `notipo-prod` project, `europe-west4`):**
-- `notipo-api` — Fastify backend on Node 24 LTS (min-instances=1 for pg-boss background jobs)
-- `notipo-web` → `notipo.com/admin` — Admin UI (nginx, static Next.js export)
-- `notipo-site` → `notipo.com` — Marketing site (separate `notipo-site` repo)
-- `notipo-db` — Cloud SQL for PostgreSQL (db-f1-micro, Postgres 17, no authorized networks, SSL encrypted-only)
-- `notipo-uploads` — GCS bucket for user-uploaded category images (private, signed URLs, 365-day lifecycle)
-- Cloudflare Worker (`notipo-router`) routes `notipo.com/*` to the correct Cloud Run service
-- Cloud Run connects to Cloud SQL via built-in Unix socket proxy (`--add-cloudsql-instances`)
-- Secrets stored in Google Cloud Secret Manager
-- CI/CD: push to main → `.github/workflows/ci.yml` → Docker build in GitHub Actions → Cloud Run deploy
-- Workload Identity Federation for keyless GitHub Actions auth (provider attribute condition pinned to `kfuras/notipo-app` and `kfuras/notipo-site`; SA `github-deploy@notipo-prod` has `principalSet://...attribute.repository/kfuras/notipo-app` binding)
-- Prisma migrations run via a Cloud Run job (`notipo-migrate`) with Cloud SQL Auth Proxy sidecar before each API deploy
-- Cloud Run deploys MUST pass `--to-latest` to flip traffic to the new revision; without it, a service can stick on a pinned older revision and silently miss every deploy. Both deploy steps in `ci.yml` already include this — do not remove.
-- Budget alert: $50/month on billing account
+**Hosted notipo.com:** deployed from `.github/workflows/ci.yml` using the
+`fly.prod-*.toml` files in this repo. Its infrastructure, secrets and operational
+runbook are kept in private notes, not here — this document is public.
 
 **Self-hosters:** pull `ghcr.io/kfuras/notipo-{api,web}:latest` (multi-arch `linux/amd64` + `linux/arm64`). The repo's `docker-compose.yml` is the supported deployment template (Traefik + Let's Encrypt + bundled Postgres 17). Docker images are built and pushed by `.github/workflows/docker.yml` on every `v*` tag.
 
 **Releases:** GitHub releases are generated from `CHANGELOG.md` by `.github/workflows/release.yml` on `v*` tag push. Each `## vX.Y.Z` section is extracted via `awk` and posted as the release body. Drafting CHANGELOG entries is Claude's responsibility — see the auto-memory feedback note. Tags ending in `-alpha.N` / `-beta.N` / `-rc.N` are flagged as prereleases automatically.
 
-**Dev VPS:** `ssh dev`. Domain: `dev.notipo.com`.
-
-Traefik routing:
+**Docker Compose (the self-hosting template) — Traefik routing:**
 - `/api/*`, `/health` → `app` container (Fastify, priority 20)
 - Everything else → `web` container (Next.js/nginx, priority 10)
 
-Deploy: `ssh dev "cd ~/notipo && docker compose pull && docker compose up -d"`
+Deploy: `docker compose pull && docker compose up -d`
 
 Logs: `ssh dev "docker logs notipo-app -f --tail 100"`
