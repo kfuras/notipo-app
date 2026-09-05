@@ -72,6 +72,8 @@ export interface FeaturedImageRequest {
   backgroundImageUrl?: string;
   /** When set to AI_GENERATED, uses Gemini instead of the standard sharp/canvas pipeline. */
   mode?: "STANDARD" | "AI_GENERATED";
+  /** Gemini key to bill the generation to. Absent means AI mode is unavailable. */
+  geminiApiKey?: string;
   /** AI image style (e.g. "comic book", "watercolor"). Only used when mode is AI_GENERATED. */
   aiImageStyle?: string;
   /** Post tags — passed to Gemini for context. */

@@ -305,7 +305,7 @@ Per-tenant Notion poll logic, shared by the poll-notion job and `POST /api/sync-
 ### `featured-image.service.ts`
 Generates 1200x628 PNG featured images. Two modes controlled by tenant `featuredImageMode`:
 - **STANDARD** (default): sharp-based compositing (no text overlay). Background priority: an HTTPS URL, a bundled default (`public/category-images/`, empty by default), Unsplash, gradient fallback. An uploaded background is stored in the tenant's own WordPress media library and read back as an ordinary HTTPS URL, so it takes the first branch. Unsplash searches by category name (30 results cached in-memory), picks photo deterministically by hashing post title. Returns `FeaturedImageResult` with optional `UnsplashAttribution`. Requires `UNSPLASH_ACCESS_KEY`; falls back to gradient without it.
-- **AI_GENERATED**: Delegates to `gemini-image.service.ts` which calls the Gemini REST API to generate an illustration from the post title, category, tags, and tenant's `aiImageStyle` (e.g. "comic book", "watercolor"). Requires `GEMINI_API_KEY` env var. Output is resized to 1200x628 via sharp.
+- **AI_GENERATED**: Delegates to `gemini-image.service.ts` which calls the Gemini REST API to generate an illustration from the post title, category, tags, and tenant's `aiImageStyle` (e.g. "comic book", "watercolor"). The key is per tenant, encrypted in `tenant.geminiCredentials` and set at `PUT /api/settings/gemini` — Gemini sells prepaid accounts only, so generation is billed to whoever owns the key. `GEMINI_API_KEY` is used **only when self-hosted**, where the operator and the tenant are the same person; the hosted service has no shared fallback. `lib/gemini-key.ts` holds that rule, and `PATCH /api/settings` refuses `AI_GENERATED` when no key resolves. Output is resized to 1200x628 via sharp.
 
 Photographer attribution (Unsplash only) is appended as a Gutenberg paragraph block in sync/publish services.
 
@@ -400,7 +400,8 @@ RESEND_FROM_EMAIL=noreply@notipo.com
 ADMIN_NOTIFY_EMAIL=        # Optional: receive email when new users sign up
 NEXT_PUBLIC_POSTHOG_KEY=   # Optional: PostHog analytics (marketing site + admin UI)
 NEXT_PUBLIC_META_PIXEL_ID= # Optional: Meta Pixel tracking (CompleteRegistration on signup)
-GEMINI_API_KEY=            # Optional: AI-generated featured images via Google Gemini
+GEMINI_API_KEY=            # Optional, self-hosted only: AI-generated featured images.
+                           # Hosted blogs supply their own key in Settings instead.
 ```
 
 ## Deployment

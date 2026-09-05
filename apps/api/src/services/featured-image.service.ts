@@ -149,8 +149,8 @@ export class FeaturedImageService {
   /** Generate a featured image and return PNG bytes with optional Unsplash attribution. */
   async generate(params: FeaturedImageRequest): Promise<FeaturedImageResult> {
     // AI-generated mode: delegate to Gemini, skip the standard sharp/canvas pipeline
-    if (params.mode === "AI_GENERATED" && config.GEMINI_API_KEY) {
-      const gemini = new GeminiImageService();
+    if (params.mode === "AI_GENERATED" && params.geminiApiKey) {
+      const gemini = new GeminiImageService(params.geminiApiKey);
       const buffer = await gemini.generate({
         title: params.title,
         category: params.category,

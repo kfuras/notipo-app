@@ -11,6 +11,10 @@ export interface NotionCredentials {
   workspaceId?: string;
 }
 
+export interface GeminiCredentials {
+  apiKey: string;
+}
+
 export interface WordPressCredentials {
   siteUrl: string;
   username: string;
@@ -52,5 +56,25 @@ export class CredentialService {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant?.wordpressCredentials) return null;
     return decryptJson<WordPressCredentials>(tenant.wordpressCredentials);
+  }
+
+  async setGeminiCredentials(tenantId: string, creds: GeminiCredentials) {
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { geminiCredentials: encryptJson(creds as unknown as Record<string, unknown>) },
+    });
+  }
+
+  async getGeminiCredentials(tenantId: string): Promise<GeminiCredentials | null> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant?.geminiCredentials) return null;
+    return decryptJson<GeminiCredentials>(tenant.geminiCredentials);
+  }
+
+  async clearGeminiCredentials(tenantId: string) {
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { geminiCredentials: null },
+    });
   }
 }

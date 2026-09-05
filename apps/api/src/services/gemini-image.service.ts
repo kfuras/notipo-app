@@ -36,18 +36,24 @@ interface GeminiResponse {
 
 export class GeminiImageService {
   /**
+   * The key is passed in rather than read from the environment, because who
+   * pays for the request depends on the tenant — see lib/gemini-key.ts.
+   */
+  constructor(private readonly apiKey: string) {}
+
+  /**
    * Generate a featured image using Gemini AI.
    * Returns a 1200x628 PNG buffer ready for WordPress upload.
    */
   async generate(params: GeminiImageRequest): Promise<Buffer> {
-    if (!config.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    if (!this.apiKey) {
+      throw new Error("No Gemini API key available for this blog");
     }
 
     const prompt = this.buildPrompt(params);
     logger.info({ title: params.title, style: params.style }, "Generating AI featured image");
 
-    const response = await fetch(`${GEMINI_URL}?key=${config.GEMINI_API_KEY}`, {
+    const response = await fetch(`${GEMINI_URL}?key=${this.apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

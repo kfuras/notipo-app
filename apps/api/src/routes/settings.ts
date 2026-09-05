@@ -6,7 +6,8 @@ import { CredentialService } from "../services/credential.service.js";
 import { WordPressService } from "../services/wordpress.service.js";
 import { NotionService } from "../services/notion.service.js";
 import { syncWpCategories } from "../lib/sync-wp-categories.js";
-import { getEffectivePlan } from "../lib/plan-limits.js";
+import { resolveGeminiApiKey } from "../lib/gemini-key.js";
+import { getEffectivePlan, isSelfHosted } from "../lib/plan-limits.js";
 import { isPrivateUrl } from "../lib/url-validation.js";
 import { config } from "../config.js";
 import { logger } from "../lib/logger.js";
@@ -24,6 +25,10 @@ const wordpressSettingsSchema = z.object({
   siteUrl: z.string().url(),
   username: z.string().min(1),
   appPassword: z.string().min(1),
+});
+
+const geminiKeySchema = z.object({
+  apiKey: z.string().min(20).max(200),
 });
 
 const generalSettingsSchema = z.object({
@@ -55,6 +60,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         codeHighlighter: true,
         featuredImageMode: true,
         aiImageStyle: true,
+        geminiCredentials: true,
         webhookUrl: true,
         plan: true,
         trialEndsAt: true,
@@ -80,7 +86,12 @@ export async function settingsRoutes(app: FastifyInstance) {
         codeHighlighter: tenant.codeHighlighter,
         featuredImageMode: tenant.featuredImageMode,
         aiImageStyle: tenant.aiImageStyle,
-        geminiAvailable: !!config.GEMINI_API_KEY,
+        // Whether AI mode can be switched on at all, and whether this blog
+        // brought its own key. Self-hosted falls back to the instance key;
+        // the hosted service does not — see lib/gemini-key.ts.
+        geminiAvailable:
+          tenant.geminiCredentials !== null || (isSelfHosted() && !!config.GEMINI_API_KEY),
+        geminiConfigured: tenant.geminiCredentials !== null,
         webhookUrl: tenant.webhookUrl,
         plan: tenant.plan,
         effectivePlan: getEffectivePlan(tenant.plan, tenant.trialEndsAt),
@@ -199,6 +210,37 @@ export async function settingsRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
+  /**
+   * PUT /api/settings/gemini — store this blog's own Gemini key.
+   *
+   * Bring-your-own-key, because Gemini bills a prepaid account. On the hosted
+   * service there is no shared key to fall back to; a blog that wants
+   * AI-generated featured images pays for them itself.
+   */
+  app.put("/api/settings/gemini", async (request, reply) => {
+    const { apiKey } = geminiKeySchema.parse(request.body);
+    await new CredentialService(app.prisma).setGeminiCredentials(request.tenant.id, { apiKey });
+    return reply.code(204).send();
+  });
+
+  /**
+   * DELETE /api/settings/gemini — remove the key.
+   *
+   * Falls back to STANDARD image generation in the same write. Leaving the mode
+   * on AI_GENERATED without a key would fail at publish time instead, which is
+   * a worse place to find out.
+   */
+  app.delete("/api/settings/gemini", async (request, reply) => {
+    await new CredentialService(app.prisma).clearGeminiCredentials(request.tenant.id);
+    if (!(await resolveGeminiApiKey(app.prisma, request.tenant.id))) {
+      await app.prisma.tenant.updateMany({
+        where: { id: request.tenant.id, featuredImageMode: "AI_GENERATED" },
+        data: { featuredImageMode: "STANDARD" },
+      });
+    }
+    return reply.code(204).send();
+  });
+
   /** PATCH /api/settings — update non-secret config */
   app.patch("/api/settings", async (request, reply) => {
     const body = generalSettingsSchema.parse(request.body);
@@ -206,6 +248,18 @@ export async function settingsRoutes(app: FastifyInstance) {
     // Reject SSRF-y webhook URLs at save time so they never reach the job runner.
     if (body.webhookUrl && (await isPrivateUrl(body.webhookUrl))) {
       return reply.code(400).send({ error: "Webhook URL points to a private/internal address" });
+    }
+
+    // AI mode spends money against a Gemini key. Refuse to turn it on unless
+    // one resolves for this blog, so the switch cannot be flipped into someone
+    // else's billing account.
+    if (body.featuredImageMode === "AI_GENERATED") {
+      const key = await resolveGeminiApiKey(app.prisma, request.tenant.id);
+      if (!key) {
+        return reply.badRequest(
+          "AI-generated featured images need a Gemini API key. Add one under Settings first.",
+        );
+      }
     }
 
     await app.prisma.tenant.update({
