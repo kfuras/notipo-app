@@ -26,17 +26,23 @@ export async function adminRoutes(app: FastifyInstance) {
         codeHighlighter: true,
         plan: true,
         createdAt: true,
-        users: {
-          where: { role: "OWNER" },
-          select: { email: true },
+        // Owners live in `member` -> `authUser` since the move to better-auth.
+        // The legacy `users` relation still exists but is empty, which is why
+        // every row showed an owner of "—" while the accounts were real.
+        members: {
+          where: { role: "owner" },
+          select: { authuser: { select: { email: true } } },
           take: 1,
         },
-        _count: { select: { users: true, posts: true } },
+        _count: { select: { members: true, posts: true } },
       },
     });
     return {
-      data: tenants.map((t) => ({
+      data: tenants.map(({ members, _count, ...t }) => ({
         ...t,
+        // Keep the shape the admin UI already reads.
+        users: members.map((m) => ({ email: m.authuser.email })),
+        _count: { users: _count.members, posts: _count.posts },
         notionConnected: t.notionCredentials !== null,
         notionCredentials: undefined,
       })),
