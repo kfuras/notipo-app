@@ -30,6 +30,7 @@ interface SettingsData {
     featuredImageMode: string;
     aiImageStyle: string | null;
     geminiAvailable: boolean;
+    geminiConfigured: boolean;
     webhookUrl: string | null;
     effectivePlan: string;
   };
@@ -52,6 +53,7 @@ export default function SettingsPage() {
             mode={cfg.featuredImageMode}
             style={cfg.aiImageStyle}
             geminiAvailable={cfg.geminiAvailable}
+            geminiConfigured={cfg.geminiConfigured}
             isPro={cfg.effectivePlan === "PRO"}
             onUpdate={refetch}
           />
@@ -434,17 +436,42 @@ function FeaturedImageCard({
   mode,
   style,
   geminiAvailable,
+  geminiConfigured,
   isPro,
   onUpdate,
 }: {
   mode: string;
   style: string | null;
   geminiAvailable: boolean;
+  geminiConfigured: boolean;
   isPro: boolean;
   onUpdate: () => void;
 }) {
   const { call } = useApiCall();
   const [selectedStyle, setSelectedStyle] = useState(style ?? "cyberpunk");
+  const [keyInput, setKeyInput] = useState("");
+  const [savingKey, setSavingKey] = useState(false);
+
+  async function saveKey() {
+    setSavingKey(true);
+    try {
+      await call("/api/settings/gemini", { method: "PUT", body: { apiKey: keyInput.trim() } });
+      setKeyInput("");
+      onUpdate();
+    } finally {
+      setSavingKey(false);
+    }
+  }
+
+  async function removeKey() {
+    setSavingKey(true);
+    try {
+      await call("/api/settings/gemini", { method: "DELETE" });
+      onUpdate();
+    } finally {
+      setSavingKey(false);
+    }
+  }
 
   async function setMode(value: string) {
     await call("/api/settings", {
@@ -497,9 +524,54 @@ function FeaturedImageCard({
           </Button>
         </div>
 
+        {/* Bring your own key: Gemini sells prepaid accounts only, so image
+            generation is billed to whoever owns the key. */}
+        <div className="space-y-2">
+          <Label htmlFor="gemini-key">Gemini API key</Label>
+          {geminiConfigured ? (
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-xs text-muted-foreground">
+                A key is saved. AI-generated images are billed to it.
+              </p>
+              <Button size="sm" variant="outline" onClick={removeKey} disabled={savingKey}>
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <Input
+                  id="gemini-key"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="AIza…"
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                />
+                <Button size="sm" onClick={saveKey} disabled={savingKey || keyInput.length < 20}>
+                  Save
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Needed for AI-generated images, and billed to your own Gemini account.
+                Create one at{" "}
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  aistudio.google.com/apikey
+                </a>
+                .
+              </p>
+            </>
+          )}
+        </div>
+
         {!geminiAvailable && (
           <p className="text-xs text-muted-foreground">
-            AI image generation requires a Gemini API key to be configured.
+            AI image generation needs a Gemini API key.
           </p>
         )}
         {geminiAvailable && !isPro && (

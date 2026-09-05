@@ -16,6 +16,10 @@ model Tenant {
   // Encrypted credentials (AES-256-GCM JSON blobs)
   notionCredentials    String? // {accessToken, workspaceId}
   wordpressCredentials String? // {siteUrl, username, appPassword}
+  /// {apiKey} — the tenant's own Google Gemini key, used for AI_GENERATED
+  /// featured images. Required on the hosted service: Gemini bills a prepaid
+  /// account, so there is no shared key to fall back to.
+  geminiCredentials    String? // {apiKey}
 
   // Notion config
   notionAuthMode      String?   // "internal" | "oauth"

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { config } from "../config.js";
 
 /** When Stripe is not configured, all features are unlocked (self-hosted mode). */
-function isSelfHosted(): boolean {
+export function isSelfHosted(): boolean {
   return !config.STRIPE_SECRET_KEY;
 }
 

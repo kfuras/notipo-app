@@ -13,6 +13,7 @@ import { convertMarkdownToGutenberg } from "./markdown-to-gutenberg.js";
 import { FeaturedImageService } from "./featured-image.service.js";
 import { canGenerateFeaturedImage } from "../lib/plan-limits.js";
 import { extractImageRefs } from "../lib/extract-images.js";
+import { resolveGeminiApiKey } from "../lib/gemini-key.js";
 import { logger } from "../lib/logger.js";
 
 export interface DirectPublishInput {
@@ -291,6 +292,7 @@ export class SyncService {
           category: category?.name || result.metadata.category || "Blog",
           backgroundImageUrl: category?.backgroundImage || undefined,
           mode: tenant!.featuredImageMode,
+          geminiApiKey: (await resolveGeminiApiKey(this.prisma, tenantId)) ?? undefined,
           aiImageStyle: tenant!.aiImageStyle ?? undefined,
           tags: result.metadata.tags,
         });
@@ -464,6 +466,7 @@ export class SyncService {
         category: category?.name || input.category || "Blog",
         backgroundImageUrl: category?.backgroundImage || undefined,
         mode: tenant!.featuredImageMode,
+        geminiApiKey: (await resolveGeminiApiKey(this.prisma, tenantId)) ?? undefined,
         aiImageStyle: tenant!.aiImageStyle ?? undefined,
         tags: input.tags,
       });
