@@ -54,6 +54,14 @@ updates:
       - dependency-name: '@better-auth/*'
         update-types:
           ['version-update:semver-major', 'version-update:semver-minor']
+      # Sentry 10.73 builds and then exits at startup: @sentry/node-core
+      # imports @opentelemetry/instrumentation, which is only reachable through
+      # development paths, so `npm ci --omit=dev` leaves it out of the runtime
+      # image. CI cannot see this — it needs the image to boot. Held on 10.52
+      # until that resolves upstream or the package is depended on directly.
+      - dependency-name: '@sentry/*'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
       - dependency-name: '@notionhq/client'
         update-types: ['version-update:semver-major']
       - dependency-name: 'stripe'
