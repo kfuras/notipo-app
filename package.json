@@ -24,7 +24,9 @@
     "test": "turbo test"
   },
   "devDependencies": {
-    "turbo": "^2"
+    "turbo": "^2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5"
   },
   "dependencies": {
     "sharp": "^0.35.1"
