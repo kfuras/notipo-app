@@ -1,6 +1,5 @@
 import type { FastifyInstance } from "fastify";
 import { logger } from "../lib/logger.js";
-import { deleteTenantFiles } from "../lib/storage.js";
 import { getStripe, isStripeConfigured } from "../lib/stripe.js";
 import { requireSession } from "../plugins/auth.js";
 
@@ -90,8 +89,10 @@ export async function accountRoutes(app: FastifyInstance) {
       }
     }
 
-    // Clean up uploaded category images from GCS.
-    await deleteTenantFiles(request.tenant.id);
+    // Category background images are not cleaned up here on purpose. They live
+    // in the customer's own WordPress media library alongside every featured
+    // image Notipo has published for them, and closing a Notipo account is not
+    // consent to delete files from their site.
 
     // Delete the blog — cascades members, api_keys, posts, etc.
     await app.prisma.tenant.delete({ where: { id: request.tenant.id } });

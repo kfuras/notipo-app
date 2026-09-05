@@ -23,7 +23,6 @@ packages/shared/   — Shared TypeScript types and enums
 - `src/plugins/` — Fastify lifecycle plugins (DB, queue, auth)
 - `src/lib/` — Utilities and API client wrappers
 - `public/category-images/` — Default background images for featured image generation
-- `src/lib/storage.ts` — Google Cloud Storage client for user-uploaded category images
 - `public/fonts/` — Bundled DejaVu Sans Bold font
 - `prisma/` — Database schema and migrations
 
@@ -305,7 +304,7 @@ Per-tenant Notion poll logic, shared by the poll-notion job and `POST /api/sync-
 
 ### `featured-image.service.ts`
 Generates 1200x628 PNG featured images. Two modes controlled by tenant `featuredImageMode`:
-- **STANDARD** (default): sharp-based compositing (no text overlay). Background priority: uploaded image (`gcs:{tenantId/filename}` stored in GCS, served via signed URLs), HTTPS URL, bundled default (`public/category-images/`), Unsplash, gradient fallback. Unsplash searches by category name (30 results cached in-memory), picks photo deterministically by hashing post title. Returns `FeaturedImageResult` with optional `UnsplashAttribution`. Requires `UNSPLASH_ACCESS_KEY`; falls back to gradient without it.
+- **STANDARD** (default): sharp-based compositing (no text overlay). Background priority: an HTTPS URL, a bundled default (`public/category-images/`, empty by default), Unsplash, gradient fallback. An uploaded background is stored in the tenant's own WordPress media library and read back as an ordinary HTTPS URL, so it takes the first branch. Unsplash searches by category name (30 results cached in-memory), picks photo deterministically by hashing post title. Returns `FeaturedImageResult` with optional `UnsplashAttribution`. Requires `UNSPLASH_ACCESS_KEY`; falls back to gradient without it.
 - **AI_GENERATED**: Delegates to `gemini-image.service.ts` which calls the Gemini REST API to generate an illustration from the post title, category, tags, and tenant's `aiImageStyle` (e.g. "comic book", "watercolor"). Requires `GEMINI_API_KEY` env var. Output is resized to 1200x628 via sharp.
 
 Photographer attribution (Unsplash only) is appended as a Gutenberg paragraph block in sync/publish services.
@@ -402,7 +401,6 @@ ADMIN_NOTIFY_EMAIL=        # Optional: receive email when new users sign up
 NEXT_PUBLIC_POSTHOG_KEY=   # Optional: PostHog analytics (marketing site + admin UI)
 NEXT_PUBLIC_META_PIXEL_ID= # Optional: Meta Pixel tracking (CompleteRegistration on signup)
 GEMINI_API_KEY=            # Optional: AI-generated featured images via Google Gemini
-GCS_BUCKET=                # Google Cloud Storage bucket for category image uploads
 ```
 
 ## Deployment

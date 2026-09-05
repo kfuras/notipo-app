@@ -4,8 +4,8 @@ import { CredentialService } from "../services/credential.service.js";
 import { WordPressService } from "../services/wordpress.service.js";
 import { NotionService } from "../services/notion.service.js";
 import { syncWpCategories } from "../lib/sync-wp-categories.js";
-import { uploadFile, deleteFile, getPreviewUrl } from "../lib/storage.js";
-import type { Category } from "@prisma/client";
+import { logger } from "../lib/logger.js";
+import type { PrismaClient, Category } from "@prisma/client";
 
 const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/png": "png",
@@ -13,23 +13,43 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/webp": "webp",
 };
 
-/** Delete an uploaded background image (gcs: or upload: prefix). */
-async function deleteBackgroundImage(backgroundImage: string | null) {
-  if (!backgroundImage?.startsWith("gcs:") && !backgroundImage?.startsWith("upload:")) return;
-  await deleteFile(backgroundImage);
+/**
+ * Remove a background image from the tenant's WordPress media library.
+ *
+ * Best effort on purpose. The file lives on the customer's own site, so a
+ * failure here means one orphaned image in their library — not a reason to
+ * fail the request they actually made. The row is updated either way.
+ */
+async function deleteBackgroundMedia(
+  prisma: PrismaClient,
+  tenantId: string,
+  mediaId: number | null,
+) {
+  if (!mediaId) return;
+  try {
+    const creds = await new CredentialService(prisma).getWordPressCredentials(tenantId);
+    if (!creds) return;
+    await new WordPressService(creds).deleteMedia(mediaId);
+  } catch (err) {
+    logger.warn({ err, tenantId, mediaId }, "Could not remove background image from WordPress");
+  }
 }
 
-/** Add a previewUrl for uploaded background images so the frontend can display them. */
-async function withPreviewUrl(category: Category) {
+/**
+ * The background is stored as the public URL WordPress gave us, so there is
+ * nothing to sign or resolve. previewUrl is kept in the response because the
+ * frontend reads it, and it used to be a separate signed URL.
+ */
+function withPreviewUrl(category: Category) {
   const bg = category.backgroundImage;
-  if (bg?.startsWith("gcs:") || bg?.startsWith("upload:")) {
-    return { ...category, previewUrl: await getPreviewUrl(bg) };
+  if (bg?.startsWith("http://") || bg?.startsWith("https://")) {
+    return { ...category, previewUrl: bg };
   }
   return category;
 }
 
-async function withPreviewUrls(categories: Category[]) {
-  return Promise.all(categories.map(withPreviewUrl));
+function withPreviewUrls(categories: Category[]) {
+  return categories.map(withPreviewUrl);
 }
 
 const updateCategorySchema = z.object({
@@ -42,7 +62,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       where: { tenantId: request.tenant.id },
       orderBy: { name: "asc" },
     });
-    return { data: await withPreviewUrls(categories) };
+    return { data: withPreviewUrls(categories) };
   });
 
   app.get("/api/tags", async (request) => {
@@ -69,7 +89,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       app.prisma.category.findMany({ where: { tenantId: request.tenant.id }, orderBy: { name: "asc" } }),
       app.prisma.tag.findMany({ where: { tenantId: request.tenant.id }, orderBy: { name: "asc" } }),
     ]);
-    return { data: { categories: await withPreviewUrls(categories), tags }, synced };
+    return { data: { categories: withPreviewUrls(categories), tags }, synced };
   });
 
   /** Update a category's background image (JSON — accepts a URL or filename string). */
@@ -84,7 +104,7 @@ export async function categoryRoutes(app: FastifyInstance) {
     if (category.count === 0) return reply.notFound("Category not found");
 
     const updated = await app.prisma.category.findFirst({ where: { id: request.params.id, tenantId: request.tenant.id } });
-    return { data: updated ? await withPreviewUrl(updated) : updated };
+    return { data: updated ? withPreviewUrl(updated) : updated };
   });
 
   /** Upload a background image for a category (multipart form-data). */
@@ -117,18 +137,40 @@ export async function categoryRoutes(app: FastifyInstance) {
       return reply.badRequest("File too large. Maximum size is 5 MB.");
     }
 
-    const filename = `${categoryId}-${Date.now()}.${ext}`;
-    const ref = await uploadFile(tenantId, filename, buffer, file.mimetype);
+    const creds = await new CredentialService(app.prisma).getWordPressCredentials(tenantId);
+    if (!creds) {
+      return reply
+        .code(400)
+        .send({ error: "WordPress is not connected. Connect WordPress in Settings first." });
+    }
 
-    // Delete old uploaded file if replacing
-    await deleteBackgroundImage(category.backgroundImage);
+    // Named after the category rather than its id: this lands in the customer's
+    // own media library, where an opaque cuid tells them nothing.
+    const safeName =
+      category.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "category";
+    const filename = `notipo-background-${safeName}.${ext}`;
+
+    let media;
+    try {
+      media = await new WordPressService(creds).uploadMedia(buffer, filename, file.mimetype);
+    } catch (err) {
+      logger.error({ err, tenantId, categoryId }, "WordPress rejected the background image upload");
+      return reply.code(502).send({ error: "WordPress rejected the upload" });
+    }
+    if (!media?.source_url || !media?.id) {
+      logger.error({ tenantId, categoryId, media }, "WordPress media upload returned no url or id");
+      return reply.code(502).send({ error: "WordPress did not return a valid image URL" });
+    }
+
+    // Replacing: take the previous one out of their library so it does not pile up.
+    await deleteBackgroundMedia(app.prisma, tenantId, category.backgroundImageMediaId);
 
     const updated = await app.prisma.category.update({
       where: { id: categoryId },
-      data: { backgroundImage: ref },
+      data: { backgroundImage: media.source_url, backgroundImageMediaId: media.id },
     });
 
-    return { data: await withPreviewUrl(updated) };
+    return { data: withPreviewUrl(updated) };
   });
 
   /** Remove the background image for a category. */
@@ -141,11 +183,11 @@ export async function categoryRoutes(app: FastifyInstance) {
     });
     if (!category) return reply.notFound("Category not found");
 
-    await deleteBackgroundImage(category.backgroundImage);
+    await deleteBackgroundMedia(app.prisma, tenantId, category.backgroundImageMediaId);
 
     const updated = await app.prisma.category.update({
       where: { id: categoryId },
-      data: { backgroundImage: null },
+      data: { backgroundImage: null, backgroundImageMediaId: null },
     });
 
     return { data: updated };
@@ -164,8 +206,8 @@ export async function categoryRoutes(app: FastifyInstance) {
       return reply.badRequest(`Cannot delete category: ${postCount} post(s) still assigned to it`);
     }
 
-    // Clean up uploaded file before deleting
-    await deleteBackgroundImage(category.backgroundImage);
+    // Take the background out of their media library before dropping the row.
+    await deleteBackgroundMedia(app.prisma, request.tenant.id, category.backgroundImageMediaId);
 
     await app.prisma.category.delete({ where: { id: request.params.id } });
     return reply.code(204).send();
