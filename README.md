@@ -81,7 +81,7 @@ packages/
   cli/     — `notipo` npm package (MIT-licensed thin client)
   shared/  — TypeScript types and enums
 plugins/
-  notipo-seo/  — WordPress plugin for Yoast/AIOSEO metadata bridge
+  notipo-seo-meta-writer/  — WordPress plugin for Yoast/AIOSEO metadata bridge
 ```
 
 ---
@@ -138,7 +138,7 @@ In plain English:
 - ✅ You can fork it and contribute changes back.
 - ⚠️ If you run a modified version as a hosted service, you must publish your modifications under the same license. This is the "Affero clause" — it closes the network-service loophole that plain GPL leaves open.
 - ✅ The `notipo` CLI package is published to npm under MIT (it's just a thin API client wrapper).
-- ✅ The `notipo-seo` WordPress plugin is published under MIT (compatible with WordPress's GPL ecosystem).
+- ✅ The `notipo-seo-meta-writer` WordPress plugin is published under MIT (compatible with WordPress's GPL ecosystem).
 
 If you want to use Notipo's code in a proprietary hosted product without AGPL obligations, [open an issue](https://github.com/kfuras/notipo-app/issues/new) — commercial licensing may be available.
 
