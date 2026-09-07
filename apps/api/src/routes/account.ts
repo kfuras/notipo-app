@@ -101,7 +101,16 @@ export async function accountRoutes(app: FastifyInstance) {
     // has no other blog left.
     const remaining = await app.prisma.member.count({ where: { userId: request.user.id } });
     if (remaining === 0) {
-      await app.prisma.authUser.delete({ where: { id: request.user.id } }).catch(() => {});
+      // Log the failure rather than swallowing it: a user whose blog is gone but
+      // whose authUser survives is locked out permanently — every route 401s
+      // "No blog is set up for this account" and re-signup fails on the taken
+      // e-mail. Silent is the one thing this must not be.
+      await app.prisma.authUser.delete({ where: { id: request.user.id } }).catch((err) => {
+        log.error(
+          { err, userId: request.user.id },
+          "Blog deleted but the user row survived — this account is now locked out",
+        );
+      });
     }
 
     log.info({ tenantId: request.tenant.id, userId: request.user.id }, "Blog and account deleted");

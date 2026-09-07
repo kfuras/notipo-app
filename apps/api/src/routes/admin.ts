@@ -2,6 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { CredentialService } from "../services/credential.service.js";
+import { logger } from "../lib/logger.js";
+
+const log = logger.child({ route: "admin" });
 
 const createTenantSchema = z.object({
   name: z.string().min(1),
@@ -97,7 +100,26 @@ export async function adminRoutes(app: FastifyInstance) {
 
   /** DELETE /api/admin/tenants/:id — delete a tenant and all its data */
   app.delete<{ Params: { id: string } }>("/api/admin/tenants/:id", async (request, reply) => {
+    // Who belongs to this blog, before the cascade removes the member rows.
+    const members = await app.prisma.member.findMany({
+      where: { organizationId: request.params.id },
+      select: { userId: true },
+    });
+
     await app.prisma.tenant.delete({ where: { id: request.params.id } });
+
+    // Delete every owner this left without a blog. Without it the authUser and
+    // its session survive with no member row, and that account is locked out
+    // for good: every tenant route 401s "No blog is set up for this account",
+    // and signing up again fails because the e-mail is taken.
+    for (const { userId } of members) {
+      const remaining = await app.prisma.member.count({ where: { userId } });
+      if (remaining > 0) continue;
+      await app.prisma.authUser.delete({ where: { id: userId } }).catch((err) => {
+        log.error({ err, userId }, "Could not delete the owner left without a blog — account is now locked out");
+      });
+    }
+
     return reply.code(204).send();
   });
 }
