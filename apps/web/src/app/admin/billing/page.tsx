@@ -8,6 +8,7 @@ import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LoadError } from "@/components/load-error";
 import { CreditCard, Zap, Image, Radio, Loader2 } from "lucide-react";
 
 interface BillingData {
@@ -43,7 +44,7 @@ function PlanBadge({ effectivePlan, trialDaysRemaining }: { effectivePlan: strin
 
 export default function BillingPage() {
   const { call } = useApiCall();
-  const { data: billing, loading, refetch } = useApi<BillingData>("/api/billing");
+  const { data: billing, loading, error, refetch } = useApi<BillingData>("/api/billing");
   const [actionLoading, setActionLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -83,7 +84,9 @@ export default function BillingPage() {
     return (
       <div className="space-y-6 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
-        <p className="text-muted-foreground">Loading...</p>
+        {/* Never fall through to "Loading..." on an error — that is the state
+            that hides a 401 behind a spinner that never resolves. */}
+        {error ? <LoadError message={error} onRetry={refetch} /> : <p className="text-muted-foreground">Loading...</p>}
       </div>
     );
   }

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { LoadError } from "@/components/load-error";
 
 interface SettingsData {
   data: {
@@ -37,12 +38,18 @@ interface SettingsData {
 }
 
 export default function SettingsPage() {
-  const { data: settings, refetch } = useApi<SettingsData>("/api/settings");
+  const { data: settings, loading, error, refetch } = useApi<SettingsData>("/api/settings");
   const cfg = settings?.data;
 
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+
+      {/* Without this the page rendered its heading and nothing else on a failed
+          request — no cards, no explanation, no way to tell it apart from a
+          blog that simply has no settings yet. */}
+      {error && !cfg && <LoadError message={error} onRetry={refetch} />}
+      {loading && !cfg && !error && <p className="text-muted-foreground">Loading...</p>}
 
       {cfg && (
         <>
