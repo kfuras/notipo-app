@@ -719,7 +719,7 @@ function SetupCompleteCard({
           <p className="text-xs text-muted-foreground mt-0.5">
             {notionConnected
               ? "Sync your latest posts from Notion to WordPress."
-              : "Connect Notion to publish to WordPress."}
+              : "Publish straight to WordPress from the CLI or an MCP client. Connect Notion if you'd rather write there."}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -733,7 +733,7 @@ function SetupCompleteCard({
               {syncing ? "Syncing..." : "Sync Now"}
             </Button>
           ) : (
-            <Button size="sm" asChild className="bg-accent-purple hover:bg-purple-600 text-white">
+            <Button size="sm" variant="outline" asChild>
               <Link href="/admin/settings">Connect Notion</Link>
             </Button>
           )}

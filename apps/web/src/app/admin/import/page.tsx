@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Check, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Check, Loader2, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { capture } from "@/lib/posthog";
 
 interface WPPost {
@@ -36,6 +36,8 @@ interface WPPostsResponse {
   totalPages: number;
   page: number;
   perPage: number;
+  /** Non-null when Notion is missing/misconfigured, i.e. import would fail. */
+  notionIssue: string | null;
 }
 
 interface BillingData {
@@ -75,6 +77,11 @@ export default function ImportPage() {
   const { call } = useApiCall();
 
   const isPro = billing?.data?.effectivePlan === "PRO" || billing?.data?.effectivePlan === "TRIAL";
+
+  // Import writes into Notion. Without it every queued job fails in the worker,
+  // so block the buttons rather than let the user queue doomed work.
+  const notionIssue = data?.notionIssue ?? null;
+  const canImport = !notionIssue;
 
   // SSE for live job updates
   const onEvent = useCallback(
@@ -216,7 +223,7 @@ export default function ImportPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Import from WordPress</h1>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
-            <Button onClick={importSelected} disabled={importing} size="sm">
+            <Button onClick={importSelected} disabled={importing || !canImport} size="sm">
               {importing ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-1" />
               ) : (
@@ -226,7 +233,7 @@ export default function ImportPage() {
             </Button>
           )}
           {data && data.total > 0 && (
-            <Button onClick={importAll} disabled={importingAll} size="sm" variant="outline">
+            <Button onClick={importAll} disabled={importingAll || !canImport} size="sm" variant="outline">
               {importingAll ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-1" />
               ) : (
@@ -237,6 +244,25 @@ export default function ImportPage() {
           )}
         </div>
       </div>
+
+      {notionIssue && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Import needs Notion</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {notionIssue === "Notion database not configured"
+                  ? "Notion is connected, but no database is selected. Pick one in Settings before importing."
+                  : "Imported WordPress posts are written into your Notion database. Connect Notion in Settings to enable import."}
+              </p>
+              <Button asChild size="sm" variant="outline" className="mt-3">
+                <a href="/admin/settings">Go to Settings</a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
@@ -312,7 +338,7 @@ export default function ImportPage() {
                     type="checkbox"
                     checked={selected.has(post.id)}
                     onChange={() => toggleSelect(post.id)}
-                    disabled={post.imported && !overwrite}
+                    disabled={!canImport || (post.imported && !overwrite)}
                     className="mt-1 rounded"
                   />
                   <p className="font-medium text-sm leading-snug">
@@ -333,7 +359,7 @@ export default function ImportPage() {
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground pl-6">
                 <span>{new Date(post.date).toLocaleDateString()}</span>
-                {(!post.imported || overwrite) && (
+                {canImport && (!post.imported || overwrite) && (
                   <button
                     onClick={() => importSingle(post.id)}
                     className="text-accent-purple hover:underline"
@@ -356,6 +382,7 @@ export default function ImportPage() {
                 <input
                   type="checkbox"
                   onChange={toggleAll}
+                  disabled={!canImport}
                   checked={
                     posts.length > 0 &&
                     posts.filter((p) => !p.imported || overwrite).length > 0 &&
@@ -398,7 +425,7 @@ export default function ImportPage() {
                       type="checkbox"
                       checked={selected.has(post.id)}
                       onChange={() => toggleSelect(post.id)}
-                      disabled={post.imported && !overwrite}
+                      disabled={!canImport || (post.imported && !overwrite)}
                       className="rounded"
                     />
                   </TableCell>
@@ -422,7 +449,7 @@ export default function ImportPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {(!post.imported || overwrite) && (
+                    {canImport && (!post.imported || overwrite) && (
                       <button
                         onClick={() => importSingle(post.id)}
                         className="text-sm text-accent-purple hover:underline whitespace-nowrap"
