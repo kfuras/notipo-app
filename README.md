@@ -13,15 +13,12 @@ Point your agent (Claude, Cursor, ChatGPT, n8n, any HTTP client) at Notipo and i
 
 ---
 
-## Three ways to publish to WordPress
+## Two ways to publish to WordPress
 
-### 1. The built-in markdown editor
-Distraction-free editor with toolbar shortcuts, slash commands, drag-and-drop images, and one-click publish. No Notion required.
-
-### 2. From Notion
+### 1. From Notion
 Connect Notion, change a page status to `Post to Wordpress` or `Publish`, and Notipo handles the rest — markdown extraction, image caching to WP media library, featured image generation, SEO metadata via Rank Math / Yoast / SEOPress / AIOSEO.
 
-### 3. From an AI agent, REST API, CLI, or n8n workflow
+### 2. From an AI agent, REST API, CLI, or n8n workflow
 Notipo exposes a **Model Context Protocol (MCP) server** with 13 tools for AI agents, plus a REST API and a CLI. Claude Desktop, Cursor, Windsurf, Claude Code, ChatGPT — any MCP-compatible agent can publish posts end-to-end.
 
 ```bash
@@ -67,7 +64,7 @@ Self-hosting is unsupported — no help beyond what's in this repo, no upgrade p
 
 - **Backend:** Fastify, TypeScript, Prisma, PostgreSQL 17
 - **Job queue:** [pg-boss](https://github.com/timgit/pg-boss) (Postgres-backed, no Redis)
-- **Frontend (admin):** Next.js 16 + BlockNote editor + shadcn/ui + Tailwind
+- **Frontend (admin):** Next.js 16 + shadcn/ui + Tailwind
 - **AI:** Google Gemini (featured images), [Model Context Protocol](https://modelcontextprotocol.io) (agent integration)
 - **Other:** Sharp (images), Stripe (billing), Resend (transactional email), Sentry (errors), PostHog (product analytics), Notion SDK, WordPress REST API
 - **CLI:** zero-dependency npm package, native fetch only

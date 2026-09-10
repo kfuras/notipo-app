@@ -1,6 +1,6 @@
 # Notipo
 
-Open-source (AGPL-3.0) WordPress publishing platform with a hosted SaaS at notipo.com. Built-in markdown editor with one-click publish, plus optional Notion sync for power users. Includes automated featured images, code syntax highlighting, SEO optimization, and a 13-tool MCP server for AI-agent publishing.
+Open-source (AGPL-3.0) WordPress publishing platform with a hosted SaaS at notipo.com. Posts are authored in Notion or pushed straight from the CLI / MCP server — there is no in-app editor. Includes automated featured images, code syntax highlighting, SEO optimization, and a 13-tool MCP server for AI-agent publishing.
 
 Repo: `kfuras/notipo-app` on GitHub (renamed from `kfuras/notipo` on 2026-05-08; old links redirect). Self-hosters pull multi-arch Docker images from `ghcr.io/kfuras/notipo-{api,web}` published on every `v*` tag.
 
@@ -36,25 +36,17 @@ packages/shared/   — Shared TypeScript types and enums
 
 Marketing site (landing page, blog, docs) lives in a separate repo: `notipo-site`.
 
-### In-App Write Page (`/admin/write`)
+### How content gets in
 
-Markdown editor for writing and publishing posts directly to WordPress — no Notion required. This is the primary content creation path.
+There is **no in-app editor**. The Write page was removed in `ab44dd7` (2026-08-19). The admin UI manages connections, posts, categories, jobs and billing — it does not author content. Three paths write posts:
 
-**Features:**
-- Borderless title + body (Notion/Gutenberg style)
-- Markdown formatting toolbar (bold, italic, strikethrough, headings, link, image, code, code block, lists, quote, table, divider)
-- Slash commands: type `/` at start of a line for a block menu
-- List continuation on Enter (numbered, bullet, task, blockquote) + empty item exits list
-- Tab/Shift+Tab indentation
-- Image paste from clipboard + drag-and-drop → uploads to WordPress media library via `POST /api/uploads/image`
-- Keyboard shortcuts: Cmd/Ctrl+B (bold), I (italic), K (link)
-- Auto-save to localStorage (debounced 1s), draft restore on page load with dismiss option
-- `beforeunload` guard when editor has content
-- WordPress connection warning banner when WP not connected
-- Collapsible "Post settings" panel: category, tags, featured image title, slug, SEO keyword, SEO description
-- Edit mode: `/admin/write?id=<postId>` loads existing post data, uses `PATCH /api/posts/:id`
+- **CLI / MCP → WordPress directly** — `POST /api/posts/direct` takes markdown and publishes without Notion. Needs only the WordPress connection.
+- **CLI / MCP → Notion → WordPress** — `POST /api/posts/create` creates a Notion page and triggers the normal sync pipeline.
+- **Notion itself** — write in the database, set the trigger status, and the poll/webhook picks it up.
 
-**Onboarding:** Only WordPress connection is required (one step). Notion is optional, available in Settings.
+`POST /api/uploads/image` still exists for pushing images into the WordPress media library.
+
+**Onboarding:** Only WordPress connection is required (one step, `SetupCard` in `admin/page.tsx`). Notion is optional and lives in Settings — but note that **WP→Notion import requires it**, and the Import page blocks with a banner until it is connected and a database is selected.
 
 ### packages/cli/ (Notipo CLI)
 
@@ -70,7 +62,7 @@ All events use the `capture()` helper from `src/lib/posthog.tsx`. No-ops if Post
 |-------|------------|----------|
 | `user_registered` | `auto_verified` | auth-context.tsx |
 | `user_logged_in` | `method` | auth-context.tsx |
-| `onboarding_step_completed` | `step` (template/notion/wordpress), `method` | admin/page.tsx |
+| `onboarding_step_completed` | `step` (notion/wordpress), `method` | admin/page.tsx |
 | `onboarding_completed` | — | admin/page.tsx (fires once via localStorage) |
 | `notion_connected` | `method` (oauth/manual) | admin/page.tsx |
 | `wordpress_connected` | `method` (auto/manual) | admin/page.tsx, WPAuthHandler |
@@ -87,9 +79,6 @@ All events use the `capture()` helper from `src/lib/posthog.tsx`. No-ops if Post
 | `wordpress_disconnected` | — | admin/settings/page.tsx |
 | `account_deleted` | — | admin/account/page.tsx |
 | `import_started` | `count`, `overwrite` | admin/import/page.tsx |
-| `write_page_viewed` | — | admin/write/page.tsx |
-| `post_created_from_editor` | `publish` | admin/write/page.tsx |
-| `post_updated_from_editor` | `publish` | admin/write/page.tsx |
 
 Mobile: bottom nav bar on phones (<768px), sidebar on desktop. Admin tables switch to card layouts on mobile via `md:hidden`/`hidden md:block` pattern. Dark theme-color meta tag set dynamically for phone safe areas.
 
