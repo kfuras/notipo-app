@@ -19,6 +19,20 @@ const importBulkSchema = z.object({
   overwrite: z.boolean().optional().default(false),
 });
 
+/**
+ * Import writes into Notion, so both the connection and the target database must
+ * exist before a job is worth queuing. Without this the job dies in the worker
+ * (import.service.ts) and the user only finds out from the Jobs page.
+ * Returns a user-facing message, or null when Notion is ready.
+ */
+async function notionImportBlocker(app: FastifyInstance, tenantId: string, notionDatabaseId: string | null) {
+  const credService = new CredentialService(app.prisma);
+  const notionCreds = await credService.getNotionCredentials(tenantId);
+  if (!notionCreds) return "Notion not connected";
+  if (!notionDatabaseId) return "Notion database not configured";
+  return null;
+}
+
 export async function importRoutes(app: FastifyInstance) {
   /** GET /api/import/wp-posts — List importable WordPress posts */
   app.get<{ Querystring: { page?: string; perPage?: string; status?: string } }>(
@@ -29,7 +43,7 @@ export async function importRoutes(app: FastifyInstance) {
       // Plan gate
       const tenant = await app.prisma.tenant.findUniqueOrThrow({
         where: { id: tenantId },
-        select: { plan: true, trialEndsAt: true },
+        select: { plan: true, trialEndsAt: true, notionDatabaseId: true },
       });
       if (!canImportFromWordPress(tenant.plan, tenant.trialEndsAt)) {
         return reply.code(403).send({ error: "Import from WordPress requires a Pro plan" });
@@ -40,6 +54,10 @@ export async function importRoutes(app: FastifyInstance) {
       if (!wpCreds) {
         return reply.code(400).send({ error: "WordPress not connected" });
       }
+
+      // Reported, not enforced: the list is still useful to browse, but the UI
+      // needs to know it cannot import yet.
+      const notionIssue = await notionImportBlocker(app, tenantId, tenant.notionDatabaseId);
 
       const wp = new WordPressService(wpCreds);
       const page = Number(request.query.page) || 1;
@@ -72,6 +90,7 @@ export async function importRoutes(app: FastifyInstance) {
         totalPages: result.totalPages,
         page,
         perPage,
+        notionIssue,
       };
     },
   );
@@ -83,11 +102,14 @@ export async function importRoutes(app: FastifyInstance) {
 
     const tenant = await app.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { plan: true, trialEndsAt: true },
+      select: { plan: true, trialEndsAt: true, notionDatabaseId: true },
     });
     if (!canImportFromWordPress(tenant.plan, tenant.trialEndsAt)) {
       return reply.code(403).send({ error: "Import from WordPress requires a Pro plan" });
     }
+
+    const notionIssue = await notionImportBlocker(app, tenantId, tenant.notionDatabaseId);
+    if (notionIssue) return reply.code(400).send({ error: notionIssue });
 
     const credService = new CredentialService(app.prisma);
     const wpCreds = await credService.getWordPressCredentials(tenantId);
@@ -130,11 +152,14 @@ export async function importRoutes(app: FastifyInstance) {
 
     const tenant = await app.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { plan: true, trialEndsAt: true },
+      select: { plan: true, trialEndsAt: true, notionDatabaseId: true },
     });
     if (!canImportFromWordPress(tenant.plan, tenant.trialEndsAt)) {
       return reply.code(403).send({ error: "Import from WordPress requires a Pro plan" });
     }
+
+    const notionIssue = await notionImportBlocker(app, tenantId, tenant.notionDatabaseId);
+    if (notionIssue) return reply.code(400).send({ error: notionIssue });
 
     const jobId = await app.boss.send("import-post", {
       tenantId,
@@ -154,11 +179,14 @@ export async function importRoutes(app: FastifyInstance) {
 
     const tenant = await app.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { plan: true, trialEndsAt: true },
+      select: { plan: true, trialEndsAt: true, notionDatabaseId: true },
     });
     if (!canImportFromWordPress(tenant.plan, tenant.trialEndsAt)) {
       return reply.code(403).send({ error: "Import from WordPress requires a Pro plan" });
     }
+
+    const notionIssue = await notionImportBlocker(app, tenantId, tenant.notionDatabaseId);
+    if (notionIssue) return reply.code(400).send({ error: notionIssue });
 
     // Pre-resolve WP categories/tags once for efficiency
     const credService = new CredentialService(app.prisma);
