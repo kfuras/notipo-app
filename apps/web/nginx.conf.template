@@ -26,7 +26,7 @@ server {
         proxy_read_timeout 86400s;
     }
 
-    location = /health {
+    location ~ ^/health(/db)?$ {
         proxy_pass $api_upstream;
         proxy_set_header Host $host;
     }

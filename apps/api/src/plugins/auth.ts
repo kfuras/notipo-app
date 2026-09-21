@@ -59,6 +59,7 @@ async function authHook(app: FastifyInstance) {
     // routes (handled by the better-auth plugin), public assets, MCP (own auth).
     if (
       request.url === "/health" ||
+      request.url === "/health/db" ||
       request.url === "/favicon.ico" ||
       request.url === "/api/notion/webhook" ||
       request.url === "/api/billing/webhook" ||
