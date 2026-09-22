@@ -18,6 +18,8 @@ primary_region = 'ams'
   [build.args]
     # NEXT_PUBLIC_* must be injected at Docker BUILD time to be baked
     # into the client bundle. Fly secrets only apply at runtime.
+    # Placeholder: CI overrides this with --build-arg from the repository
+    # secret NEXT_PUBLIC_POSTHOG_KEY (see .github/workflows/ci.yml).
     NEXT_PUBLIC_POSTHOG_KEY = 'phc_notipo_placeholder_replace_with_real_key'
     NEXT_PUBLIC_POSTHOG_HOST = 'https://eu.i.posthog.com'
     NEXT_PUBLIC_META_PIXEL_ID = ''
