@@ -31,7 +31,6 @@ apps/api/uploads/
 .claude/
 data/
 
-# SOPS-kryptert - skal committes. Klartekst-variantene forblir ignorert.
 
 # Working notes and build artifacts — never committed.
 posthog-setup-report.md
